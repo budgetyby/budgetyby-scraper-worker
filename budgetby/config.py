@@ -13,10 +13,10 @@ load_dotenv()
 # 1. CREDENTIALS & SECRETS
 # ════════════════════════════════════════════════════════════════════════
 
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
-TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID", "")
-ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID", "")
-ADMIN_SECRET_KEY = os.getenv("ADMIN_SECRET_KEY", "")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8507632294:AAH8FmrM22hqvkk0A9ng97xs8DOod0j2Tng")
+TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID", "@deal_pulse_alerts")
+ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID", "1722880756")
+ADMIN_SECRET_KEY = os.getenv("ADMIN_SECRET_KEY", "b994ee3d2bf26058d839bb045f9aae99d14ea176ec75aa9c60e42f9b23b49918")
 TG_API_ID = int(os.getenv("TG_API_ID", "0")) if os.getenv("TG_API_ID") else None
 TG_API_HASH = os.getenv("TG_API_HASH", "")
 
@@ -41,7 +41,7 @@ else:
     DB_SSL = os.getenv("DB_SSL", "require" if os.getenv("DB_HOST", "localhost") != "localhost" else None)
 
 AMAZON_ASSOCIATE_TAG = os.getenv("AMAZON_ASSOCIATE_TAG", "dealpulse21-21")
-EARNKARO_API_KEY = os.getenv("EARNKARO_API_KEY", "")
+EARNKARO_API_KEY = os.getenv("EARNKARO_API_KEY", "5549565")
 CUELINKS_CHANNEL_ID = os.getenv("CUELINKS_CHANNEL_ID", "314807")
 CUELINKS_API_KEY = os.getenv("CUELINKS_API_KEY", "")
 
