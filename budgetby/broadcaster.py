@@ -19,10 +19,66 @@ from budgetby.cloud_scraper import get_or_create_affiliate_link
 logger = logging.getLogger("budgetby.cloud_broadcaster")
 
 _last_posted_product_ids = set()
+_last_posted_platform: str | None = None
+
+# 11-slot proportional rotation cycle (identical to local PostingQueue schedule):
+# Amazon: 3, Flipkart: 3, Myntra: 2, Ajio: 2, Nykaa: 1 (Total = 11 slots)
+ROTATION_SEQUENCE = [
+    "amazon", "flipkart", "myntra",
+    "amazon", "ajio", "flipkart",
+    "nykaa",
+    "amazon", "myntra",
+    "flipkart", "ajio"
+]
+_current_seq_idx = 0
+
+
+async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict | None:
+    """Fetch unposted deal candidate strictly for the specified store."""
+    exclude_clause = ""
+    if exclude_ids:
+        recent_list = list(exclude_ids)[-250:]
+        exclude_clause = f"AND d.product_id NOT IN ({','.join(str(i) for i in recent_list)})"
+
+    # Step 1: Look in deals table for this specific store
+    row = await database.fetchrow(f"""
+        SELECT d.id as deal_id, d.product_id, d.posted_price, d.posted_mrp, 
+               d.deal_score, d.badge, d.posted_at,
+               p.title, p.platform, p.product_url, p.affiliate_url, p.image_url, 
+               p.current_price, p.mrp, p.category, p.rating
+        FROM deals d
+        JOIN products p ON d.product_id = p.id
+        WHERE p.in_stock = TRUE AND p.status = 'ACTIVE'
+          AND p.platform = '{store}'
+          {exclude_clause}
+        ORDER BY d.id DESC
+        LIMIT 1;
+    """)
+    if row:
+        return dict(row)
+
+    # Step 2: Fall back to active high-discount catalog item specifically for this store
+    row = await database.fetchrow(f"""
+        SELECT 0 as deal_id, p.id as product_id, p.current_price as posted_price, p.mrp as posted_mrp,
+               ROUND((((p.mrp - p.current_price)/NULLIF(p.mrp,0)) * 100)::numeric, 1) as deal_score,
+               'HOT_DEAL' as badge, NOW() as posted_at,
+               p.title, p.platform, p.product_url, p.affiliate_url, p.image_url, 
+               p.current_price, p.mrp, p.category, p.rating
+        FROM products p
+        WHERE p.in_stock = TRUE AND p.status = 'ACTIVE' AND p.current_price > 0
+          AND p.platform = '{store}'
+          AND p.mrp > p.current_price
+          AND ((p.mrp - p.current_price) / p.mrp) >= 0.20
+          {exclude_clause.replace('d.product_id', 'p.id')}
+        ORDER BY ((p.mrp - p.current_price) / p.mrp) DESC, p.id DESC
+        LIMIT 1;
+    """)
+    return dict(row) if row else None
 
 broadcaster_stats = {
     "status": "starting",
     "total_posted": 0,
+    "last_posted_platform": None,
     "last_posted_product_id": None,
     "last_posted_title": None,
     "last_posted_at": None,
@@ -34,18 +90,16 @@ def get_broadcaster_stats() -> dict:
     return {
         **broadcaster_stats,
         "history_size": len(_last_posted_product_ids),
+        "last_posted_platform": _last_posted_platform,
         "channel": getattr(config, "TELEGRAM_CHANNEL_ID", "@deal_pulse_alerts"),
         "now": datetime.now(timezone.utc).isoformat()
     }
-
-_PLATFORMS_ROTATION = ["myntra", "flipkart", "amazon", "ajio", "nykaa"]
-_current_plat_idx = 0
 
 async def run_paced_30s_broadcaster():
     """Continuous 30-second loop posting deals to Telegram & ensuring live website deals."""
     logger.info("🚀 [30s CLOUD BROADCASTER] Initializing continuous 30-second deal poster...")
     broadcaster_stats["status"] = "running"
-    global _current_plat_idx
+    global _current_seq_idx, _last_posted_platform
     await asyncio.sleep(5)  # Brief warm-up delay on server boot
 
     while True:
@@ -56,63 +110,26 @@ async def run_paced_30s_broadcaster():
             if database._pool is None:
                 await database.init_pool()
 
-            # Rotate through all 5 stores fairly to guarantee balanced posting
-            target_plat = _PLATFORMS_ROTATION[_current_plat_idx % len(_PLATFORMS_ROTATION)]
-            _current_plat_idx += 1
+            # Determine target store from the scheduled sequence
+            target_plat = ROTATION_SEQUENCE[_current_seq_idx % len(ROTATION_SEQUENCE)]
+
+            # Strict Anti-clustering rule: never post the same store twice in a row
+            if target_plat == _last_posted_platform:
+                _current_seq_idx += 1
+                target_plat = ROTATION_SEQUENCE[_current_seq_idx % len(ROTATION_SEQUENCE)]
 
             # 1. Fetch next candidate deal prioritizing target store
-            exclude_clause = ""
-            if _last_posted_product_ids:
-                recent_list = list(_last_posted_product_ids)[-250:]
-                exclude_clause = f"AND d.product_id NOT IN ({','.join(str(i) for i in recent_list)})"
+            deal_row = await _fetch_deal_candidate_for_store(target_plat, _last_posted_product_ids)
 
-            query_plat = f"""
-                SELECT d.id as deal_id, d.product_id, d.posted_price, d.posted_mrp, 
-                       d.deal_score, d.badge, d.posted_at,
-                       p.title, p.platform, p.product_url, p.affiliate_url, p.image_url, 
-                       p.current_price, p.mrp, p.category, p.rating
-                FROM deals d
-                JOIN products p ON d.product_id = p.id
-                WHERE p.in_stock = TRUE AND p.status = 'ACTIVE'
-                  AND p.platform = '{target_plat}'
-                  {exclude_clause}
-                ORDER BY d.id DESC
-                LIMIT 1;
-            """
-            deal_row = await database.fetchrow(query_plat)
-
-            # Fallback across all platforms if target store has no pending deal in deals table
+            # If target store has no candidate right now, rotate through alternatives in sequence order
+            # (Strictly skipping _last_posted_platform so adjacent duplicates are impossible)
             if not deal_row:
-                query_all = f"""
-                    SELECT d.id as deal_id, d.product_id, d.posted_price, d.posted_mrp, 
-                           d.deal_score, d.badge, d.posted_at,
-                           p.title, p.platform, p.product_url, p.affiliate_url, p.image_url, 
-                           p.current_price, p.mrp, p.category, p.rating
-                    FROM deals d
-                    JOIN products p ON d.product_id = p.id
-                    WHERE p.in_stock = TRUE AND p.status = 'ACTIVE'
-                      {exclude_clause}
-                    ORDER BY d.id DESC
-                    LIMIT 1;
-                """
-                deal_row = await database.fetchrow(query_all)
-
-            # Fallback to high-discount catalog item if no unposted deal found
-            if not deal_row:
-                deal_row = await database.fetchrow(f"""
-                    SELECT 0 as deal_id, p.id as product_id, p.current_price as posted_price, p.mrp as posted_mrp,
-                           ROUND((((p.mrp - p.current_price)/NULLIF(p.mrp,0)) * 100)::numeric, 1) as deal_score,
-                           'HOT_DEAL' as badge, NOW() as posted_at,
-                           p.title, p.platform, p.product_url, p.affiliate_url, p.image_url, 
-                           p.current_price, p.mrp, p.category, p.rating
-                    FROM products p
-                    WHERE p.in_stock = TRUE AND p.status = 'ACTIVE' AND p.current_price > 0
-                      AND p.mrp > p.current_price
-                      AND ((p.mrp - p.current_price) / p.mrp) >= 0.35
-                      {exclude_clause.replace('d.product_id', 'p.id')}
-                    ORDER BY p.id DESC
-                    LIMIT 1;
-                """)
+                for alt_plat in ROTATION_SEQUENCE:
+                    if alt_plat != _last_posted_platform and alt_plat != target_plat:
+                        deal_row = await _fetch_deal_candidate_for_store(alt_plat, _last_posted_product_ids)
+                        if deal_row:
+                            target_plat = alt_plat
+                            break
 
             if deal_row:
                 pid = deal_row["product_id"]
@@ -134,6 +151,7 @@ async def run_paced_30s_broadcaster():
                         f"⚠️ [AFFILIATE GUARD] Product {pid} ({prod_dict.get('platform')}) has unconverted link. "
                         f"Skipping post to guarantee 100% affiliate compliance."
                     )
+                    _last_posted_product_ids.add(pid)
                     await asyncio.sleep(2)
                     continue
 
@@ -220,11 +238,14 @@ async def run_paced_30s_broadcaster():
                                 pass
 
                 if posted:
+                    _last_posted_platform = prod_dict.get("platform", "").lower()
+                    _current_seq_idx += 1
                     broadcaster_stats["total_posted"] += 1
+                    broadcaster_stats["last_posted_platform"] = _last_posted_platform
                     broadcaster_stats["last_posted_product_id"] = pid
                     broadcaster_stats["last_posted_title"] = prod_dict.get("title", "")[:50]
                     broadcaster_stats["last_posted_at"] = datetime.now(timezone.utc).isoformat()
-                    logger.info(f"📢 [30s CLOUD POSTED #{broadcaster_stats['total_posted']}] Deal {pid}: {prod_dict.get('title', '')[:30]} ➔ {channel_id}")
+                    logger.info(f"📢 [30s CLOUD POSTED #{broadcaster_stats['total_posted']}] Deal {pid} [{_last_posted_platform.upper()}]: {prod_dict.get('title', '')[:30]} ➔ {channel_id}")
 
                     # 1. Synchronize deal & product tables with current timestamp & price drop for website storefront
                     posted_price = float(deal_row.get("posted_price") or prod_dict.get("current_price") or 0)
