@@ -38,10 +38,14 @@ def get_broadcaster_stats() -> dict:
         "now": datetime.now(timezone.utc).isoformat()
     }
 
+_PLATFORMS_ROTATION = ["myntra", "flipkart", "amazon", "ajio", "nykaa"]
+_current_plat_idx = 0
+
 async def run_paced_30s_broadcaster():
     """Continuous 30-second loop posting deals to Telegram & ensuring live website deals."""
     logger.info("🚀 [30s CLOUD BROADCASTER] Initializing continuous 30-second deal poster...")
     broadcaster_stats["status"] = "running"
+    global _current_plat_idx
     await asyncio.sleep(5)  # Brief warm-up delay on server boot
 
     while True:
@@ -52,13 +56,17 @@ async def run_paced_30s_broadcaster():
             if database._pool is None:
                 await database.init_pool()
 
-            # 1. Fetch next candidate deal using primary key index
+            # Rotate through all 5 stores fairly to guarantee balanced posting
+            target_plat = _PLATFORMS_ROTATION[_current_plat_idx % len(_PLATFORMS_ROTATION)]
+            _current_plat_idx += 1
+
+            # 1. Fetch next candidate deal prioritizing target store
             exclude_clause = ""
             if _last_posted_product_ids:
                 recent_list = list(_last_posted_product_ids)[-250:]
                 exclude_clause = f"AND d.product_id NOT IN ({','.join(str(i) for i in recent_list)})"
 
-            query = f"""
+            query_plat = f"""
                 SELECT d.id as deal_id, d.product_id, d.posted_price, d.posted_mrp, 
                        d.deal_score, d.badge, d.posted_at,
                        p.title, p.platform, p.product_url, p.affiliate_url, p.image_url, 
@@ -66,11 +74,28 @@ async def run_paced_30s_broadcaster():
                 FROM deals d
                 JOIN products p ON d.product_id = p.id
                 WHERE p.in_stock = TRUE AND p.status = 'ACTIVE'
+                  AND p.platform = '{target_plat}'
                   {exclude_clause}
                 ORDER BY d.id DESC
                 LIMIT 1;
             """
-            deal_row = await database.fetchrow(query)
+            deal_row = await database.fetchrow(query_plat)
+
+            # Fallback across all platforms if target store has no pending deal in deals table
+            if not deal_row:
+                query_all = f"""
+                    SELECT d.id as deal_id, d.product_id, d.posted_price, d.posted_mrp, 
+                           d.deal_score, d.badge, d.posted_at,
+                           p.title, p.platform, p.product_url, p.affiliate_url, p.image_url, 
+                           p.current_price, p.mrp, p.category, p.rating
+                    FROM deals d
+                    JOIN products p ON d.product_id = p.id
+                    WHERE p.in_stock = TRUE AND p.status = 'ACTIVE'
+                      {exclude_clause}
+                    ORDER BY d.id DESC
+                    LIMIT 1;
+                """
+                deal_row = await database.fetchrow(query_all)
 
             # Fallback to high-discount catalog item if no unposted deal found
             if not deal_row:
@@ -130,6 +155,8 @@ async def run_paced_30s_broadcaster():
                     caption = format_today_deal(prod_dict, deal_info)
 
                 image_url = prod_dict.get("image_url")
+                if image_url and "myntassets.com" in image_url:
+                    image_url = image_url.replace("($height)", "720").replace("($qualityPercentage)", "90").replace("($width)", "540").replace("http://", "https://")
                 api_base = f"https://api.telegram.org/bot{bot_token}"
 
                 posted = False

@@ -56,6 +56,8 @@ class MyntraScraper(BaseScraper):
                 media = pdp_data.get("media", {}).get("albums", [])
                 if media and media[0].get("images"):
                     image_url = media[0]["images"][0].get("src", "")
+                    if image_url:
+                        image_url = image_url.replace("($height)", "720").replace("($qualityPercentage)", "90").replace("($width)", "540").replace("http://", "https://")
                     
                 rating = float(pdp_data.get("ratings", {}).get("averageRating", 0) or 0)
                 review_count = int(pdp_data.get("ratings", {}).get("totalReviewsCount", 0) or 0)
