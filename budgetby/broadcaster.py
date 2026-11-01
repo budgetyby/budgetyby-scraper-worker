@@ -519,8 +519,13 @@ async def run_paced_30s_broadcaster():
                 success = await broadcast_single_deal(deal_row)
                 if success:
                     _current_seq_idx += 1
+                else:
+                    # If this deal failed or was on cooldown, advance index so we do not freeze the scheduled rotation!
+                    _current_seq_idx += 1
             else:
-                logger.debug("No deal candidates available across stores this cycle.")
+                # Target store had no deals; advance index so the schedule advances to the next platform!
+                _current_seq_idx += 1
+                logger.debug("No deal candidates available across stores this cycle. Advanced sequence index.")
 
         except Exception as e:
             logger.error(f"Error in run_paced_30s_broadcaster loop: {e}")

@@ -118,15 +118,25 @@ async def convert_via_cloud_telegram_bots(url: str, platform: str) -> str | None
                     if any(d in short_link.lower() for d in ("fktr.in", "myntr.it", "ajiio.in", "ekaro.in")):
                         return short_link
         elif plat == "nykaa":
+            # Strip query parameters so CuelinksBot converts cleanly
+            clean_nykaa = url.split("?")[0]
             async with client.conversation("cuelinks_bot", timeout=12) as conv:
-                await conv.send_message(url)
-                resp = await conv.get_response()
-                txt = (resp.text or "").strip()
-                m = re.search(r'https?://[^\s]+', txt)
-                if m:
-                    short_link = m.group(0)
-                    if "clnk.in" in short_link.lower():
-                        return short_link
+                sent_msg = await conv.send_message(clean_nykaa)
+                loop_start = asyncio.get_event_loop().time()
+                while (asyncio.get_event_loop().time() - loop_start) < 12:
+                    rem_time = max(0.5, 12 - (asyncio.get_event_loop().time() - loop_start))
+                    try:
+                        resp = await conv.get_response(timeout=rem_time)
+                    except (asyncio.TimeoutError, TimeoutError):
+                        break
+                    if not resp or not resp.text:
+                        continue
+                    if getattr(resp, "id", 0) < getattr(sent_msg, "id", 0):
+                        continue
+                    urls = re.findall(r'https?://[^\s\)\>]+', resp.text)
+                    valid_links = [u.strip() for u in urls if "clnk.in" in u.lower()]
+                    if valid_links:
+                        return valid_links[0].rstrip(".,;!?")
     except Exception as e:
         logger.debug(f"Cloud Telegram bot link conversion error: {e}")
     return None
