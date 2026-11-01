@@ -54,7 +54,7 @@ def is_valid_affiliate_shortlink(url: str, platform: str = "") -> bool:
     elif plat == "myntra":
         return ("myntr.it" in u) or ("ekaro.in" in u)
     elif plat == "ajio":
-        return ("ajiio.in" in u) or ("ekaro.in" in u)
+        return ("ajiio.in" in u)
     elif plat == "nykaa":
         return ("clnk.in" in u)
     return any(domain in u for domain in ("fktr.in", "myntr.it", "ajiio.in", "clnk.in", "amzn.to", "dealpulse21-21"))

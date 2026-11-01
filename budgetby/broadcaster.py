@@ -48,6 +48,7 @@ ROTATION_SEQUENCE = [
 _current_seq_idx = 0
 _last_posted_platform: str | None = None
 _last_posted_product_ids = set()
+_broadcast_post_counter = 0
 
 # Platform queues for surplus deals (e.g. when Amazon or other stores arrive faster than their turn)
 _platform_queues = {
@@ -107,15 +108,14 @@ async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict 
     """
     Fetch unposted deal candidate strictly for the specified store following local deduplication & cooldown rules.
     Guarantees strict platform quota per rotation cycle.
-    Priority:
-    1. In-memory platform queue (burst deals queued from Telegram listener, live hunter, or price checks).
-    2. Fresh unposted deals in database (posted_at IS NULL).
-    3. Live Store Flash Hunter on-the-fly scan for fresh loot.
-    4. Active high-discount catalog item strictly respecting 7-day deduplication and 24h cooldown.
+    Enforces 90% Live Flash Hunter / 10% Database Catalog:
+    - 9 out of 10 times, prioritizes Live Flash Hunter on-the-fly scan for fresh loot.
+    - 1 out of 10 times (or if Flash Hunter has no available items), falls back to verified database catalog.
     """
+    global _broadcast_post_counter
     store = store.lower()
 
-    # Priority 1: Check in-memory platform queue
+    # Priority 1: Check in-memory platform queue (burst deals queued from Telegram listener or hunter)
     q = _platform_queues.get(store)
     if q and not q.empty():
         while not q.empty():
@@ -132,7 +132,41 @@ async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict 
         recent_list = list(exclude_ids)[-250:]
         exclude_clause = f"AND d.product_id NOT IN ({','.join(str(i) for i in recent_list)})"
 
-    # Priority 2: Look in deals table for freshly intercepted unposted deals for this store
+    # Enforce 90% Flash Hunter vs 10% Database ratio
+    # If counter % 10 != 0 (9 out of 10 posts), Flash Hunter runs FIRST!
+    prefer_hunter = (_broadcast_post_counter % 10 != 0)
+
+    if prefer_hunter:
+        # Step A: Live Flash Hunter - Discover fresh high-discount loot on the fly!
+        try:
+            from budgetby.engine.live_hunter import hunt_live_store_deal
+            hunt_deal = await asyncio.wait_for(hunt_live_store_deal(store), timeout=10)
+            if hunt_deal and hunt_deal.get("product"):
+                hp = hunt_deal["product"]
+                pid = hp.get("id")
+                if pid and pid not in exclude_ids and not await is_on_cooldown(pid):
+                    return {
+                        "deal_id": 0,
+                        "product_id": pid,
+                        "posted_price": hp.get("current_price"),
+                        "posted_mrp": hp.get("mrp"),
+                        "deal_score": hunt_deal.get("score", 85.0),
+                        "badge": hunt_deal.get("badge", "HOT_DEAL"),
+                        "posted_at": None,
+                        "title": hp.get("title"),
+                        "platform": store,
+                        "product_url": hp.get("product_url"),
+                        "affiliate_url": hp.get("affiliate_url"),
+                        "image_url": hp.get("image_url"),
+                        "current_price": hp.get("current_price"),
+                        "mrp": hp.get("mrp"),
+                        "category": hp.get("category"),
+                        "rating": hp.get("rating")
+                    }
+        except Exception as he:
+            logger.debug(f"Live hunt candidate note for {store}: {he}")
+
+    # Step B: Fresh unposted deals in database (posted_at IS NULL)
     row = await database.fetchrow(f"""
         SELECT d.id as deal_id, d.product_id, d.posted_price, d.posted_mrp, 
                d.deal_score, d.badge, d.posted_at,
@@ -152,36 +186,37 @@ async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict 
         if not await is_on_cooldown(pid):
             return dict(row)
 
-    # Priority 3: Live Store Flash Hunter - Discover fresh high-discount loot on the fly!
-    try:
-        from budgetby.engine.live_hunter import hunt_live_store_deal
-        hunt_deal = await asyncio.wait_for(hunt_live_store_deal(store), timeout=10)
-        if hunt_deal and hunt_deal.get("product"):
-            hp = hunt_deal["product"]
-            pid = hp.get("id")
-            if pid and pid not in exclude_ids and not await is_on_cooldown(pid):
-                return {
-                    "deal_id": 0,
-                    "product_id": pid,
-                    "posted_price": hp.get("current_price"),
-                    "posted_mrp": hp.get("mrp"),
-                    "deal_score": hunt_deal.get("score", 85.0),
-                    "badge": hunt_deal.get("badge", "HOT_DEAL"),
-                    "posted_at": None,
-                    "title": hp.get("title"),
-                    "platform": store,
-                    "product_url": hp.get("product_url"),
-                    "affiliate_url": hp.get("affiliate_url"),
-                    "image_url": hp.get("image_url"),
-                    "current_price": hp.get("current_price"),
-                    "mrp": hp.get("mrp"),
-                    "category": hp.get("category"),
-                    "rating": hp.get("rating")
-                }
-    except Exception as he:
-        logger.debug(f"Live hunt candidate note for {store}: {he}")
+    # If prefer_hunter was False (1 in 10 count), try Live Flash Hunter now as fallback
+    if not prefer_hunter:
+        try:
+            from budgetby.engine.live_hunter import hunt_live_store_deal
+            hunt_deal = await asyncio.wait_for(hunt_live_store_deal(store), timeout=10)
+            if hunt_deal and hunt_deal.get("product"):
+                hp = hunt_deal["product"]
+                pid = hp.get("id")
+                if pid and pid not in exclude_ids and not await is_on_cooldown(pid):
+                    return {
+                        "deal_id": 0,
+                        "product_id": pid,
+                        "posted_price": hp.get("current_price"),
+                        "posted_mrp": hp.get("mrp"),
+                        "deal_score": hunt_deal.get("score", 85.0),
+                        "badge": hunt_deal.get("badge", "HOT_DEAL"),
+                        "posted_at": None,
+                        "title": hp.get("title"),
+                        "platform": store,
+                        "product_url": hp.get("product_url"),
+                        "affiliate_url": hp.get("affiliate_url"),
+                        "image_url": hp.get("image_url"),
+                        "current_price": hp.get("current_price"),
+                        "mrp": hp.get("mrp"),
+                        "category": hp.get("category"),
+                        "rating": hp.get("rating")
+                    }
+        except Exception as he:
+            logger.debug(f"Live hunt candidate note for {store}: {he}")
 
-    # Priority 4: Fall back to active high-discount catalog items specifically for this store
+    # Step C: Fall back to active high-discount catalog items specifically for this store
     # Enforces 7-day duplicate prevention (NOT EXISTS in deals posted in last 7 days) and 24h 3-tier cooldown
     candidates = await database.fetch(f"""
         SELECT 0 as deal_id, p.id as product_id, p.current_price as posted_price, p.mrp as posted_mrp,
@@ -331,6 +366,8 @@ async def broadcast_single_deal(deal_row: dict) -> bool:
             logger.warning(f"Telegram sendMessage fallback error: {m_err}")
 
     if posted:
+        global _broadcast_post_counter
+        _broadcast_post_counter += 1
         _last_posted_platform = platform
         broadcaster_stats["total_posted"] += 1
         broadcaster_stats["last_posted_platform"] = _last_posted_platform

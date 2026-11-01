@@ -321,7 +321,34 @@ async def verify_and_ingest_single_deal(channel: str, post_id: int, raw_url: str
             }
             await pq.queue_deal(deal_data)
 
-            # Also persist to deals table with posted_at = NULL so cloud broadcaster broadcasts it in real-time
+            # INSTANT FAST-PATH BROADCAST:
+            # Broadcast intercepted channel deal ON THE SPOT to Telegram & Website without stalling or altering the Flash Hunter schedule!
+            try:
+                from budgetby.broadcaster import broadcast_single_deal
+                fast_payload = {
+                    "deal_id": 0,
+                    "product_id": pid,
+                    "posted_price": price,
+                    "posted_mrp": mrp,
+                    "deal_score": round(min(95, 50 + discount_pct)),
+                    "badge": badge,
+                    "posted_at": None,
+                    "title": title,
+                    "platform": platform,
+                    "product_url": clean_url,
+                    "affiliate_url": final_deal_url,
+                    "image_url": image_url,
+                    "current_price": price,
+                    "mrp": mrp,
+                    "category": classify_product(title),
+                    "rating": rating
+                }
+                asyncio.create_task(broadcast_single_deal(fast_payload))
+                logger.info(f"⚡ [FAST-PATH ON-THE-SPOT POST] Dispatched {channel} [{platform.upper()}] deal directly to Telegram & Website!")
+            except Exception as b_err:
+                logger.debug(f"Fast-path broadcast notice: {b_err}")
+
+            # Also persist to deals table for website storefront record
             try:
                 savings = max(0.0, mrp - price)
                 savings_pct = (savings / mrp * 100) if mrp > 0 else 0.0
@@ -331,7 +358,7 @@ async def verify_and_ingest_single_deal(channel: str, post_id: int, raw_url: str
                         savings_amount, savings_pct, deal_score, badge,
                         source_channel, posted_at
                     ) VALUES (
-                        $1, 'channel_deal', $2, $3, $4, $5, $6, $7, $8, NULL
+                        $1, 'channel_deal', $2, $3, $4, $5, $6, $7, $8, NOW()
                     )
                     ON CONFLICT (product_id) DO UPDATE SET
                         posted_price = EXCLUDED.posted_price,
@@ -340,7 +367,8 @@ async def verify_and_ingest_single_deal(channel: str, post_id: int, raw_url: str
                         savings_pct = EXCLUDED.savings_pct,
                         deal_score = EXCLUDED.deal_score,
                         badge = EXCLUDED.badge,
-                        source_channel = EXCLUDED.source_channel;
+                        source_channel = EXCLUDED.source_channel,
+                        posted_at = NOW();
                 """, pid, price, mrp, savings, savings_pct, round(min(95, 50 + discount_pct)), badge, channel)
             except Exception as d_err:
                 logger.debug(f"Deals table insert notice: {d_err}")
