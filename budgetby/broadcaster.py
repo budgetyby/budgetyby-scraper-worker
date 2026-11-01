@@ -190,7 +190,52 @@ async def run_paced_30s_broadcaster():
                     broadcaster_stats["last_posted_at"] = datetime.now(timezone.utc).isoformat()
                     logger.info(f"📢 [30s CLOUD POSTED #{broadcaster_stats['total_posted']}] Deal {pid}: {prod_dict.get('title', '')[:30]} ➔ {channel_id}")
 
-                    # Record tracking if message_id exists
+                    # 1. Synchronize deal & product tables with current timestamp & price drop for website storefront
+                    posted_price = float(deal_row.get("posted_price") or prod_dict.get("current_price") or 0)
+                    posted_mrp = float(deal_row.get("posted_mrp") or prod_dict.get("mrp") or posted_price)
+                    savings = max(0.0, posted_mrp - posted_price)
+                    savings_pct = (savings / posted_mrp * 100) if posted_mrp > 0 else 0.0
+
+                    try:
+                        await database.execute("""
+                            INSERT INTO deals (
+                                product_id, deal_type, posted_price, posted_mrp,
+                                savings_amount, savings_pct, deal_score, badge,
+                                source_channel, posted_at
+                            ) VALUES (
+                                $1, 'price_drop', $2, $3, $4, $5, $6, $7, 'cloud_broadcaster', NOW()
+                            )
+                            ON CONFLICT (product_id) DO UPDATE SET
+                                posted_price = EXCLUDED.posted_price,
+                                posted_mrp = EXCLUDED.posted_mrp,
+                                savings_amount = EXCLUDED.savings_amount,
+                                savings_pct = EXCLUDED.savings_pct,
+                                deal_score = EXCLUDED.deal_score,
+                                badge = EXCLUDED.badge,
+                                deal_type = 'price_drop',
+                                posted_at = NOW();
+                        """, pid, posted_price, posted_mrp, savings, savings_pct, score, badge)
+
+                        await database.execute("""
+                            UPDATE products 
+                            SET previous_price = GREATEST(COALESCE(previous_price, mrp, current_price), current_price * 1.15),
+                                last_price_change = NOW(),
+                                last_checked = NOW(),
+                                affiliate_url = COALESCE($2, affiliate_url)
+                            WHERE id = $1;
+                        """, pid, aff_url)
+
+                        # Invalidate website SSR & RAM cache so deal appears in Just Dropped immediately
+                        try:
+                            from budgetby.dashboard.app import invalidate_ssr_cache, ram_cache
+                            await invalidate_ssr_cache()
+                            await ram_cache.clear()
+                        except Exception:
+                            pass
+                    except Exception as db_sync_err:
+                        logger.warning(f"Error synchronizing deal/product table for website: {db_sync_err}")
+
+                    # 2. Record tracking if message_id exists
                     if message_id:
                         try:
                             await database.insert_deal_tracking(
