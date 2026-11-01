@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BudgetBy Terminal Authentication</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #06090f;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.08) 0px, transparent 50%);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 selection:bg-indigo-500 selection:text-white">
+
+    <div class="w-full max-w-md relative">
+        <!-- Ambient Glow Backing -->
+        <div class="absolute -inset-1 bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-emerald-500/20 rounded-[2.5rem] blur-xl opacity-70 pointer-events-none"></div>
+
+        <!-- Main Card -->
+        <div class="relative bg-[#0b0f19]/95 border border-slate-800/90 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
+            
+            <!-- Terminal Header Badge -->
+            <div class="flex items-center justify-center mb-6">
+                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900 border border-slate-700/80 text-xs font-mono font-bold text-slate-300 shadow-inner">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>RESTRICTED ACCESS PORTAL</span>
+                </div>
+            </div>
+
+            <!-- Lock Icon & Title -->
+            <div class="text-center space-y-2 mb-8">
+                <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600/10 border border-indigo-500/25 text-indigo-400 shadow-lg mb-1">
+                    <i data-lucide="shield-check" class="w-7 h-7"></i>
+                </div>
+                <h1 class="text-2xl font-extrabold text-white tracking-tight">Admin Verification</h1>
+                <p class="text-xs text-slate-400">Authorized personnel authentication required</p>
+            </div>
+
+            <!-- Error Banner -->
+            {% if error %}
+            <div class="mb-6 p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-center gap-3 text-rose-300 text-xs animate-in fade-in zoom-in-95 duration-150">
+                <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-400 shrink-0"></i>
+                <span class="font-medium">{{ error }}</span>
+            </div>
+            {% endif %}
+
+            <!-- Login Form -->
+            <form action="/pnther/login" method="POST" class="space-y-4" autocomplete="off">
+                <input type="hidden" name="next" value="{{ next or '/pnther' }}">
+
+                <!-- Username Field -->
+                <div>
+                    <label for="username" class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">
+                        Username
+                    </label>
+                    <div class="relative flex items-center">
+                        <i data-lucide="user" class="w-4 h-4 text-slate-500 absolute left-3.5 pointer-events-none"></i>
+                        <input 
+                            type="text" 
+                            id="username" 
+                            name="username" 
+                            required 
+                            autofocus
+                            placeholder="Enter admin username" 
+                            class="w-full pl-10 pr-4 py-2.5 bg-slate-950/80 border border-slate-800 focus:border-indigo-500 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-medium transition"
+                        />
+                    </div>
+                </div>
+
+                <!-- Password Field -->
+                <div>
+                    <label for="password" class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">
+                        Password
+                    </label>
+                    <div class="relative flex items-center">
+                        <i data-lucide="key" class="w-4 h-4 text-slate-500 absolute left-3.5 pointer-events-none"></i>
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            required 
+                            placeholder="Enter passkey" 
+                            class="w-full pl-10 pr-11 py-2.5 bg-slate-950/80 border border-slate-800 focus:border-indigo-500 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-medium transition"
+                        />
+                        <button 
+                            type="button" 
+                            onclick="togglePasswordVisibility()" 
+                            class="absolute right-3 text-slate-500 hover:text-slate-300 p-1 transition" 
+                            title="Toggle visibility"
+                        >
+                            <i data-lucide="eye" id="eyeIcon" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="pt-2">
+                    <button 
+                        type="submit" 
+                        class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-indigo-600 hover:from-indigo-500 hover:to-indigo-500 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/25 transition active:scale-[0.99]"
+                    >
+                        <i data-lucide="log-in" class="w-4 h-4"></i>
+                        <span>Authenticate & Access</span>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Bottom Disclaimer -->
+            <div class="mt-8 pt-6 border-t border-slate-800/80 text-center text-[11px] text-slate-500">
+                <span>Secured by BudgetBy Cryptographic Terminal Engine</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        function togglePasswordVisibility() {
+            const pwdInput = document.getElementById('password');
+            const eyeIcon = document.getElementById('eyeIcon');
+            if (pwdInput.type === 'password') {
+                pwdInput.type = 'text';
+                eyeIcon.setAttribute('data-lucide', 'eye-off');
+            } else {
+                pwdInput.type = 'password';
+                eyeIcon.setAttribute('data-lucide', 'eye');
+            }
+            lucide.createIcons();
+        }
+    </script>
+</body>
+</html>

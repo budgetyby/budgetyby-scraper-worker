@@ -1,0 +1,412 @@
+{% extends "consumer/layout.html" %}
+
+{% block title %}BudgetBy — Live Deals, 24h Price Drops & Lowest Prices | Amazon, Flipkart, Myntra, Ajio & Nykaa{% endblock %}
+{% block description %}Discover genuine loot deals and live price drops across Amazon, Flipkart, Myntra, Ajio, and Nykaa. Shop Fashion, Beauty, Electronics, Home, Sports, Footwear, Watches, and Bags with lowest prices.{% endblock %}
+
+{% block extra_head %}
+<link rel="canonical" href="https://budgetby.in/">
+{% if just_dropped and just_dropped.deals and just_dropped.deals[0] and just_dropped.deals[0].image_url %}
+<link rel="preload" as="image" href="{{ just_dropped.deals[0].image_url }}" fetchpriority="high">
+{% endif %}
+<!-- JSON-LD WebSite Structured Data -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "BudgetBy",
+  "alternateName": "BudgetBy India",
+  "url": "https://budgetby.in",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": {
+      "@type": "EntryPoint",
+      "urlTemplate": "https://budgetby.in/deals?search={search_term_string}"
+    },
+    "query-input": "required name=search_term_string"
+  }
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<main class="w-full pb-20">
+
+    <!-- ── 2. Shop by Category (3-Column Large Visual Cards Grid) ────────── -->
+    <section class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full pt-2 pb-6">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class="text-lg sm:text-2xl font-black text-slate-900 flex items-center gap-2">
+                    <span>🛍️</span>
+                    <span>Shop by Category</span>
+                </h2>
+                <p class="text-xs sm:text-sm text-slate-500">Explore departments, top subcategories and live verified deals</p>
+            </div>
+            <a href="/deals" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 shrink-0 bg-indigo-50 px-3 py-1.5 rounded-xl transition">
+                <span>All Departments</span>
+                <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+            </a>
+        </div>
+
+        <!-- 3-Column Visual Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3.5 sm:gap-6">
+            {% for cat_key, cat in categories_taxonomy.items() %}
+            <a href="/deals?category={{ cat_key }}" 
+               class="group relative bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between">
+                
+                <!-- Category Image Container -->
+                <div class="relative w-full h-40 sm:h-52 md:h-60 bg-slate-100 overflow-hidden">
+                    <img src="{{ cat.image or '/static/placeholder.svg' }}" 
+                         alt="{{ cat.name }}" 
+                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                         loading="lazy"
+                         decoding="async"
+                         onerror="this.onerror=null;this.src='/static/placeholder.svg';" />
+                    
+                    <!-- Gradient Overlay on Hover -->
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent opacity-85 group-hover:opacity-95 transition-opacity"></div>
+                    
+                    <!-- Top Corner Badge -->
+                    <div class="absolute top-3 left-3">
+                        <span class="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider backdrop-blur-md bg-white/90 text-slate-900 border border-white/40 shadow-sm flex items-center gap-1">
+                            <span>{{ cat.icon }}</span>
+                            <span>{{ cat.name.split(' ')[0] }}</span>
+                        </span>
+                    </div>
+
+                    <!-- Title & Details Inside Card Box at Bottom -->
+                    <div class="absolute bottom-0 left-0 right-0 p-3 sm:p-4 text-white">
+                        <h3 class="text-base sm:text-lg font-black tracking-tight drop-shadow-md flex items-center justify-between">
+                            <span>{{ cat.name }}</span>
+                            <span class="text-sm transform group-hover:translate-x-1 transition-transform">➔</span>
+                        </h3>
+                        <p class="text-[11px] sm:text-xs text-slate-200 line-clamp-1 mt-0.5 opacity-90 drop-shadow">
+                            {% set sub_items = [] %}
+                            {% for subk, subv in cat.subcategories.items() %}
+                                {% if loop.index <= 3 %}
+                                    {% set _ = sub_items.append(subv.name) %}
+                                {% endif %}
+                            {% endfor %}
+                            {{ sub_items|join(', ') }}{% if cat.subcategories|length > 3 %} & more{% endif %}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Card Bottom Interactive Strip -->
+                <div class="p-2.5 sm:p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-700 group-hover:text-indigo-600 transition">
+                    <span class="text-[11px] sm:text-xs">Explore {{ cat.name }}</span>
+                    <span class="text-indigo-600 font-extrabold text-[11px]">View Deals ➔</span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- ── 2. Best Deals Today 🎯 Ranked by Shopper Deal Quality Score ──────── -->
+    {% if best_deals and best_deals.deals %}
+    <section class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full pt-3 pb-3">
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+                <span class="text-xl">🎯</span>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-base sm:text-lg font-black text-slate-900">Best Deals Today</h2>
+                        <span class="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-black font-mono">TOP VALUE</span>
+                    </div>
+                    <p class="text-xs text-slate-500">Highest shopper quality scores based on real discount, price history & ratings</p>
+                </div>
+            </div>
+            <a href="/deals?sort_by=score_desc" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 shrink-0 bg-indigo-50 px-2.5 py-1 rounded-xl transition">
+                <span>View All Best</span>
+                <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+            </a>
+        </div>
+
+        <div id="bestDealsContainer" class="flex gap-3 overflow-x-auto pb-3 pt-1 no-scrollbar scroll-smooth">
+            {% for deal in best_deals.deals %}
+            <div class="w-56 sm:w-64 shrink-0">
+                {% include "consumer/partials/product_card.html" %}
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- ── 3. Just Dropped 🔥 Live Fresh Deals Carousel ───────────────────── -->
+    {% if just_dropped and just_dropped.deals %}
+    <section class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full pt-3 pb-3">
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+                <span class="text-xl">⚡</span>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-base sm:text-lg font-black text-slate-900">Just Dropped Deals</h2>
+                        <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold font-mono animate-pulse">FRESH</span>
+                    </div>
+                    <p class="text-xs text-slate-500">Recently lowest prices posted in the last few hours</p>
+                </div>
+            </div>
+            <a href="/deals?sort_by=latest" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 shrink-0 bg-indigo-50 px-2.5 py-1 rounded-xl transition">
+                <span>View All</span>
+                <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+            </a>
+        </div>
+
+        <div id="justDroppedContainer" class="flex gap-3 overflow-x-auto pb-3 pt-1 no-scrollbar scroll-smooth">
+            {% for deal in just_dropped.deals %}
+            <div class="w-56 sm:w-64 shrink-0">
+                {% include "consumer/partials/product_card.html" %}
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+
+    <!-- ── 4. All-Time Lows (ATL) 🏆 Price Records Carousel ───────────────── -->
+    {% if atl_mini and atl_mini.deals %}
+    <section class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full pt-3 pb-3">
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+                <span class="text-xl">🏆</span>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-base sm:text-lg font-black text-slate-900">All-Time Low Price Records</h2>
+                        <span class="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold font-mono">HISTORIC LOW</span>
+                    </div>
+                    <p class="text-xs text-slate-500">Products currently selling at the lowest price ever recorded in our database</p>
+                </div>
+            </div>
+            <a href="/all-time-lows" class="text-xs font-bold text-amber-700 hover:text-amber-900 flex items-center gap-1 shrink-0 bg-amber-50 px-2.5 py-1 rounded-xl transition">
+                <span>View All ATLs</span>
+                <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+            </a>
+        </div>
+
+        <div id="atlHomeContainer" class="flex gap-3 overflow-x-auto pb-3 pt-1 no-scrollbar scroll-smooth">
+            {% for deal in atl_mini.deals %}
+            <div class="w-56 sm:w-64 shrink-0">
+                {% include "consumer/partials/product_card.html" %}
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- ── 4. Multi-Store Showcase Cards Grid ────────────────────────────── -->
+    <section class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full pt-3 pb-3">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
+            
+            <a href="/deals?platform=amazon" class="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/80 rounded-2xl p-3.5 hover:shadow-md hover:border-amber-400 transition group flex flex-col justify-between">
+                <div>
+                    <span class="text-xs font-bold text-amber-800 uppercase tracking-wider block mb-1">Amazon India</span>
+                    <h3 class="text-sm font-black text-slate-900 leading-tight">Electronics & Essentials</h3>
+                </div>
+                <div class="mt-2.5 flex items-center justify-between text-xs font-extrabold text-amber-700">
+                    <span>Explore Deals</span>
+                    <span class="group-hover:translate-x-0.5 transition-transform">➔</span>
+                </div>
+            </a>
+
+            <a href="/deals?platform=flipkart" class="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/80 rounded-2xl p-3.5 hover:shadow-md hover:border-blue-400 transition group flex flex-col justify-between">
+                <div>
+                    <span class="text-xs font-bold text-blue-800 uppercase tracking-wider block mb-1">Flipkart</span>
+                    <h3 class="text-sm font-black text-slate-900 leading-tight">Super Loot & Mobiles</h3>
+                </div>
+                <div class="mt-2.5 flex items-center justify-between text-xs font-extrabold text-blue-700">
+                    <span>Explore Deals</span>
+                    <span class="group-hover:translate-x-0.5 transition-transform">➔</span>
+                </div>
+            </a>
+
+            <a href="/deals?platform=myntra" class="bg-gradient-to-br from-pink-50 to-rose-50 border border-pink-200/80 rounded-2xl p-3.5 hover:shadow-md hover:border-pink-400 transition group flex flex-col justify-between">
+                <div>
+                    <span class="text-xs font-bold text-pink-800 uppercase tracking-wider block mb-1">Myntra</span>
+                    <h3 class="text-sm font-black text-slate-900 leading-tight">Fashion & Sneakers</h3>
+                </div>
+                <div class="mt-2.5 flex items-center justify-between text-xs font-extrabold text-pink-700">
+                    <span>Explore Deals</span>
+                    <span class="group-hover:translate-x-0.5 transition-transform">➔</span>
+                </div>
+            </a>
+
+            <a href="/deals?platform=ajio" class="bg-gradient-to-br from-amber-50 to-yellow-50 border border-amber-200/80 rounded-2xl p-3.5 hover:shadow-md hover:border-amber-400 transition group flex flex-col justify-between">
+                <div>
+                    <span class="text-xs font-bold text-amber-800 uppercase tracking-wider block mb-1">Ajio</span>
+                    <h3 class="text-sm font-black text-slate-900 leading-tight">Trends & Ethnic</h3>
+                </div>
+                <div class="mt-2.5 flex items-center justify-between text-xs font-extrabold text-amber-700">
+                    <span>Explore Deals</span>
+                    <span class="group-hover:translate-x-0.5 transition-transform">➔</span>
+                </div>
+            </a>
+
+            <a href="/deals?platform=nykaa" class="bg-gradient-to-br from-rose-50 to-pink-50 border border-rose-200/80 rounded-2xl p-3.5 hover:shadow-md hover:border-rose-400 transition group flex flex-col justify-between col-span-2 sm:col-span-1">
+                <div>
+                    <span class="text-xs font-bold text-rose-800 uppercase tracking-wider block mb-1">Nykaa</span>
+                    <h3 class="text-sm font-black text-slate-900 leading-tight">Beauty & Skincare</h3>
+                </div>
+                <div class="mt-2.5 flex items-center justify-between text-xs font-extrabold text-rose-700">
+                    <span>Explore Deals</span>
+                    <span class="group-hover:translate-x-0.5 transition-transform">➔</span>
+                </div>
+            </a>
+
+        </div>
+    </section>
+
+    <!-- ── 5. Category Aisle Banners Showcase ────────────────────────────── -->
+    <section class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full pt-4 pb-6 space-y-8">
+        
+        <!-- Fashion Aisle Showcase -->
+        {% if fashion_deals and fashion_deals.deals %}
+        <div>
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">👗</span>
+                    <div>
+                        <h2 class="text-base sm:text-lg font-black text-slate-900">Fashion & Apparel Loot</h2>
+                        <p class="text-xs text-slate-500">Live deals on T-shirts, Shirts, Kurtis & Jeans</p>
+                    </div>
+                </div>
+                <a href="/deals?category=fashion" class="text-xs font-bold text-purple-700 hover:text-purple-900 flex items-center gap-1 bg-purple-50 px-2.5 py-1 rounded-xl transition">
+                    <span>View All Fashion</span>
+                    <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                </a>
+            </div>
+            <div class="flex gap-3 overflow-x-auto pb-2 no-scrollbar scroll-smooth">
+                {% for deal in fashion_deals.deals %}
+                <div class="w-56 sm:w-64 shrink-0">
+                    {% include "consumer/partials/product_card.html" %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Electronics Aisle Showcase -->
+        {% if electronics_deals and electronics_deals.deals %}
+        <div>
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">📱</span>
+                    <div>
+                        <h2 class="text-base sm:text-lg font-black text-slate-900">Electronics & Gadgets Steals</h2>
+                        <p class="text-xs text-slate-500">Top discounts on TWS Earbuds, Powerbanks & Accessories</p>
+                    </div>
+                </div>
+                <a href="/deals?category=electronics" class="text-xs font-bold text-blue-700 hover:text-blue-900 flex items-center gap-1 bg-blue-50 px-2.5 py-1 rounded-xl transition">
+                    <span>View All Electronics</span>
+                    <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                </a>
+            </div>
+            <div class="flex gap-3 overflow-x-auto pb-2 no-scrollbar scroll-smooth">
+                {% for deal in electronics_deals.deals %}
+                <div class="w-56 sm:w-64 shrink-0">
+                    {% include "consumer/partials/product_card.html" %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Beauty Aisle Showcase -->
+        {% if beauty_deals and beauty_deals.deals %}
+        <div>
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">💄</span>
+                    <div>
+                        <h2 class="text-base sm:text-lg font-black text-slate-900">Beauty & Skincare Offers</h2>
+                        <p class="text-xs text-slate-500">Sunscreen, Serums, Facewash & Grooming deals</p>
+                    </div>
+                </div>
+                <a href="/deals?category=beauty" class="text-xs font-bold text-rose-700 hover:text-rose-900 flex items-center gap-1 bg-rose-50 px-2.5 py-1 rounded-xl transition">
+                    <span>View All Beauty</span>
+                    <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                </a>
+            </div>
+            <div class="flex gap-3 overflow-x-auto pb-2 no-scrollbar scroll-smooth">
+                {% for deal in beauty_deals.deals %}
+                <div class="w-56 sm:w-64 shrink-0">
+                    {% include "consumer/partials/product_card.html" %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Home & Kitchen Aisle Showcase -->
+        {% if home_deals and home_deals.deals %}
+        <div>
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">🏠</span>
+                    <div>
+                        <h2 class="text-base sm:text-lg font-black text-slate-900">Home & Kitchen Essentials</h2>
+                        <p class="text-xs text-slate-500">Cookware, Water Bottles & Appliances</p>
+                    </div>
+                </div>
+                <a href="/deals?category=home" class="text-xs font-bold text-amber-700 hover:text-amber-900 flex items-center gap-1 bg-amber-50 px-2.5 py-1 rounded-xl transition">
+                    <span>View All Home</span>
+                    <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                </a>
+            </div>
+            <div class="flex gap-3 overflow-x-auto pb-2 no-scrollbar scroll-smooth">
+                {% for deal in home_deals.deals %}
+                <div class="w-56 sm:w-64 shrink-0">
+                    {% include "consumer/partials/product_card.html" %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+    </section>
+
+    <!-- ── 7. High-Converting Telegram Channel CTA Strip ───────────────── -->
+    <section class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full pt-4 pb-6">
+        <div class="rounded-3xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 p-6 sm:p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl relative overflow-hidden">
+            <div class="relative z-10 max-w-xl text-center md:text-left">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 text-white text-xs font-extrabold uppercase tracking-wider backdrop-blur-sm mb-3">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Instant Flash Deal Alerts
+                </span>
+                <h2 class="text-2xl sm:text-3xl font-black tracking-tight leading-tight">Never Miss a Genuine Price Drop</h2>
+                <p class="text-indigo-100 text-xs sm:text-sm mt-2 font-medium">Join smart Indian shoppers getting real-time price drop notifications directly on Telegram before deals go out of stock.</p>
+            </div>
+            <div class="relative z-10 shrink-0 flex items-center gap-3 flex-wrap justify-center">
+                <a href="/about" class="px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs backdrop-blur-md border border-white/30 transition flex items-center gap-1.5">
+                    <i data-lucide="help-circle" class="w-4 h-4"></i>
+                    <span>About & Contact Us</span>
+                </a>
+                <a href="https://t.me/DealPulse_Deals" target="_blank" rel="noopener noreferrer" 
+                   class="px-6 py-3.5 rounded-2xl bg-white text-indigo-700 font-black text-sm hover:bg-indigo-50 transition shadow-lg hover:scale-105 active:scale-98 flex items-center gap-2">
+                    <i data-lucide="send" class="w-4 h-4"></i>
+                    <span>Join Telegram ➔</span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── 8. How BudgetBy Works & Need Help Strip ──────────────────────── -->
+    <section class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full pb-8">
+        <div class="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center text-xl shrink-0">
+                    💡
+                </div>
+                <div>
+                    <h3 class="text-base sm:text-lg font-black text-slate-900">Have Questions or Want to Know How We Track Prices?</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">Learn about our 120-day baseline algorithm, report price errors, or send direct inquiries to our team.</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+                <a href="/about" class="w-full sm:w-auto text-center px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-sm">
+                    <i data-lucide="mail" class="w-3.5 h-3.5 text-indigo-400"></i>
+                    <span>About Us & Contact Support</span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+</main>
+{% endblock %}

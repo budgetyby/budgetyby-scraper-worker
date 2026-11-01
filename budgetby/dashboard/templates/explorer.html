@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BudgetBy — Full Database Explorer & 30-Day Price Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        code, pre, .font-mono { font-family: 'JetBrains Mono', monospace; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #090d16; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #334155; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+    <!-- Navbar -->
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <span class="text-2xl">🗄️</span>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg font-extrabold bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">PostgreSQL 18 Database Studio</span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">DB: budgetby</span>
+                    </div>
+                    <div class="text-[11px] text-slate-400 flex items-center gap-2 flex-wrap">
+                        <span>🛍️ Total Products in DB: <b id="dbTotalProducts" class="text-amber-400 font-mono font-bold">--</b></span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">🆕 <span id="dbProductsAddedToday">--</span> Added Today</span>
+                        <span>•</span>
+                        <span>📦 Total DB Size: <b id="dbTotalSize" class="text-emerald-400 font-mono">-- MB</b></span>
+                        <span>•</span>
+                        <span>Host: <b class="text-slate-300">localhost:5432</b></span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <a href="/pnther#movements-hub" class="px-3.5 py-1.5 text-xs font-semibold bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl transition flex items-center gap-1.5 shadow-sm">
+                    <span>⚡</span> 24h Movements
+                </a>
+                <a href="/pnther" class="px-3.5 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700 transition flex items-center gap-1.5">
+                    <span>⚙️</span> Control Center
+                </a>
+                <a href="/pnther/logout" class="px-3.5 py-1.5 text-xs font-semibold bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 hover:text-rose-200 rounded-xl border border-rose-800/60 transition flex items-center gap-1.5" title="Log out of admin session">
+                    <span>🔒</span> Logout
+                </a>
+                <button onclick="loadTableData()" class="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition">🔄</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col md:flex-row gap-6">
+        <!-- Left Sidebar: Tables List -->
+        <aside class="w-full md:w-64 shrink-0 space-y-4">
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
+                <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1">Database Tables</div>
+                <nav id="tablesNav" class="space-y-1 text-xs">
+                    <!-- Populated via JS -->
+                </nav>
+            </div>
+
+            <!-- Table Schema Quick Info -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 text-xs">
+                <div class="font-bold text-slate-400 uppercase tracking-wider mb-2">Selected Table Schema</div>
+                <div id="schemaInfo" class="space-y-1 text-[11px] text-slate-400 font-mono max-h-48 overflow-y-auto pr-1">
+                    Loading columns...
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Workspace: Data Table & Filters -->
+        <main class="flex-1 min-w-0 bg-slate-900/60 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between">
+            <div>
+                <!-- Controls Bar -->
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4">
+                    <div class="flex items-center gap-2">
+                        <span id="currentTableIcon" class="text-xl">🛍️</span>
+                        <div>
+                            <h2 id="currentTableName" class="text-base font-bold text-white uppercase tracking-wide">products</h2>
+                            <p id="tableRowsSummary" class="text-[11px] text-slate-400">Showing page 1 • Total 0 records</p>
+                        </div>
+                    </div>
+
+                    <!-- Search & Filter Controls -->
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <input type="text" id="dbSearchInput" placeholder="🔍 Search ID (e.g. 10), title, category..." 
+                               class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition w-64">
+                        
+                        <select id="platformFilter" onchange="onFilterChange()" class="bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-indigo-500 transition">
+                            <option value="">All Stores</option>
+                            <option value="amazon">Amazon</option>
+                            <option value="flipkart">Flipkart</option>
+                            <option value="myntra">Myntra</option>
+                            <option value="ajio">Ajio</option>
+                            <option value="nykaa">Nykaa</option>
+                        </select>
+
+                        <select id="sortSelect" onchange="onFilterChange()" class="bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-indigo-500 transition">
+                            <option value="id_asc">Sort: ID (1, 2, 3...)</option>
+                            <option value="id_desc">Sort: ID (Newest First)</option>
+                            <option value="price_desc">Sort: Price (High to Low)</option>
+                            <option value="price_asc">Sort: Price (Low to High)</option>
+                            <option value="min30_asc">Sort: 30-Day Min</option>
+                        </select>
+
+                        <select id="limitSelect" onchange="onFilterChange()" class="bg-slate-950 border border-slate-800 rounded-xl px-2 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-indigo-500 transition">
+                            <option value="25">25 / page</option>
+                            <option value="50">50 / page</option>
+                            <option value="100">100 / page</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Table Container -->
+                <div class="overflow-x-auto border border-slate-800 rounded-xl max-h-[560px]">
+                    <table class="w-full text-left text-xs whitespace-nowrap">
+                        <thead id="dataThead" class="bg-slate-950 border-b border-slate-800 text-slate-400 uppercase tracking-wider sticky top-0 z-10 font-mono text-[11px]">
+                            <!-- Populated via JS -->
+                        </thead>
+                        <tbody id="dataTbody" class="divide-y divide-slate-800/60 text-slate-300 bg-slate-900/30">
+                            <tr><td colspan="10" class="py-12 text-center text-slate-500">Loading records from PostgreSQL...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Pagination Footer -->
+            <div class="pt-4 mt-4 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+                <div id="paginationSummary">Page 1 of 1</div>
+                <div class="flex items-center gap-1.5">
+                    <button onclick="changePage(-1)" id="prevPageBtn" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:hover:bg-slate-800 text-slate-200 rounded-lg transition font-medium">← Previous</button>
+                    <span id="pageIndicator" class="px-3 py-1.5 bg-slate-950 rounded-lg border border-slate-800 font-mono text-white">1</span>
+                    <button onclick="changePage(1)" id="nextPageBtn" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:hover:bg-slate-800 text-slate-200 rounded-lg transition font-medium">Next →</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Row Details Inspector Modal (With 30-Day Price Timeline) -->
+    <div id="detailModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-3xl w-full p-6 space-y-4 max-h-[88vh] flex flex-col shadow-2xl">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">📅</span>
+                    <div>
+                        <h3 class="text-base font-bold text-white" id="modalTitle">Product & 30-Day Price Inspector</h3>
+                        <p id="modalSubtitle" class="text-xs text-slate-400 font-mono"></p>
+                    </div>
+                </div>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
+            </div>
+
+            <!-- Modal Body: Tabs between 30-Day Daily Prices vs Raw Row -->
+            <div class="flex items-center gap-2 border-b border-slate-800 pb-2">
+                <button onclick="switchModalTab('timeline')" id="btn-modal-timeline" class="px-3 py-1 text-xs font-semibold rounded-lg bg-indigo-600 text-white">📅 30-Day Daily Prices (Day 1 - Day 30)</button>
+                <button onclick="switchModalTab('raw')" id="btn-modal-raw" class="px-3 py-1 text-xs font-semibold rounded-lg text-slate-400 hover:text-white">📄 All Columns / Raw JSON</button>
+            </div>
+
+            <div id="modalContentTimeline" class="flex-1 overflow-y-auto space-y-3 text-xs pr-1">
+                <!-- 30-day timeline populated via JS -->
+            </div>
+
+            <div id="modalContentRaw" class="flex-1 overflow-y-auto space-y-2 text-xs font-mono pr-1 hidden">
+                <!-- Raw columns populated via JS -->
+            </div>
+
+            <div class="pt-3 border-t border-slate-800 flex justify-end">
+                <button onclick="closeModal()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTable = 'products';
+        let currentPage = 1;
+        let totalPages = 1;
+        let dbOverview = null;
+
+        const tableIcons = {
+            'products': '🛍️',
+            'daily_prices': '📈',
+            'deals': '📢',
+            'ingested_channel_deals': '🕵️',
+            'post_cooldowns': '🛡️',
+            'channel_monitors': '📡',
+            'deal_tracking': '⏱️'
+        };
+
+        async function initExplorer() {
+            try {
+                const res = await fetch('/api/db/overview');
+                dbOverview = await res.json();
+                
+                document.getElementById('dbTotalSize').textContent = dbOverview.total_size;
+                if (dbOverview.total_products !== undefined) {
+                    document.getElementById('dbTotalProducts').textContent = Number(dbOverview.total_products).toLocaleString('en-IN');
+                }
+                if (dbOverview.products_added_today !== undefined) {
+                    document.getElementById('dbProductsAddedToday').textContent = '+' + Number(dbOverview.products_added_today).toLocaleString('en-IN');
+                }
+
+                let navHtml = '';
+                dbOverview.tables.forEach(t => {
+                    const icon = tableIcons[t.table_name] || '📁';
+                    const activeClass = t.table_name === currentTable ? 'bg-indigo-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800/80';
+                    navHtml += `
+                    <button onclick="switchTable('${t.table_name}')" id="btn-table-${t.table_name}" 
+                            class="w-full flex items-center justify-between px-3 py-2 rounded-xl transition ${activeClass}">
+                        <span class="flex items-center gap-2 truncate">
+                            <span>${icon}</span>
+                            <span>${t.table_name}</span>
+                        </span>
+                        <span class="text-[10px] font-mono opacity-80">${t.total_size}</span>
+                    </button>`;
+                });
+                document.getElementById('tablesNav').innerHTML = navHtml;
+
+                updateSchemaView();
+                loadTableData();
+            } catch (err) {
+                console.error("Error loading overview:", err);
+            }
+        }
+
+        function switchTable(tbl) {
+            currentTable = tbl;
+            currentPage = 1;
+            document.getElementById('dbSearchInput').value = '';
+            
+            if (dbOverview) {
+                dbOverview.tables.forEach(t => {
+                    const btn = document.getElementById(`btn-table-${t.table_name}`);
+                    if (btn) {
+                        btn.className = t.table_name === currentTable 
+                            ? "w-full flex items-center justify-between px-3 py-2 rounded-xl transition bg-indigo-600 text-white font-bold"
+                            : "w-full flex items-center justify-between px-3 py-2 rounded-xl transition text-slate-300 hover:bg-slate-800/80";
+                    }
+                });
+            }
+
+            document.getElementById('currentTableName').textContent = tbl;
+            document.getElementById('currentTableIcon').textContent = tableIcons[tbl] || '📁';
+
+            const platFilter = document.getElementById('platformFilter');
+            if (platFilter) {
+                platFilter.style.display = ['products', 'ingested_channel_deals'].includes(tbl) ? 'block' : 'none';
+            }
+
+            updateSchemaView();
+            loadTableData();
+        }
+
+        function updateSchemaView() {
+            if (!dbOverview || !dbOverview.schemas || !dbOverview.schemas[currentTable]) return;
+            const cols = dbOverview.schemas[currentTable];
+            let html = '';
+            cols.forEach(c => {
+                html += `<div class="flex justify-between py-0.5 border-b border-slate-800/40">
+                    <span class="text-slate-300">${c.column_name}</span>
+                    <span class="text-slate-500">${c.data_type}</span>
+                </div>`;
+            });
+            document.getElementById('schemaInfo').innerHTML = html;
+        }
+
+        async function loadTableData() {
+            const limit = document.getElementById('limitSelect').value || 25;
+            const search = document.getElementById('dbSearchInput').value.trim();
+            const platform = document.getElementById('platformFilter').value;
+
+            document.getElementById('dataTbody').innerHTML = `<tr><td colspan="12" class="py-12 text-center text-slate-500">Querying PostgreSQL...</td></tr>`;
+
+            try {
+                const sortVal = document.getElementById('sortSelect') ? document.getElementById('sortSelect').value : 'id_asc';
+                let sortBy = 'id', sortOrder = 'asc';
+                if (sortVal === 'id_desc') { sortBy = 'id'; sortOrder = 'desc'; }
+                else if (sortVal === 'price_desc') { sortBy = 'current_price'; sortOrder = 'desc'; }
+                else if (sortVal === 'price_asc') { sortBy = 'current_price'; sortOrder = 'asc'; }
+                else if (sortVal === 'min30_asc') { sortBy = 'min_30d'; sortOrder = 'asc'; }
+
+                const params = new URLSearchParams({
+                    table: currentTable,
+                    page: currentPage,
+                    limit: limit,
+                    search: search,
+                    platform: platform,
+                    sort_by: sortBy,
+                    sort_order: sortOrder
+                });
+
+                const res = await fetch(`/api/db/table_data?${params.toString()}`);
+                const data = await res.json();
+
+                totalPages = data.total_pages || 1;
+                document.getElementById('tableRowsSummary').textContent = `Showing page ${data.page} of ${totalPages} • Total ${data.total_rows.toLocaleString()} records`;
+                document.getElementById('paginationSummary').textContent = `Showing ${(data.page - 1) * limit + 1}–${Math.min(data.total_rows, data.page * limit)} of ${data.total_rows.toLocaleString()} rows`;
+                document.getElementById('pageIndicator').textContent = data.page;
+                
+                document.getElementById('prevPageBtn').disabled = data.page <= 1;
+                document.getElementById('nextPageBtn').disabled = data.page >= totalPages;
+
+                if (!data.rows || !data.rows.length) {
+                    document.getElementById('dataTbody').innerHTML = `<tr><td colspan="12" class="py-12 text-center text-slate-500">No records found matching query.</td></tr>`;
+                    return;
+                }
+
+                // Render Header Columns
+                const firstRow = data.rows[0];
+                const columns = Object.keys(firstRow);
+                let theadHtml = '<tr><th class="py-3 px-3">🔍 Day 1-30 & Details</th>';
+                columns.forEach(c => {
+                    theadHtml += `<th class="py-3 px-3">${c}</th>`;
+                });
+                theadHtml += '</tr>';
+                document.getElementById('dataThead').innerHTML = theadHtml;
+
+                // Render Data Rows
+                let tbodyHtml = '';
+                data.rows.forEach((row, rowIdx) => {
+                    tbodyHtml += `<tr class="hover:bg-slate-800/40 transition">`;
+                    tbodyHtml += `<td class="py-2.5 px-3">
+                        <button onclick='inspectRow(${JSON.stringify(row).replace(/'/g, "&apos;")})' class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[11px] font-semibold transition flex items-center gap-1">
+                            <span>📅</span> 30-Day Timeline
+                        </button>
+                    </td>`;
+                    columns.forEach(c => {
+                        let val = row[c];
+                        let formattedVal = val;
+                        if (val === null || val === undefined) {
+                            formattedVal = `<span class="text-slate-600 italic">null</span>`;
+                        } else if (typeof val === 'boolean') {
+                            formattedVal = val ? `<span class="text-emerald-400 font-bold">TRUE</span>` : `<span class="text-rose-400 font-bold">FALSE</span>`;
+                        } else if (c.includes('price') || c.includes('mrp') || c.includes('min_30d') || c.includes('median_30d') || c.includes('min_60d') || c.includes('min_90d') || c.includes('all_time_low')) {
+                            formattedVal = `<span class="font-bold text-emerald-400 font-mono">₹${Number(val).toLocaleString('en-IN')}</span>`;
+                        } else if (c === 'platform') {
+                            formattedVal = `<span class="px-1.5 py-0.5 bg-slate-800 rounded font-semibold text-white uppercase text-[10px]">${val}</span>`;
+                        } else if (typeof val === 'string' && val.startsWith('http')) {
+                            formattedVal = `<a href="${val}" target="_blank" class="text-indigo-400 hover:underline max-w-xs truncate inline-block">Link ↗</a>`;
+                        } else if (typeof val === 'string' && val.length > 50) {
+                            formattedVal = `<span title="${val}">${val.slice(0, 45)}...</span>`;
+                        }
+                        tbodyHtml += `<td class="py-2.5 px-3 font-mono text-[11px]">${formattedVal}</td>`;
+                    });
+                    tbodyHtml += `</tr>`;
+                });
+                document.getElementById('dataTbody').innerHTML = tbodyHtml;
+
+            } catch (err) {
+                console.error("Error loading table data:", err);
+                document.getElementById('dataTbody').innerHTML = `<tr><td colspan="12" class="py-12 text-center text-red-400 font-mono">Error: ${err.message}</td></tr>`;
+            }
+        }
+
+        function changePage(delta) {
+            currentPage = Math.max(1, Math.min(totalPages, currentPage + delta));
+            loadTableData();
+        }
+
+        function onFilterChange() {
+            currentPage = 1;
+            loadTableData();
+        }
+
+        function switchModalTab(tab) {
+            const btnTimeline = document.getElementById('btn-modal-timeline');
+            const btnRaw = document.getElementById('btn-modal-raw');
+            const viewTimeline = document.getElementById('modalContentTimeline');
+            const viewRaw = document.getElementById('modalContentRaw');
+
+            if (tab === 'timeline') {
+                btnTimeline.className = "px-3 py-1 text-xs font-semibold rounded-lg bg-indigo-600 text-white";
+                btnRaw.className = "px-3 py-1 text-xs font-semibold rounded-lg text-slate-400 hover:text-white";
+                viewTimeline.classList.remove('hidden');
+                viewRaw.classList.add('hidden');
+            } else {
+                btnRaw.className = "px-3 py-1 text-xs font-semibold rounded-lg bg-indigo-600 text-white";
+                btnTimeline.className = "px-3 py-1 text-xs font-semibold rounded-lg text-slate-400 hover:text-white";
+                viewRaw.classList.remove('hidden');
+                viewTimeline.classList.add('hidden');
+            }
+        }
+
+        async function inspectRow(rowObj) {
+            const prodId = rowObj.id || rowObj.product_id;
+            document.getElementById('modalTitle').textContent = rowObj.title ? rowObj.title : `Record Detail (#${prodId || ''})`;
+            document.getElementById('modalSubtitle').textContent = `Product ID: #${prodId} • Store: ${(rowObj.platform || '').toUpperCase()} • Category: ${rowObj.category || 'General'}`;
+
+            // Populate Raw Tab
+            let rawHtml = '';
+            for (const [k, v] of Object.entries(rowObj)) {
+                let displayVal = v;
+                if (typeof v === 'object' && v !== null) {
+                    displayVal = `<pre class="bg-slate-950 p-2 rounded text-[11px] text-amber-300 mt-1">${JSON.stringify(v, null, 2)}</pre>`;
+                } else if (typeof v === 'string' && v.startsWith('http')) {
+                    displayVal = `<a href="${v}" target="_blank" class="text-indigo-400 hover:underline break-all">${v} ↗</a>`;
+                }
+                rawHtml += `
+                <div class="p-2.5 bg-slate-950/60 rounded-xl border border-slate-800/80">
+                    <div class="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">${k}</div>
+                    <div class="text-slate-200 mt-0.5 text-xs font-mono break-all">${displayVal}</div>
+                </div>`;
+            }
+            document.getElementById('modalContentRaw').innerHTML = rawHtml;
+
+            // Fetch and Populate 30-Day Timeline Tab
+            document.getElementById('modalContentTimeline').innerHTML = `<div class="py-8 text-center text-slate-400">Loading 30-Day Daily Prices for #${prodId}...</div>`;
+            switchModalTab('timeline');
+            document.getElementById('detailModal').classList.remove('hidden');
+
+            try {
+                if (!prodId) {
+                    document.getElementById('modalContentTimeline').innerHTML = `<div class="py-6 text-center text-slate-500">No Product ID associated with this row.</div>`;
+                    return;
+                }
+
+                const res = await fetch(`/api/db/product_history/${prodId}`);
+                const hist = await res.json();
+
+                if (!hist.daily_prices || !hist.daily_prices.length) {
+                    document.getElementById('modalContentTimeline').innerHTML = `
+                        <div class="py-8 text-center text-slate-500">
+                            No daily price snapshots recorded yet for this product.
+                        </div>`;
+                    return;
+                }
+
+                let timelineHtml = `
+                <!-- Metrics Summary Cards -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <div class="text-[10px] text-slate-400 uppercase font-semibold">Live Price</div>
+                        <div class="text-base font-bold text-emerald-400 font-mono mt-0.5">₹${Number(rowObj.current_price || 0).toLocaleString('en-IN')}</div>
+                    </div>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <div class="text-[10px] text-slate-400 uppercase font-semibold">30-Day Min</div>
+                        <div class="text-base font-bold text-blue-400 font-mono mt-0.5">${rowObj.min_30d ? '₹' + Number(rowObj.min_30d).toLocaleString('en-IN') : '₹' + Number(rowObj.current_price || 0).toLocaleString('en-IN')}</div>
+                    </div>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <div class="text-[10px] text-slate-400 uppercase font-semibold">30-Day Median</div>
+                        <div class="text-base font-bold text-purple-400 font-mono mt-0.5">${rowObj.median_30d_price ? '₹' + Number(rowObj.median_30d_price).toLocaleString('en-IN') : '₹' + Number(rowObj.current_price || 0).toLocaleString('en-IN')}</div>
+                    </div>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <div class="text-[10px] text-slate-400 uppercase font-semibold">All-Time Low</div>
+                        <div class="text-base font-bold text-amber-400 font-mono mt-0.5">${rowObj.all_time_low ? '₹' + Number(rowObj.all_time_low).toLocaleString('en-IN') : '₹' + Number(rowObj.current_price || 0).toLocaleString('en-IN')}</div>
+                    </div>
+                </div>
+
+                <!-- Daily Prices Table -->
+                <div class="border border-slate-800 rounded-xl overflow-hidden">
+                    <table class="w-full text-left text-xs font-mono">
+                        <thead class="bg-slate-950 text-slate-400 border-b border-slate-800">
+                            <tr>
+                                <th class="py-2.5 px-3">🗓️ Timeline Day</th>
+                                <th class="py-2.5 px-3">📅 Calendar Date</th>
+                                <th class="py-2.5 px-3">💰 Min Price of Day</th>
+                                <th class="py-2.5 px-3">📊 Close Price</th>
+                                <th class="py-2.5 px-3">📈 Price Trend</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800/60 text-slate-300 bg-slate-950/40">`;
+
+                let prevPrice = null;
+                hist.daily_prices.forEach((dp, idx) => {
+                    let badgeClass = "bg-slate-800 text-slate-300";
+                    if (dp.day_number === 1) {
+                        badgeClass = "bg-blue-500/20 text-blue-400 border border-blue-500/30";
+                    } else if (dp.is_today) {
+                        badgeClass = "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold";
+                    }
+
+                    // Calculate price change vs previous day
+                    let changeTag = '<span class="text-slate-600">-</span>';
+                    if (prevPrice !== null && dp.close_price !== null) {
+                        const diff = dp.close_price - prevPrice;
+                        if (diff < 0) {
+                            changeTag = `<span class="text-emerald-400 font-bold">↓ ₹${Math.abs(diff).toLocaleString('en-IN')} drop</span>`;
+                        } else if (diff > 0) {
+                            changeTag = `<span class="text-rose-400 font-bold">↑ ₹${diff.toLocaleString('en-IN')} up</span>`;
+                        } else {
+                            changeTag = `<span class="text-slate-500">Unchanged</span>`;
+                        }
+                    }
+                    prevPrice = dp.close_price;
+
+                    timelineHtml += `
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="py-2.5 px-3">
+                                <span class="px-2.5 py-1 rounded-lg text-xs font-semibold ${badgeClass}">${dp.day_label}</span>
+                            </td>
+                            <td class="py-2.5 px-3 text-slate-400 font-mono">${dp.date}</td>
+                            <td class="py-2.5 px-3 font-bold text-emerald-400 font-mono">₹${Number(dp.min_price).toLocaleString('en-IN')}</td>
+                            <td class="py-2.5 px-3 text-white font-mono font-semibold">₹${Number(dp.close_price).toLocaleString('en-IN')}</td>
+                            <td class="py-2.5 px-3 font-mono text-[11px]">${changeTag}</td>
+                        </tr>`;
+                });
+
+                timelineHtml += `</tbody></table></div>`;
+                document.getElementById('modalContentTimeline').innerHTML = timelineHtml;
+
+            } catch (err) {
+                console.error("Error loading timeline:", err);
+                document.getElementById('modalContentTimeline').innerHTML = `<div class="py-6 text-center text-red-400">Error loading daily prices: ${err.message}</div>`;
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('detailModal').classList.add('hidden');
+        }
+
+        document.getElementById('dbSearchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                currentPage = 1;
+                loadTableData();
+            }
+        });
+
+        initExplorer();
+    </script>
+</body>
+</html>

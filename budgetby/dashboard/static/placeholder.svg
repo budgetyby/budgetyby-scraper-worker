@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc" />
+      <stop offset="100%" stop-color="#f1f5f9" />
+    </linearGradient>
+    <linearGradient id="iconGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#94a3b8" />
+      <stop offset="100%" stop-color="#64748b" />
+    </linearGradient>
+  </defs>
+  <rect width="400" height="400" fill="url(#bgGrad)" rx="24" />
+  <g transform="translate(130, 115)">
+    <!-- Shopping Bag Box Icon -->
+    <rect x="20" y="45" width="100" height="90" rx="14" fill="none" stroke="url(#iconGrad)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M42 45 V 30 C 42 16.7 52.7 6 66 6 C 79.3 6 90 16.7 90 30 V 45" fill="none" stroke="url(#iconGrad)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+    <circle cx="70" cy="85" r="7" fill="#64748b" />
+    <path d="M50 105 Q 70 120 90 105" fill="none" stroke="#64748b" stroke-width="6" stroke-linecap="round" />
+  </g>
+  <text x="200" y="275" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#64748b" text-anchor="middle" letter-spacing="1">BUDGETBY</text>
+  <text x="200" y="298" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#94a3b8" text-anchor="middle">Product Preview</text>
+</svg>

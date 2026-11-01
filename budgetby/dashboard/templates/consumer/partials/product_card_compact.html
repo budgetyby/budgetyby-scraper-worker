@@ -1,0 +1,71 @@
+{% set cp = deal.current_price or deal.deal_price or deal.posted_price or 0 %}
+{% set mrp = deal.mrp or deal.posted_mrp or 0 %}
+{% set has_discount = mrp > cp %}
+{% set discount_pct = ((((mrp - cp) / mrp) * 100)|round_int) if (has_discount and mrp > 0) else (deal.discount_pct or deal.discount_percent or deal.savings_pct or 0) %}
+{% set savings = (mrp - cp) if has_discount else (deal.savings_amount or 0) %}
+{% set platform = (deal.platform or 'store')|lower %}
+{% set pid = deal.product_id or deal.id or 0 %}
+{% set buy_url = deal.affiliate_url or deal.product_url or ('/api/deal/redirect/' ~ pid if pid else '#') %}
+{% set deal_url = ('/deal/' ~ pid) if (pid and pid > 0) else buy_url %}
+
+<div class="w-60 sm:w-64 shrink-0 bg-white border border-slate-200/90 hover:border-rose-400 rounded-2xl p-3 flex flex-col justify-between transition-all duration-200 shadow-sm hover:shadow-md group relative">
+    <div>
+        <div class="flex items-center justify-between gap-1 mb-2">
+            <span class="px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider {{ platform|store_badge }}">
+                {{ platform|store_name }}
+            </span>
+            {% if deal.drop_pct and deal.drop_pct > 0 %}
+            <span class="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 font-mono">
+                -{{ deal.drop_pct|round_int }}% DROP
+            </span>
+            {% endif %}
+        </div>
+
+        <div class="relative w-full h-36 rounded-xl bg-slate-50 p-2 flex items-center justify-center overflow-hidden border border-slate-100">
+            <a href="{{ deal_url }}" class="w-full h-full flex items-center justify-center">
+                <img src="{{ deal.image_url or '/static/placeholder.svg' }}" 
+                     alt="{{ deal.title or '' }}" 
+                     class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                     loading="lazy"
+                     onerror="this.src='/static/placeholder.svg'" />
+            </a>
+            <button onclick="handleHomeWatchlist(this, {{ pid }})" 
+                    class="absolute top-2 right-2 p-1.5 rounded-xl bg-white/90 backdrop-blur-md border border-slate-200 text-slate-400 hover:text-rose-500 transition shadow-sm" 
+                    title="Save to Watchlist">
+                <i data-lucide="heart" class="w-3.5 h-3.5"></i>
+            </button>
+        </div>
+
+        <div class="mt-2">
+            <a href="{{ deal_url }}" 
+               class="text-xs font-bold text-slate-900 hover:text-indigo-600 line-clamp-2 transition leading-snug" 
+               title="{{ deal.title or '' }}">
+                {{ deal.title or '' }}
+            </a>
+        </div>
+    </div>
+
+    <div class="mt-2.5 pt-2 border-t border-slate-100">
+        <div class="flex items-baseline justify-between gap-1 mb-2">
+            <div class="flex items-baseline gap-1 flex-wrap">
+                <span class="text-base font-black text-slate-900 font-mono">{{ cp|format_inr }}</span>
+                {% if has_discount and mrp > cp %}
+                <span class="text-[11px] text-slate-400 line-through font-mono">{{ mrp|format_inr }}</span>
+                {% endif %}
+                {% if discount_pct and discount_pct > 0 %}
+                <span class="text-[11px] font-black text-rose-600 font-mono">({{ discount_pct|round_int }}% OFF)</span>
+                {% endif %}
+            </div>
+            {% if savings > 0 %}
+            <span class="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200 font-mono shrink-0">
+                -₹{{ savings|round_int }}
+            </span>
+            {% endif %}
+        </div>
+        <a href="{{ buy_url }}" target="_blank" rel="noopener noreferrer" 
+           class="w-full py-1.5 px-3 rounded-xl bg-slate-900 hover:bg-indigo-600 text-white font-extrabold text-xs flex items-center justify-center gap-1 transition">
+            <span>Buy on {{ platform|store_name }}</span>
+            <i data-lucide="external-link" class="w-3 h-3"></i>
+        </a>
+    </div>
+</div>

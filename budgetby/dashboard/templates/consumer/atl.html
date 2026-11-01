@@ -1,0 +1,562 @@
+{% extends "consumer/layout.html" %}
+
+{% block title %}All-Time Lows (ATL) Showcase — Lowest Prices | BudgetBy{% endblock %}
+{% block description %}Discover products currently selling at their lowest price ever recorded in our history. Rock-bottom discounts across Amazon, Flipkart, Myntra, Ajio, and Nykaa.{% endblock %}
+
+{% block content %}
+<main class="w-full">
+    <!-- ── Page Header ───────────────────────────────────── -->
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pt-6 pb-2">
+        <!-- Breadcrumb -->
+        <nav class="flex items-center gap-2 text-xs text-slate-500 mb-2" aria-label="Breadcrumb">
+            <a href="/" class="hover:text-slate-900 transition flex items-center gap-1">
+                <span>🏠</span> Home
+            </a>
+            <span class="text-slate-300">/</span>
+            <span class="text-amber-600 font-semibold flex items-center gap-1">
+                <span>👑</span> All-Time Lows
+            </span>
+        </nav>
+
+        <div class="flex items-center justify-between pb-2">
+            <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 leading-tight flex items-center">
+                <span>All-Time Low Deals</span>
+                <span id="statAtlTotal" class="ml-3 text-xs font-bold px-2.5 py-0.5 bg-amber-100 text-amber-800 rounded-full font-mono border border-amber-200">
+                    {{ (initial_data.total_matches or initial_data.deals|length if initial_data else 0) }}
+                </span>
+            </h1>
+        </div>
+    </section>
+
+    <!-- ── Filter & Navigation Bar ───────────────────────────────────────── -->
+    <section class="w-full sticky top-16 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <!-- Store Selector Pills -->
+                <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+                    <span class="text-xs font-bold text-slate-500 mr-1 hidden sm:inline">Store:</span>
+                    <button onclick="setAtlStoreFilter('')" id="atlStoreAll" class="atl-store-pill px-2.5 py-1 rounded-lg text-xs font-bold transition font-mono {% if not current_platform %}bg-amber-500 text-slate-950 shadow-sm{% else %}bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200{% endif %}">
+                        All Stores
+                    </button>
+                    <button onclick="setAtlStoreFilter('amazon')" id="atlStoreAmazon" class="atl-store-pill px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 {% if current_platform == 'amazon' %}bg-amber-500 text-slate-950 shadow-sm{% else %}bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200{% endif %}">
+                        <span class="w-2 h-2 rounded-full bg-[#FF9900]"></span>
+                        <span>Amazon</span>
+                    </button>
+                    <button onclick="setAtlStoreFilter('flipkart')" id="atlStoreFlipkart" class="atl-store-pill px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 {% if current_platform == 'flipkart' %}bg-amber-500 text-slate-950 shadow-sm{% else %}bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200{% endif %}">
+                        <span class="w-2 h-2 rounded-full bg-[#2874F0]"></span>
+                        <span>Flipkart</span>
+                    </button>
+                    <button onclick="setAtlStoreFilter('myntra')" id="atlStoreMyntra" class="atl-store-pill px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 {% if current_platform == 'myntra' %}bg-amber-500 text-slate-950 shadow-sm{% else %}bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200{% endif %}">
+                        <span class="w-2 h-2 rounded-full bg-[#FF3F6C]"></span>
+                        <span>Myntra</span>
+                    </button>
+                    <button onclick="setAtlStoreFilter('ajio')" id="atlStoreAjio" class="atl-store-pill px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 {% if current_platform == 'ajio' %}bg-amber-500 text-slate-950 shadow-sm{% else %}bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200{% endif %}">
+                        <span class="w-2 h-2 rounded-full bg-[#D99814]"></span>
+                        <span>Ajio</span>
+                    </button>
+                    <button onclick="setAtlStoreFilter('nykaa')" id="atlStoreNykaa" class="atl-store-pill px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 {% if current_platform == 'nykaa' %}bg-amber-500 text-slate-950 shadow-sm{% else %}bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200{% endif %}">
+                        <span class="w-2 h-2 rounded-full bg-[#FC2779]"></span>
+                        <span>Nykaa</span>
+                    </button>
+                </div>
+
+                <!-- Category & Sort Dropdowns -->
+                <div class="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                    <select id="atlCategorySelect" onchange="onAtlCategoryChange(this.value)" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-amber-500 transition">
+                        <option value="">All Categories (17)</option>
+                        <option value="fashion" {% if current_category == 'fashion' %}selected{% endif %}>Fashion & Apparel</option>
+                        <option value="beauty" {% if current_category == 'beauty' %}selected{% endif %}>Beauty & Skincare</option>
+                        <option value="electronics" {% if current_category == 'electronics' %}selected{% endif %}>Electronics & Audio</option>
+                        <option value="home" {% if current_category == 'home' %}selected{% endif %}>Home & Kitchen</option>
+                        <option value="sports" {% if current_category == 'sports' %}selected{% endif %}>Sports & Fitness</option>
+                        <option value="footwear" {% if current_category == 'footwear' %}selected{% endif %}>Footwear & Shoes</option>
+                        <option value="watches" {% if current_category == 'watches' %}selected{% endif %}>Watches & Wearables</option>
+                        <option value="bags" {% if current_category == 'bags' %}selected{% endif %}>Bags & Luggage</option>
+                        <option value="health" {% if current_category == 'health' %}selected{% endif %}>Health & Nutrition</option>
+                        <option value="jewellery" {% if current_category == 'jewellery' %}selected{% endif %}>Jewellery & Accessories</option>
+                        <option value="gaming" {% if current_category == 'gaming' %}selected{% endif %}>Gaming & PC</option>
+                        <option value="toys_kids" {% if current_category == 'toys_kids' %}selected{% endif %}>Toys & Baby</option>
+                        <option value="books" {% if current_category == 'books' %}selected{% endif %}>Books & Stationery</option>
+                        <option value="grocery" {% if current_category == 'grocery' %}selected{% endif %}>Grocery & Gourmet</option>
+                        <option value="automotive" {% if current_category == 'automotive' %}selected{% endif %}>Auto & Bikes</option>
+                        <option value="pets" {% if current_category == 'pets' %}selected{% endif %}>Pet Supplies</option>
+                        <option value="miscellaneous" {% if current_category == 'miscellaneous' %}selected{% endif %}>Miscellaneous</option>
+                    </select>
+
+                    <select id="atlSortSelect" onchange="onAtlSortChange(this.value)" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-amber-500 transition">
+                        <option value="latest" {% if not current_sort or current_sort == 'latest' %}selected{% endif %}>Recently Added</option>
+                        <option value="discount_desc" {% if current_sort in ['discount', 'discount_desc'] %}selected{% endif %}>Highest Discount %</option>
+                        <option value="price_asc" {% if current_sort == 'price_asc' %}selected{% endif %}>Price: Low to High</option>
+                        <option value="price_desc" {% if current_sort == 'price_desc' %}selected{% endif %}>Price: High to Low</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── ATL Grid Container ───────────────────────────────────────────── -->
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full mt-6 mb-16">
+        <div id="atlGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 transition-opacity duration-200">
+            {% if initial_data and initial_data.deals %}
+                {% for deal in initial_data.deals %}
+                <div data-deal-id="{{ deal.product_id or deal.id }}" class="bg-white border border-slate-200/90 hover:border-amber-400 rounded-2xl p-3.5 flex flex-col justify-between transition-all duration-200 shadow-sm hover:shadow-md group relative">
+                    <div>
+                        <!-- Top Badges -->
+                        <div class="flex items-center justify-between gap-2 mb-2">
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider {{ deal.platform|store_badge }}">
+                                {{ deal.platform|store_name }}
+                            </span>
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 font-mono flex items-center gap-1">
+                                👑 ALL-TIME LOW
+                            </span>
+                        </div>
+
+                        <!-- Product Image Area -->
+                        <div class="relative w-full h-44 rounded-xl bg-slate-50 p-2 flex items-center justify-center overflow-hidden border border-slate-100">
+                            <img src="{{ deal.image_url or '/static/placeholder.svg' }}" 
+                                 alt="{{ deal.title }}" 
+                                 class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                                 loading="lazy"
+                                 onerror="this.onerror=null;this.src='/static/placeholder.svg'" />
+                            
+                            <!-- Watchlist Quick Toggle -->
+                            <button onclick="handleAtlCardWatchlist(this, {{ deal.product_id or deal.id }})" 
+                                    class="absolute top-2 right-2 p-1.5 rounded-xl bg-white/90 backdrop-blur-md border border-slate-200 text-slate-400 hover:text-rose-500 transition shadow-sm" 
+                                    title="Save to Watchlist">
+                                <i data-lucide="heart" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+
+                        <!-- Product Title -->
+                        <div class="mt-3">
+                            <a href="{{ deal.affiliate_url or deal.product_url or '#' }}" target="_blank" rel="noopener noreferrer" 
+                               class="text-xs font-bold text-slate-900 hover:text-amber-600 line-clamp-2 break-words transition leading-snug" 
+                               title="{{ deal.title }}">
+                                {{ deal.title }}
+                            </a>
+                            {% if deal.rating and deal.rating >= 1.0 %}
+                            <div class="flex items-center gap-1.5 mt-1.5">
+                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-900 text-[10px] font-bold font-mono">
+                                    <span class="text-amber-500">★</span> {{ deal.rating }}
+                                </span>
+                                {% if deal.review_count and deal.review_count > 0 %}
+                                <span class="text-[10px] text-slate-500 font-mono">({{ deal.review_count }})</span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Price & Action Footer -->
+                    <div class="mt-3 pt-3 border-t border-slate-100">
+                        <div class="flex items-baseline justify-between gap-1 mb-2">
+                            <div class="flex items-baseline gap-1.5 flex-wrap">
+                                {% set cp = deal.current_price or deal.deal_price or 0 %}
+                                {% set mrp = deal.mrp or 0 %}
+                                {% set has_disc = mrp > cp %}
+                                {% set disc_pct = ((((mrp - cp) / mrp) * 100)|round_int) if (has_disc and mrp > 0) else (deal.discount_pct or deal.discount_percent or 0) %}
+                                <span class="text-lg font-black text-slate-900 font-mono">{{ cp|format_inr }}</span>
+                                {% if has_disc %}
+                                <span class="text-xs text-slate-400 line-through font-mono">{{ mrp|format_inr }}</span>
+                                {% endif %}
+                                {% if disc_pct and disc_pct > 0 %}
+                                <span class="text-xs font-black text-rose-600 font-mono">({{ disc_pct|round_int }}% OFF)</span>
+                                {% endif %}
+                            </div>
+                            {% if mrp > cp %}
+                            <div class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 font-mono shrink-0">
+                                Save {{ (mrp - cp)|format_inr }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Card Action Buttons -->
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="handleAtlCardShare({{ deal.product_id or deal.id }})" 
+                                    class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 flex items-center justify-center transition shrink-0" 
+                                    title="Share Deal">
+                                <i data-lucide="share-2" class="w-4 h-4 text-indigo-600"></i>
+                            </button>
+                            <a href="{{ deal.affiliate_url or deal.product_url or '#' }}" target="_blank" rel="noopener noreferrer" 
+                               class="flex-1 py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold flex items-center justify-center gap-1 shadow-sm shadow-amber-500/20 hover:scale-[1.02] active:scale-[0.98] transition">
+                                <span>Get Deal</span>
+                                <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                            </a>
+                        </div>
+
+                            <!-- Send for Review Option -->
+                            <div class="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-100 text-[10px] text-slate-500 font-medium">
+                                <span class="truncate">Price changed on the platform?</span>
+                                <button onclick="handleSendForReview({{ deal.product_id or deal.id }}, '{{ deal.title|escape }}', '{{ deal.affiliate_url or deal.product_url or '#' }}', {{ deal.current_price or deal.deal_price or 0 }})" 
+                                        class="text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 shrink-0 transition" 
+                                        title="Send product for price re-check">
+                                    <i data-lucide="help-circle" class="w-3 h-3 text-indigo-500"></i>
+                                    <span>Flag for Re-Check</span>
+                                </button>
+                            </div>
+
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-span-full py-16 text-center text-xs text-slate-500">
+                    No All-Time Low items found matching the selected filter. Try another store or category.
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Pagination Bar -->
+        <div id="atlPaginationBar" class="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm">
+            <div class="text-xs text-slate-600 font-mono">
+                Page <span id="atlCurrentPage" class="font-bold text-slate-900">{{ initial_data.page if initial_data and initial_data.page else 1 }}</span> of <span id="atlTotalPages" class="font-bold text-slate-900">{{ initial_data.total_pages if initial_data and initial_data.total_pages else 1 }}</span>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button onclick="changeAtlPage(-1)" id="atlPrevBtn" disabled class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:pointer-events-none text-slate-700 border border-slate-200 transition">
+                    ← Previous
+                </button>
+                <button onclick="changeAtlPage(1)" id="atlNextBtn" {% if not initial_data or initial_data.total_pages <= 1 %}disabled{% endif %} class="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:pointer-events-none text-slate-950 transition flex items-center gap-1.5 shadow-sm shadow-amber-500/20">
+                    <span>Next Page</span>
+                    <span>→</span>
+                </button>
+            </div>
+        </div>
+    </section>
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script id="initial-atl-data" type="application/json">{{ (initial_data or {})|tojson|safe }}</script>
+<script>
+    const atlState = {
+        page: {{ current_page if current_page else 1 }},
+        limit: 24,
+        totalPages: {{ initial_data.total_pages if initial_data and initial_data.total_pages else 1 }},
+        store: '{{ current_platform if current_platform else "" }}',
+        category: '{{ current_category if current_category else "" }}',
+        sortBy: '{{ current_sort if current_sort else "latest" }}',
+        items: [],
+        itemsMap: {}
+    };
+
+    let atlAutoRefreshTimer = null;
+    function startAtlAutoRefresh() {
+        if (atlAutoRefreshTimer) clearInterval(atlAutoRefreshTimer);
+        const settings = window.getUserSettings ? window.getUserSettings() : null;
+        const intervalSec = (settings && settings.syncInterval !== undefined && settings.syncInterval > 0) ? settings.syncInterval : 60;
+        if (intervalSec <= 0) return;
+        atlAutoRefreshTimer = setInterval(() => {
+            if (atlState.page === 1 && !document.hidden) {
+                loadAtlDeals(true);
+            }
+        }, intervalSec * 1000);
+    }
+
+    function syncAtlWatchlistHearts() {
+        if (!window.isInWatchlist) return;
+        document.querySelectorAll('#atlGrid [data-deal-id]').forEach(card => {
+            const id = card.dataset.dealId;
+            const heartIcon = card.querySelector('[title="Save to Watchlist"] i');
+            if (id && heartIcon && isInWatchlist(id)) {
+                heartIcon.classList.add('fill-rose-500', 'text-rose-500');
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const rawAtl = document.getElementById('initial-atl-data');
+        let hasInitialData = false;
+        if (rawAtl && rawAtl.textContent.trim()) {
+            try {
+                const parsed = JSON.parse(rawAtl.textContent);
+                if (parsed && parsed.deals && parsed.deals.length > 0) {
+                    atlState.items = (parsed.deals || []).map(d => ({
+                        ...d,
+                        id: d.product_id || d.deal_id,
+                        current_price: d.deal_price !== undefined ? d.deal_price : (d.current_price || 0),
+                        discount_percent: d.discount_pct !== undefined ? d.discount_pct : (d.discount_percent || 0),
+                        drop_percent: d.drop_pct !== undefined ? d.drop_pct : (d.drop_percent || 0),
+                        affiliate_url: d.affiliate_url || d.product_url
+                    }));
+                    atlState.totalPages = parsed.total_pages || 1;
+                    atlState.itemsMap = {};
+                    atlState.items.forEach(d => { atlState.itemsMap[d.id] = d; });
+                    hasInitialData = true;
+                }
+            } catch (e) {}
+        }
+
+        if (!hasInitialData) {
+            loadAtlDeals();
+        } else {
+            if (window.lucide) lucide.createIcons();
+            syncAtlWatchlistHearts();
+        }
+        startAtlAutoRefresh();
+    });
+
+    window.addEventListener('budgetby:syncRateChanged', () => {
+        startAtlAutoRefresh();
+    });
+
+    async function loadAtlDeals(isBackground = false) {
+        if (isBackground && document.hidden) return;
+        const grid = document.getElementById('atlGrid');
+        if (!isBackground) {
+            if (typeof showPageProgress === 'function') showPageProgress();
+            if (grid) {
+                grid.classList.add('opacity-50', 'pointer-events-none');
+            }
+        }
+
+        try {
+            const params = new URLSearchParams({
+                deal_type: 'atl',
+                page: atlState.page,
+                limit: atlState.limit,
+                sort_by: atlState.sortBy
+            });
+            if (atlState.store) params.append('platform', atlState.store);
+            if (atlState.category) params.append('category', atlState.category);
+
+            const res = await fetch(`/api/public/deals?${params.toString()}`);
+            const data = await res.json();
+
+            atlState.items = (data.deals || data.items || []).map(d => ({
+                ...d,
+                id: d.product_id || d.deal_id,
+                current_price: d.deal_price !== undefined ? d.deal_price : (d.current_price || 0),
+                discount_percent: d.discount_pct !== undefined ? d.discount_pct : (d.discount_percent || 0),
+                drop_percent: d.drop_pct !== undefined ? d.drop_pct : (d.drop_percent || 0),
+                affiliate_url: d.affiliate_url || d.product_url
+            }));
+            atlState.totalPages = data.total_pages || 1;
+
+            const totalMatches = data.total_matches !== undefined ? data.total_matches : (data.total || atlState.items.length);
+            const countEl = document.getElementById('statAtlTotal');
+            if (countEl) countEl.innerText = totalMatches.toLocaleString('en-IN');
+            const pageEl = document.getElementById('atlCurrentPage');
+            if (pageEl) pageEl.innerText = data.page || 1;
+            const totalPageEl = document.getElementById('atlTotalPages');
+            if (totalPageEl) totalPageEl.innerText = atlState.totalPages;
+
+            const prevBtn = document.getElementById('atlPrevBtn');
+            if (prevBtn) prevBtn.disabled = (atlState.page <= 1);
+            const nextBtn = document.getElementById('atlNextBtn');
+            if (nextBtn) nextBtn.disabled = (atlState.page >= atlState.totalPages);
+
+            renderAtlCards(atlState.items);
+        } catch (err) {
+            if (grid && (!atlState.items || atlState.items.length === 0)) {
+                grid.innerHTML = '<div class="col-span-full py-12 text-center text-xs text-rose-600 font-semibold">Failed to load All-Time Lows. Please refresh.</div>';
+            }
+        } finally {
+            if (typeof hidePageProgress === 'function') hidePageProgress();
+            if (grid) {
+                grid.classList.remove('opacity-50', 'pointer-events-none');
+            }
+        }
+    }
+
+    function renderAtlCards(items) {
+        const grid = document.getElementById('atlGrid');
+        if (items.length === 0) {
+            grid.innerHTML = `<div class="col-span-full py-16 text-center text-xs text-slate-500">No All-Time Low items found matching the selected filters.</div>`;
+            return;
+        }
+
+        atlState.itemsMap = {};
+        const seenPids = new Set();
+        const seenLinks = new Set();
+        const uniqueItems = [];
+
+        items.forEach(d => {
+            const pid = d.product_id || d.id;
+            const link = (d.affiliate_url || d.product_url || '').split('?')[0].toLowerCase();
+            if (seenPids.has(pid) || (link && seenLinks.has(link))) return;
+            seenPids.add(pid);
+            if (link) seenLinks.add(link);
+            atlState.itemsMap[d.id] = d;
+            uniqueItems.push(d);
+        });
+
+        grid.innerHTML = uniqueItems.map(deal => {
+            const store = (deal.platform || 'amazon').toLowerCase();
+            const storeCfg = STORES[store] || STORES.amazon;
+            const liveAgo = deal.last_price_change ? formatTimeAgo(deal.last_price_change) : (deal.last_checked ? formatTimeAgo(deal.last_checked) : 'Recently');
+            const inWatch = isInWatchlist(deal.id);
+            const safeTitle = escapeHtml(deal.title);
+            const dealLink = deal.affiliate_url || deal.product_url || '#';
+            const postedTimeStr = formatPostedDateTime(deal.last_price_change || deal.deal_time || deal.last_checked || deal.posted_at);
+            const hasValidRating = deal.rating && typeof deal.rating === 'number' && deal.rating >= 1.0 && deal.rating <= 5.0;
+            const ratingHtml = hasValidRating ? `
+                <div class="flex items-center gap-1.5 mt-1.5">
+                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-900 text-[10px] font-bold font-mono">
+                        <span class="text-amber-500">★</span> ${deal.rating.toFixed(1)}
+                    </span>
+                    ${deal.review_count && deal.review_count > 0 ? `
+                        <span class="text-[10px] text-slate-500 font-mono">(${Number(deal.review_count).toLocaleString('en-IN')})</span>
+                    ` : ''}
+                </div>
+            ` : '';
+
+            const cp = deal.current_price || 0;
+            const mrp = deal.mrp || 0;
+            const discPct = (mrp > cp && mrp > 0) ? Math.round(((mrp - cp) / mrp) * 100) : Math.round(deal.discount_pct || deal.discount_percent || 0);
+            const savingsHtml = (mrp > cp) ? `
+                <div class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 font-mono">
+                    Save ${formatINR(mrp - cp)}
+                </div>
+            ` : '';
+
+            return `
+                <div data-deal-id="${deal.id}" class="bg-white border border-slate-200/90 hover:border-amber-400 rounded-2xl p-3.5 flex flex-col justify-between transition-all duration-200 shadow-sm hover:shadow-md group relative">
+                    <div>
+                        <div class="flex items-center justify-between gap-2 mb-2">
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${storeCfg.badge}">
+                                ${storeCfg.name}
+                            </span>
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 font-mono flex items-center gap-1">
+                                👑 ALL-TIME LOW
+                            </span>
+                        </div>
+
+                        <div class="relative w-full h-44 rounded-xl bg-slate-50 p-2 flex items-center justify-center overflow-hidden border border-slate-100">
+                            <img src="${deal.image_url || '/static/placeholder.svg'}" alt="${safeTitle}" class="w-full h-full object-contain group-hover:scale-105 transition" loading="lazy" onerror="this.onerror=null;this.src='/static/placeholder.svg'"/>
+                            <button onclick="handleAtlCardWatchlist(this, ${deal.id})" class="absolute top-2 right-2 p-1.5 rounded-xl bg-white/90 backdrop-blur-md border border-slate-200 text-slate-400 hover:text-rose-500 transition shadow-sm" title="Save to Watchlist">
+                                <i data-lucide="heart" class="w-4 h-4 ${inWatch ? 'fill-rose-500 text-rose-500' : ''}"></i>
+                            </button>
+                        </div>
+
+                        <div class="mt-3">
+                            <a href="${dealLink ? dealLink : '#'}" ${dealLink ? 'target="_blank" rel="noopener noreferrer"' : ''} class="text-xs font-bold text-slate-900 hover:text-amber-600 line-clamp-2 break-words transition leading-snug" title="${safeTitle}">
+                                ${safeTitle}
+                            </a>
+                            ${ratingHtml}
+                        </div>
+                    </div>
+
+                    <div class="mt-3 pt-3 border-t border-slate-100">
+                        <div class="flex items-baseline justify-between gap-1 mb-2">
+                            <div class="flex items-baseline gap-1.5 flex-wrap">
+                                <span class="text-lg font-black text-slate-900 font-mono">${formatINR(deal.current_price)}</span>
+                                ${mrp > cp ? `<span class="text-xs text-slate-400 line-through font-mono">${formatINR(mrp)}</span>` : ''}
+                                ${discPct > 0 ? `<span class="text-xs font-black text-rose-600 font-mono">(${discPct}% OFF)</span>` : ''}
+                            </div>
+                            ${savingsHtml}
+                        </div>
+
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="handleAtlCardShare(${deal.id})" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 flex items-center justify-center transition shrink-0" title="Share Deal">
+                                <i data-lucide="share-2" class="w-4 h-4 text-indigo-600"></i>
+                            </button>
+                            ${dealLink ? `
+                            <a href="${dealLink}" target="_blank" rel="noopener noreferrer" class="flex-1 py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold flex items-center justify-center gap-1 shadow-sm shadow-amber-500/20 hover:scale-[1.02] active:scale-[0.98] transition">
+                                <span>Get Deal</span>
+                                <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                            </a>` : `
+                            <div class="flex-1 py-2 px-3 rounded-xl bg-slate-100 text-slate-400 text-xs font-bold flex items-center justify-center cursor-not-allowed">
+                                <span>Price Tracked</span>
+                            </div>`}
+                        </div>
+
+                        <div class="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-100 text-[10px] text-slate-500 font-medium">
+                            <span class="truncate">Tracked Deal</span>
+                            <button onclick="handleSendForReview(${deal.id}, '${safeTitle.replace(/'/g, "")}', '${dealLink.replace(/'/g, "")}', ${deal.current_price || 0})" class="text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 shrink-0 transition" title="Send product for price re-check">
+                                <i data-lucide="refresh-cw" class="w-3 h-3 text-indigo-500"></i>
+                                <span>Request Price Check</span>
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        if (window.lucide) lucide.createIcons();
+        syncAtlWatchlistHearts();
+    }
+
+    function setAtlStoreFilter(storeKey) {
+        atlState.store = storeKey;
+        atlState.page = 1;
+        document.querySelectorAll('.atl-store-pill').forEach(btn => {
+            btn.classList.remove('bg-amber-500', 'text-slate-950', 'shadow-sm');
+            btn.classList.add('bg-slate-100', 'text-slate-700');
+        });
+        const activeKey = storeKey ? `atlStore${storeKey.charAt(0).toUpperCase() + storeKey.slice(1)}` : 'atlStoreAll';
+        const activeBtn = document.getElementById(activeKey);
+        if (activeBtn) {
+            activeBtn.classList.remove('bg-slate-100', 'text-slate-700');
+            activeBtn.classList.add('bg-amber-500', 'text-slate-950', 'shadow-sm');
+        }
+        try {
+            const url = new URL(window.location);
+            if (storeKey) url.searchParams.set('platform', storeKey);
+            else url.searchParams.delete('platform');
+            url.searchParams.set('page', '1');
+            window.history.pushState(atlState, '', url);
+        } catch (e) {}
+        loadAtlDeals();
+    }
+
+    function onAtlCategoryChange(cat) {
+        atlState.category = cat;
+        atlState.page = 1;
+        try {
+            const url = new URL(window.location);
+            if (cat) url.searchParams.set('category', cat);
+            else url.searchParams.delete('category');
+            url.searchParams.set('page', '1');
+            window.history.pushState(atlState, '', url);
+        } catch (e) {}
+        loadAtlDeals();
+    }
+
+    function onAtlSortChange(sortBy) {
+        atlState.sortBy = sortBy;
+        atlState.page = 1;
+        try {
+            const url = new URL(window.location);
+            if (sortBy) url.searchParams.set('sort_by', sortBy);
+            else url.searchParams.delete('sort_by');
+            url.searchParams.set('page', '1');
+            window.history.pushState(atlState, '', url);
+        } catch (e) {}
+        loadAtlDeals();
+    }
+
+    function changeAtlPage(delta) {
+        atlState.page += delta;
+        window.scrollTo({ top: 150, behavior: 'smooth' });
+        loadAtlDeals();
+    }
+
+    function handleAtlCardWatchlist(btn, id) {
+        const deal = atlState.itemsMap[id];
+        if (deal) {
+            toggleWatchlist(deal);
+            const icon = btn.querySelector('svg');
+            if (icon) {
+                if (isInWatchlist(deal.id)) {
+                    icon.classList.add('fill-rose-500', 'text-rose-500');
+                } else {
+                    icon.classList.remove('fill-rose-500', 'text-rose-500');
+                }
+            }
+        }
+    }
+
+    function handleAtlCardShare(id) {
+        const deal = atlState.itemsMap[id];
+        if (deal) openShareModal(deal);
+    }
+
+    window.setAtlStoreFilter = setAtlStoreFilter;
+    window.onAtlCategoryChange = onAtlCategoryChange;
+    window.onAtlSortChange = onAtlSortChange;
+    window.changeAtlPage = changeAtlPage;
+    window.handleAtlCardWatchlist = handleAtlCardWatchlist;
+    window.handleAtlCardShare = handleAtlCardShare;
+</script>
+{% endblock %}

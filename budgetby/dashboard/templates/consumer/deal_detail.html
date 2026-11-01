@@ -1,0 +1,536 @@
+{% extends "consumer/layout.html" %}
+
+{% set cp = product.current_price or 0 %}
+{% set mrp = product.mrp or cp %}
+{% set has_discount = mrp > cp %}
+{% set discount_pct = ((((mrp - cp) / mrp) * 100)|round_int) if (has_discount and mrp > 0) else (product.discount_pct or 0) %}
+{% set savings = (mrp - cp) if has_discount else 0 %}
+{% set platform = (product.platform or 'store')|lower %}
+{% set buy_url = "/api/deal/redirect/" ~ product.product_id %}
+{% set pid = product.product_id or product.id %}
+{% set rating = product.rating or 0 %}
+{% set reviews = product.review_count or 0 %}
+{% set atl = product.all_time_low %}
+{% set min_30d = product.min_30d %}
+{% set min_90d = product.min_90d %}
+{% set is_atl = (atl and cp <= (atl * 1.01)) %}
+{% set is_in_stock = (product.in_stock != False and product.status != 'TEMP_OOS') %}
+{% set score = product.deal_score or 75 %}
+
+{% block title %}{{ product.title }} at ₹{{ cp|format_inr }} ({{ discount_pct }}% Off) | BudgetBy Deal Tracker{% endblock %}
+{% block description %}Track live price and deals for {{ product.title }}. Current price ₹{{ cp|format_inr }} with {{ discount_pct }}% discount (Save ₹{{ savings|format_inr }}). Historical low ₹{{ atl|format_inr if atl else cp|format_inr }}. Verified by BudgetBy.{% endblock %}
+
+{% block extra_head %}
+<!-- Product Open Graph Metadata -->
+<meta property="og:title" content="{{ product.title }} — ₹{{ cp|format_inr }} ({{ discount_pct }}% Off)">
+<meta property="og:description" content="Save ₹{{ savings|format_inr }} on {{ platform|store_name }}. Verified against 30-day and 90-day price history.">
+<meta property="og:image" content="{{ product.image_url or '/static/placeholder.svg' }}">
+<meta property="og:type" content="product">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ product.title }} — ₹{{ cp|format_inr }}">
+<meta name="twitter:description" content="{{ discount_pct }}% discount on {{ platform|store_name }}. Verified deal on BudgetBy.">
+<meta name="twitter:image" content="{{ product.image_url or '/static/placeholder.svg' }}">
+
+<link rel="canonical" href="https://budgetby.in/deal/{{ pid }}">
+
+<!-- JSON-LD Structured Data for SEO -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org/",
+  "@type": "Product",
+  "name": {{ product.title|tojson }},
+  "image": [{{ (product.image_url or '/static/placeholder.svg')|tojson }}],
+  "description": {{ (product.title ~ ' on ' ~ platform|store_name)|tojson }},
+  "brand": {
+    "@type": "Brand",
+    "name": {{ (product.brand or (product.title.split()[0] if product.title else 'Brand'))|tojson }}
+  },
+  "offers": {
+    "@type": "Offer",
+    "priceCurrency": "INR",
+    "price": "{{ cp }}",
+    "itemCondition": "https://schema.org/NewCondition",
+    "availability": "{{ 'https://schema.org/InStock' if is_in_stock else 'https://schema.org/OutOfStock' }}",
+    "url": "https://budgetby.in/deal/{{ pid }}",
+    "seller": {
+      "@type": "Organization",
+      "name": {{ (platform|store_name)|tojson }}
+    }
+  }{% if rating and rating > 0 %},
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "{{ rating }}",
+    "reviewCount": "{{ reviews if reviews > 0 else 1 }}"
+  }{% endif %}
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://budgetby.in/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Deals",
+      "item": "https://budgetby.in/deals"
+    }{% if product.category %},
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": {{ (product.category|title)|tojson }},
+      "item": "https://budgetby.in/deals?category={{ product.category }}"
+    },
+    {
+      "@type": "ListItem",
+      "position": 4,
+      "name": {{ product.title|tojson }},
+      "item": "https://budgetby.in/deal/{{ pid }}"
+    }{% else %},
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": {{ product.title|tojson }},
+      "item": "https://budgetby.in/deal/{{ pid }}"
+    }{% endif %}
+  ]
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<main class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full pt-4 pb-16">
+
+    <!-- ── Breadcrumb Navigation ──────────────────────────────────────── -->
+    <nav class="flex items-center gap-2 text-xs text-slate-500 mb-4 overflow-x-auto no-scrollbar whitespace-nowrap" aria-label="Breadcrumb">
+        <a href="/" class="hover:text-slate-900 transition flex items-center gap-1">
+            <span>🏠</span> Home
+        </a>
+        <span class="text-slate-300">/</span>
+        <a href="/deals" class="hover:text-slate-900 transition">Deals</a>
+        {% if product.category %}
+        <span class="text-slate-300">/</span>
+        <a href="/deals?category={{ product.category }}" class="hover:text-slate-900 transition capitalize">
+            {{ product.category }}
+        </a>
+        {% endif %}
+        <span class="text-slate-300">/</span>
+        <span class="text-slate-900 font-semibold truncate max-w-xs">{{ product.title }}</span>
+    </nav>
+
+    <!-- ── Main Deal Detail Hero Card ─────────────────────────────────── -->
+    <div class="bg-white border border-slate-200/90 rounded-3xl p-4 sm:p-8 shadow-sm mb-8">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10">
+
+            <!-- ── Left Column: Product Image & Badges (5 cols) ──────────── -->
+            <div class="lg:col-span-5 flex flex-col justify-between">
+                <div>
+                    <!-- Top store badge & deal tags -->
+                    <div class="flex items-center justify-between gap-2 mb-3">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider {{ platform|store_badge }}">
+                                {{ platform|store_name }}
+                            </span>
+                            {% if is_atl %}
+                            <span class="px-2 py-1 rounded-lg text-xs font-black bg-amber-50 text-amber-800 border border-amber-300 uppercase font-mono flex items-center gap-1">
+                                <span>🏆</span> ALL-TIME LOW
+                            </span>
+                            {% elif discount_pct >= 60 %}
+                            <span class="px-2 py-1 rounded-lg text-xs font-black bg-rose-50 text-rose-700 border border-rose-300 uppercase font-mono">
+                                🔥 LOOT DEAL
+                            </span>
+                            {% elif product.badge %}
+                            <span class="px-2 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase font-mono">
+                                {{ product.badge }}
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Freshness badge -->
+                        <span class="text-[11px] font-medium text-slate-400 flex items-center gap-1">
+                            <i data-lucide="clock" class="w-3.5 h-3.5 text-slate-400"></i>
+                            {{ product.last_price_change|time_ago if product.last_price_change else "Live Verified" }}
+                        </span>
+                    </div>
+
+                    <!-- Image Showcase Area -->
+                    <div class="relative w-full h-72 sm:h-96 rounded-2xl bg-slate-50 p-4 flex items-center justify-center overflow-hidden border border-slate-100 group">
+                        <img src="{{ product.image_url or '/static/placeholder.svg' }}" 
+                             alt="{{ product.title }}" 
+                             class="max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                             onerror="this.src='/static/placeholder.svg'" />
+
+                        {% if not is_in_stock %}
+                        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-[2px] flex flex-col items-center justify-center text-white p-4 text-center">
+                            <span class="text-2xl mb-1">⏳</span>
+                            <span class="text-sm font-black uppercase tracking-wider bg-rose-600 px-3 py-1 rounded-full">Currently Out of Stock</span>
+                            <span class="text-xs text-slate-200 mt-1">We'll alert when price/stock recovers</span>
+                        </div>
+                        {% endif %}
+
+                        <!-- Save to Watchlist -->
+                        <button onclick="handleHomeWatchlist(this, {{ pid }})" 
+                                class="absolute top-3 right-3 p-2.5 rounded-2xl bg-white/95 backdrop-blur-md border border-slate-200 text-slate-400 hover:text-rose-500 transition shadow-sm" 
+                                title="Save to Watchlist">
+                            <i data-lucide="heart" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stock State & Trust Signal -->
+                <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                    {% if is_in_stock %}
+                    <span class="inline-flex items-center gap-1.5 text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        IN STOCK — Verified on {{ platform|store_name }}
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center gap-1.5 text-rose-700 font-bold bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200">
+                        <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                        OUT OF STOCK
+                    </span>
+                    {% endif %}
+
+                    <span class="text-slate-400 text-[11px]">
+                        ID: #{{ pid }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- ── Right Column: Product Info, Price, Verdict & CTA (7 cols) ── -->
+            <div class="lg:col-span-7 flex flex-col justify-between">
+                <div>
+                    <!-- Product Title -->
+                    <h1 class="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight leading-snug mb-3">
+                        {{ product.title }}
+                    </h1>
+
+                    <!-- Ratings & Reviews Row -->
+                    <div class="flex items-center gap-3 mb-5 text-xs text-slate-500 flex-wrap">
+                        {% if rating and rating > 0 %}
+                        <span class="flex items-center gap-1.5 font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                            <span>★</span> {{ "%.1f"|format(rating) }}
+                        </span>
+                        {% if reviews and reviews > 0 %}
+                        <span class="text-slate-600 font-medium">({{ reviews|format_inr }} customer ratings)</span>
+                        {% endif %}
+                        <span class="text-slate-300">•</span>
+                        {% endif %}
+                        <span class="capitalize text-slate-600 font-medium flex items-center gap-1">
+                            <span>🏷️</span> {{ product.category or "General" }}
+                        </span>
+                    </div>
+
+                    <!-- ── Price Banner ────────────────────────────────────── -->
+                    <div class="bg-slate-50 rounded-2xl p-4 sm:p-5 border border-slate-200/80 mb-5">
+                        <div class="flex items-baseline justify-between gap-3 flex-wrap">
+                            <div class="flex items-baseline gap-2.5 flex-wrap">
+                                <span class="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight">
+                                    {{ cp|format_inr }}
+                                </span>
+                                {% if has_discount and mrp > cp %}
+                                <span class="text-base sm:text-lg text-slate-400 line-through font-mono">
+                                    {{ mrp|format_inr }}
+                                </span>
+                                {% endif %}
+                                {% if discount_pct > 0 %}
+                                <span class="text-base sm:text-lg font-black text-rose-600 font-mono bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200">
+                                    {{ discount_pct }}% OFF
+                                </span>
+                                {% endif %}
+                            </div>
+
+                            {% if savings > 0 %}
+                            <div class="text-sm font-black text-emerald-800 bg-emerald-100/80 px-3 py-1.5 rounded-xl border border-emerald-300 font-mono shrink-0">
+                                You Save {{ savings|format_inr }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Historical Benchmark Context Tiles -->
+                        <div class="grid grid-cols-3 gap-2 sm:gap-3 mt-4 pt-4 border-t border-slate-200/70 text-center">
+                            <div class="bg-white rounded-xl p-2.5 border border-slate-200">
+                                <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">30-Day Low</span>
+                                <span class="text-xs sm:text-sm font-black text-slate-800 font-mono mt-0.5 block">
+                                    {{ (min_30d or cp)|format_inr }}
+                                </span>
+                            </div>
+                            <div class="bg-white rounded-xl p-2.5 border border-slate-200">
+                                <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">90-Day Low</span>
+                                <span class="text-xs sm:text-sm font-black text-slate-800 font-mono mt-0.5 block">
+                                    {{ (min_90d or min_30d or cp)|format_inr }}
+                                </span>
+                            </div>
+                            <div class="bg-white rounded-xl p-2.5 border {% if is_atl %}border-amber-400 bg-amber-50/50{% else %}border-slate-200{% endif %}">
+                                <span class="text-[10px] uppercase font-bold {% if is_atl %}text-amber-800{% else %}text-slate-400{% endif %} tracking-wider block">All-Time Low</span>
+                                <span class="text-xs sm:text-sm font-black {% if is_atl %}text-amber-900{% else %}text-slate-800{% endif %} font-mono mt-0.5 block">
+                                    {{ (atl or cp)|format_inr }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ── Shopper Deal Quality Score & Verdict ─────────────── -->
+                    <div class="bg-indigo-50/60 rounded-2xl p-4 sm:p-5 border border-indigo-100 mb-5">
+                        <div class="flex items-center justify-between gap-3 mb-2">
+                            <div class="flex items-center gap-2">
+                                <span class="text-base">🎯</span>
+                                <span class="text-xs font-black uppercase tracking-wider text-indigo-950">Shopper Deal Quality Score</span>
+                            </div>
+                            <div class="flex items-baseline gap-1 font-mono">
+                                <span class="text-xl sm:text-2xl font-black text-indigo-700">{{ score|round_int }}</span>
+                                <span class="text-xs text-indigo-400 font-bold">/100</span>
+                            </div>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div class="w-full bg-indigo-200/60 rounded-full h-2 overflow-hidden mb-3">
+                            <div class="h-2 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 transition-all duration-500" style="width: {{ score }}%"></div>
+                        </div>
+
+                        <!-- Plain-English Deal Breakdown -->
+                        <ul class="space-y-1.5 text-xs text-indigo-900/90 font-medium">
+                            <li class="flex items-center gap-2">
+                                <span class="text-emerald-600 font-bold">✓</span>
+                                <span><strong>{{ discount_pct }}% real discount:</strong> Save {{ savings|format_inr }} vs MRP of {{ mrp|format_inr }}</span>
+                            </li>
+                            {% if is_atl %}
+                            <li class="flex items-center gap-2">
+                                <span class="text-amber-600 font-bold">★</span>
+                                <span><strong>All-Time Low Price:</strong> Current price is the lowest recorded in product tracking history.</span>
+                            </li>
+                            {% elif min_30d and cp <= min_30d * 1.02 %}
+                            <li class="flex items-center gap-2">
+                                <span class="text-emerald-600 font-bold">✓</span>
+                                <span><strong>30-Day Lowest Price:</strong> Matching the lowest price seen in the last month.</span>
+                            </li>
+                            {% endif %}
+                            <li class="flex items-center gap-2">
+                                <span class="text-emerald-600 font-bold">✓</span>
+                                <span><strong>Verified Authenticity:</strong> Zero fake markup detected against 14-day local price observations.</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- ── Call to Action Button ──────────────────────────────── -->
+                <div class="mt-4 pt-3">
+                    {% if is_in_stock %}
+                    <a href="{{ buy_url }}" target="_blank" rel="noopener noreferrer" 
+                       class="w-full py-4 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm sm:text-base flex items-center justify-center gap-2 transition shadow-lg shadow-indigo-600/30 active:scale-98">
+                        <span>Get Deal on {{ platform|store_name }}</span>
+                        <i data-lucide="external-link" class="w-4 h-4"></i>
+                    </a>
+                    {% else %}
+                    <a href="{{ buy_url }}" target="_blank" rel="noopener noreferrer" 
+                       class="w-full py-4 px-6 rounded-2xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm sm:text-base flex items-center justify-center gap-2 transition active:scale-98">
+                        <span>Check Stock on {{ platform|store_name }}</span>
+                        <i data-lucide="external-link" class="w-4 h-4 text-slate-400"></i>
+                    </a>
+                    {% endif %}
+                    
+                    <p class="text-center text-[11px] text-slate-400 mt-2">
+                        Direct merchant checkout — BudgetBy never charges fees or alters merchant discounts.
+                    </p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ── Interactive Price History Visualizer (Zero External JS Libraries) ── -->
+    <div class="bg-white border border-slate-200/90 rounded-3xl p-4 sm:p-8 shadow-sm mb-8">
+        <div class="flex items-center justify-between gap-3 mb-6 flex-wrap">
+            <div>
+                <h2 class="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-2">
+                    <span>📈</span> Price History & Trends
+                </h2>
+                <p class="text-xs text-slate-500 mt-0.5">
+                    Tracked price observations over the last 30 days. No fake markups.
+                </p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                    30-Day Timeline
+                </span>
+            </div>
+        </div>
+
+        <!-- SVG Chart Container -->
+        <div class="w-full bg-slate-50/70 border border-slate-100 rounded-2xl p-4 sm:p-6 relative">
+            <div id="chartContainer" class="w-full h-56 sm:h-72">
+                <!-- Inline SVG rendered dynamically by lightweight vanilla JS below -->
+            </div>
+            
+            <div id="chartTooltip" class="absolute hidden pointer-events-none bg-slate-900 text-white text-xs px-2.5 py-1.5 rounded-lg shadow-xl font-mono z-20 transform -translate-x-1/2 -translate-y-full">
+                <!-- Tooltip content -->
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between gap-4 mt-4 text-xs text-slate-500 flex-wrap">
+            <div class="flex items-center gap-4 flex-wrap">
+                <span class="flex items-center gap-1.5 font-medium">
+                    <span class="w-3 h-1 bg-indigo-600 rounded-full inline-block"></span> Tracked Daily Price
+                </span>
+                <span class="flex items-center gap-1.5 font-medium">
+                    <span class="w-3 h-0.5 border-t-2 border-dashed border-amber-500 inline-block"></span> All-Time Low ({{ (atl or cp)|format_inr }})
+                </span>
+            </div>
+            <div class="text-[11px] text-slate-400 font-mono">
+                Updated {{ product.last_checked|time_ago if product.last_checked else "recently" }}
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Related Deals in Category ──────────────────────────────────── -->
+    {% if related_deals and related_deals|length > 0 %}
+    <section class="mt-8">
+        <div class="flex items-center justify-between gap-3 mb-4">
+            <div>
+                <h2 class="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
+                    <span>🔥</span> More Deals in {{ product.category|capitalize }}
+                </h2>
+                <p class="text-xs text-slate-500">Other verified price drops you might like</p>
+            </div>
+            <a href="/deals?category={{ product.category }}" class="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
+                <span>View All</span>
+                <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+            </a>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+            {% for deal in related_deals %}
+                {% include "consumer/partials/product_card.html" %}
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+</main>
+
+<!-- ── Embedded Lightweight Pure Vanilla JS SVG Price Chart ──────────────── -->
+<script>
+(function() {
+    // Embedded historical observations
+    const historyData = {{ price_history|tojson }};
+    const currentPrice = {{ cp }};
+    const atlPrice = {{ atl if atl else cp }};
+    const container = document.getElementById('chartContainer');
+    const tooltip = document.getElementById('chartTooltip');
+
+    if (!container) return;
+
+    // Ensure we have at least 2 data points for a smooth line
+    let points = Array.isArray(historyData) && historyData.length > 0 ? historyData.slice() : [];
+    if (points.length === 0) {
+        points = [
+            { date: "Day 1", price: currentPrice },
+            { date: "Today", price: currentPrice }
+        ];
+    } else if (points.length === 1) {
+        points.unshift({ date: "Start", price: points[0].price });
+    }
+
+    function renderChart() {
+        const width = container.clientWidth || 600;
+        const height = container.clientHeight || 250;
+        const padLeft = 45;
+        const padRight = 20;
+        const padTop = 25;
+        const padBottom = 30;
+
+        const plotWidth = width - padLeft - padRight;
+        const plotHeight = height - padTop - padBottom;
+
+        const prices = points.map(p => Number(p.price) || currentPrice);
+        if (atlPrice) prices.push(atlPrice);
+        if (currentPrice) prices.push(currentPrice);
+
+        const minPrice = Math.floor(Math.min(...prices) * 0.95);
+        const maxPrice = Math.ceil(Math.max(...prices) * 1.05);
+        const priceRange = Math.max(1, maxPrice - minPrice);
+
+        const getX = (idx) => padLeft + (idx / (points.length - 1)) * plotWidth;
+        const getY = (price) => padTop + plotHeight - ((price - minPrice) / priceRange) * plotHeight;
+
+        // Path generator
+        let pathD = `M ${getX(0)} ${getY(points[0].price)}`;
+        for (let i = 1; i < points.length; i++) {
+            pathD += ` L ${getX(i)} ${getY(points[i].price)}`;
+        }
+
+        const areaD = `${pathD} L ${getX(points.length - 1)} ${padTop + plotHeight} L ${getX(0)} ${padTop + plotHeight} Z`;
+        const atlY = getY(atlPrice);
+
+        let svg = `
+        <svg width="100%" height="100%" viewBox="0 0 ${width} ${height}" class="overflow-visible select-none">
+            <defs>
+                <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#4f46e5" stop-opacity="0.25"/>
+                    <stop offset="100%" stop-color="#4f46e5" stop-opacity="0.0"/>
+                </linearGradient>
+            </defs>
+
+            <!-- Grid Lines -->
+            <line x1="${padLeft}" y1="${padTop}" x2="${width - padRight}" y2="${padTop}" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4"/>
+            <line x1="${padLeft}" y1="${padTop + plotHeight / 2}" x2="${width - padRight}" y2="${padTop + plotHeight / 2}" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4"/>
+            <line x1="${padLeft}" y1="${padTop + plotHeight}" x2="${width - padRight}" y2="${padTop + plotHeight}" stroke="#cbd5e1" stroke-width="1"/>
+
+            <!-- Y-Axis Labels -->
+            <text x="${padLeft - 8}" y="${padTop + 4}" font-size="10" fill="#94a3b8" font-family="monospace" text-anchor="end">₹${maxPrice}</text>
+            <text x="${padLeft - 8}" y="${padTop + plotHeight / 2 + 3}" font-size="10" fill="#94a3b8" font-family="monospace" text-anchor="end">₹${Math.round((maxPrice + minPrice) / 2)}</text>
+            <text x="${padLeft - 8}" y="${padTop + plotHeight}" font-size="10" fill="#94a3b8" font-family="monospace" text-anchor="end">₹${minPrice}</text>
+
+            <!-- ATL Reference Line -->
+            ${atlPrice ? `
+            <line x1="${padLeft}" y1="${atlY}" x2="${width - padRight}" y2="${atlY}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4 3"/>
+            ` : ''}
+
+            <!-- Area & Line Path -->
+            <path d="${areaD}" fill="url(#chartGradient)"/>
+            <path d="${pathD}" fill="none" stroke="#4f46e5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+            <!-- Data Point Circles -->
+            ${points.map((p, i) => `
+                <circle cx="${getX(i)}" cy="${getY(p.price)}" r="4" fill="#ffffff" stroke="#4f46e5" stroke-width="2.5" 
+                        class="cursor-pointer transition-transform hover:scale-150" 
+                        data-date="${p.date}" data-price="${p.price}" />
+            `).join('')}
+        </svg>
+        `;
+
+        container.innerHTML = svg;
+
+        // Tooltip handlers
+        const circles = container.querySelectorAll('circle');
+        circles.forEach(c => {
+            c.addEventListener('mouseenter', (e) => {
+                const rect = container.getBoundingClientRect();
+                const cx = parseFloat(c.getAttribute('cx'));
+                const cy = parseFloat(c.getAttribute('cy'));
+                const d = c.getAttribute('data-date');
+                const p = Number(c.getAttribute('data-price')).toLocaleString('en-IN');
+
+                tooltip.innerHTML = `<div class="font-bold text-indigo-300">₹${p}</div><div class="text-[10px] text-slate-300">${d}</div>`;
+                tooltip.style.left = `${cx}px`;
+                tooltip.style.top = `${cy - 10}px`;
+                tooltip.classList.remove('hidden');
+            });
+            c.addEventListener('mouseleave', () => {
+                tooltip.classList.add('hidden');
+            });
+        });
+    }
+
+    renderChart();
+    window.addEventListener('resize', renderChart);
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,546 @@
+{% extends "consumer/layout.html" %}
+
+{% block title %}24-Hour Price Drops Hub — Daily Markdowns | BudgetBy{% endblock %}
+{% block description %}Track real-time 24-hour price cuts and flash drops across Amazon, Flipkart, Myntra, Ajio, and Nykaa. Filtered against 30, 60 & 120-day median and minimum price baselines.{% endblock %}
+
+{% block content %}
+<main class="w-full">
+    <!-- ── Page Header ───────────────────────────────────── -->
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pt-6 pb-2">
+        <!-- Breadcrumb -->
+        <nav class="flex items-center gap-2 text-xs text-slate-500 mb-2" aria-label="Breadcrumb">
+            <a href="/" class="hover:text-slate-900 transition flex items-center gap-1">
+                <span>🏠</span> Home
+            </a>
+            <span class="text-slate-300">/</span>
+            <span class="text-rose-600 font-semibold flex items-center gap-1">
+                <span>📉</span> 24h Price Drops
+            </span>
+        </nav>
+
+        <div class="flex items-center justify-between pb-2">
+            <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 leading-tight flex items-center">
+                <span>24-Hour Price Drops</span>
+                <span id="statDropsTotal" class="ml-3 text-xs font-bold px-2.5 py-0.5 bg-rose-100 text-rose-800 rounded-full font-mono border border-rose-200">
+                    {{ (initial_drops.total or initial_drops.drops|length if initial_drops else 0) }}
+                </span>
+            </h1>
+        </div>
+    </section>
+
+    <!-- ── Filter & Navigation Bar ───────────────────────────────────────── -->
+    <section class="w-full sticky top-16 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <!-- Drop Percentage Quick Filter Chips -->
+                <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+                    <span class="text-xs font-bold text-slate-500 mr-1 hidden sm:inline">Drop Depth:</span>
+                    <button onclick="setDropFilter(0)" id="dropChip0" class="drop-pill px-2.5 py-1 rounded-lg text-xs font-bold transition font-mono {% if current_min_drop is defined and current_min_drop|round_int == 0 %}bg-rose-600 text-white shadow-sm{% else %}bg-slate-100 hover:bg-slate-200 text-slate-700{% endif %}">
+                        Any %
+                    </button>
+                    <button onclick="setDropFilter(10)" id="dropChip10" class="drop-pill px-2.5 py-1 rounded-lg text-xs font-bold transition font-mono {% if current_min_drop is defined and current_min_drop|round_int == 10 %}bg-rose-600 text-white shadow-sm{% else %}bg-slate-100 hover:bg-slate-200 text-slate-700{% endif %}">
+                        10%+
+                    </button>
+                    <button onclick="setDropFilter(20)" id="dropChip20" class="drop-pill px-2.5 py-1 rounded-lg text-xs font-bold transition font-mono {% if current_min_drop is not defined or current_min_drop|round_int == 20 or current_min_drop|round_int == 15 %}bg-rose-600 text-white shadow-sm{% else %}bg-slate-100 hover:bg-slate-200 text-slate-700{% endif %}">
+                        20%+
+                    </button>
+                    <button onclick="setDropFilter(35)" id="dropChip35" class="drop-pill px-2.5 py-1 rounded-lg text-xs font-bold transition font-mono {% if current_min_drop is defined and current_min_drop|round_int == 35 %}bg-rose-600 text-white shadow-sm{% else %}bg-slate-100 hover:bg-slate-200 text-slate-700{% endif %}">
+                        35%+
+                    </button>
+                    <button onclick="setDropFilter(50)" id="dropChip50" class="drop-pill px-2.5 py-1 rounded-lg text-xs font-bold transition font-mono {% if current_min_drop is defined and current_min_drop|round_int == 50 %}bg-rose-600 text-white shadow-sm{% else %}bg-slate-100 hover:bg-slate-200 text-slate-700{% endif %}">
+                        50%+ 🔥
+                    </button>
+                </div>
+
+                <!-- Store & Sort Dropdowns -->
+                <div class="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                    <select id="dropsStoreSelect" onchange="onDropsStoreChange(this.value)" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-rose-500 transition">
+                        <option value="" {% if not current_platform %}selected{% endif %}>All 5 Stores</option>
+                        <option value="amazon" {% if current_platform == 'amazon' %}selected{% endif %}>Amazon</option>
+                        <option value="flipkart" {% if current_platform == 'flipkart' %}selected{% endif %}>Flipkart</option>
+                        <option value="myntra" {% if current_platform == 'myntra' %}selected{% endif %}>Myntra</option>
+                        <option value="ajio" {% if current_platform == 'ajio' %}selected{% endif %}>Ajio</option>
+                        <option value="nykaa" {% if current_platform == 'nykaa' %}selected{% endif %}>Nykaa</option>
+                    </select>
+
+                    <select id="dropsSortSelect" onchange="onDropsSortChange(this.value)" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-rose-500 transition">
+                        <option value="drop_desc" {% if not current_sort or current_sort == 'drop_desc' %}selected{% endif %}>Largest Drop %</option>
+                        <option value="latest" {% if current_sort == 'latest' %}selected{% endif %}>Recently Dropped</option>
+                        <option value="price_asc" {% if current_sort == 'price_asc' %}selected{% endif %}>Price: Low to High</option>
+                        <option value="price_desc" {% if current_sort == 'price_desc' %}selected{% endif %}>Price: High to Low</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Price Drops Grid ─────────────────────────────────────────────── -->
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full mt-6 mb-16">
+        <div id="dropsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 transition-opacity duration-200">
+            {% if initial_data and initial_data.drops %}
+                {% for deal in initial_data.drops %}
+                <div data-deal-id="{{ deal.product_id or deal.id }}" class="bg-white border border-slate-200/90 hover:border-rose-400 rounded-2xl p-3.5 flex flex-col justify-between transition-all duration-200 shadow-sm hover:shadow-md group relative">
+                    <div>
+                        <!-- Top Badges -->
+                        <div class="flex items-center justify-between gap-2 mb-2">
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider {{ deal.platform|store_badge }}">
+                                {{ deal.platform|store_name }}
+                            </span>
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 font-mono">
+                                -{{ deal.drop_pct|round_int }}% DROP
+                            </span>
+                        </div>
+
+                        <!-- Product Image Area -->
+                        <div class="relative w-full h-44 rounded-xl bg-slate-50 p-2 flex items-center justify-center overflow-hidden border border-slate-100">
+                            <img src="{{ deal.image_url or '/static/placeholder.svg' }}" 
+                                 alt="{{ deal.title }}" 
+                                 class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                                 loading="lazy"
+                                 onerror="this.onerror=null;this.src='/static/placeholder.svg'" />
+                            
+                            <!-- Watchlist Quick Toggle -->
+                            <button onclick="handleDropsCardWatchlist(this, {{ deal.product_id or deal.id }})" 
+                                    class="absolute top-2 right-2 p-1.5 rounded-xl bg-white/90 backdrop-blur-md border border-slate-200 text-slate-400 hover:text-rose-500 transition shadow-sm" 
+                                    title="Save to Watchlist">
+                                <i data-lucide="heart" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+
+                        <!-- Product Title -->
+                        <div class="mt-3">
+                            <a href="{{ deal.affiliate_url or deal.product_url or '#' }}" target="_blank" rel="noopener noreferrer" 
+                               class="text-xs font-bold text-slate-900 hover:text-rose-600 line-clamp-2 break-words transition leading-snug" 
+                               title="{{ deal.title }}">
+                                {{ deal.title }}
+                            </a>
+                            {% if deal.rating and deal.rating >= 1.0 %}
+                            <div class="flex items-center gap-1.5 mt-1.5">
+                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-900 text-[10px] font-bold font-mono">
+                                    <span class="text-amber-500">★</span> {{ deal.rating }}
+                                </span>
+                                {% if deal.review_count and deal.review_count > 0 %}
+                                <span class="text-[10px] text-slate-500 font-mono">({{ deal.review_count }})</span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Price & Action Footer -->
+                    <div class="mt-3 pt-3 border-t border-slate-100">
+                        <div class="flex items-baseline justify-between gap-1 mb-2">
+                            <div class="flex items-baseline gap-1.5 flex-wrap">
+                                {% set cp = deal.current_price or deal.deal_price or 0 %}
+                                {% set mrp = deal.mrp or 0 %}
+                                {% set has_disc = mrp > cp %}
+                                {% set disc_pct = ((((mrp - cp) / mrp) * 100)|round_int) if (has_disc and mrp > 0) else (deal.discount_pct or deal.discount_percent or 0) %}
+                                <span class="text-lg font-black text-slate-900 font-mono">{{ cp|format_inr }}</span>
+                                {% if has_disc %}
+                                <span class="text-xs text-slate-400 line-through font-mono">{{ mrp|format_inr }}</span>
+                                {% endif %}
+                                {% if disc_pct and disc_pct > 0 %}
+                                <span class="text-xs font-black text-rose-600 font-mono">({{ disc_pct|round_int }}% OFF)</span>
+                                {% endif %}
+                            </div>
+                            {% if deal.previous_price and deal.previous_price > cp %}
+                            <div class="text-[10px] font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 font-mono shrink-0">
+                                Was {{ deal.previous_price|format_inr }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Card Action Buttons -->
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="handleDropsCardShare({{ deal.product_id or deal.id }})" 
+                                    class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 flex items-center justify-center transition shrink-0" 
+                                    title="Share Deal">
+                                <i data-lucide="share-2" class="w-4 h-4 text-indigo-600"></i>
+                            </button>
+                            <a href="{{ deal.affiliate_url or deal.product_url or '#' }}" target="_blank" rel="noopener noreferrer" 
+                                class="flex-1 py-2 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold flex items-center justify-center gap-1 shadow-sm shadow-rose-600/20 hover:scale-[1.02] active:scale-[0.98] transition">
+                                <span>Get Deal</span>
+                                <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-span-full py-16 text-center text-xs text-slate-500">
+                    No 24-hour price drops found for the selected filter. Try lowering the minimum drop percentage.
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Pagination Bar -->
+        <div id="dropsPaginationBar" class="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm">
+            <div class="text-xs text-slate-600 font-mono">
+                Page <span id="dropsCurrentPage" class="font-bold text-slate-900">{{ initial_data.page if initial_data and initial_data.page else 1 }}</span> of <span id="dropsTotalPages" class="font-bold text-slate-900">{{ initial_data.total_pages if initial_data and initial_data.total_pages else 1 }}</span>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button onclick="changeDropsPage(-1)" id="dropsPrevBtn" disabled class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:pointer-events-none text-slate-700 border border-slate-200 transition">
+                    ← Previous
+                </button>
+                <button onclick="changeDropsPage(1)" id="dropsNextBtn" {% if not initial_data or initial_data.total_pages <= 1 %}disabled{% endif %} class="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 disabled:opacity-40 disabled:pointer-events-none text-white transition flex items-center gap-1.5 shadow-sm shadow-rose-600/20">
+                    <span>Next Page</span>
+                    <span>→</span>
+                </button>
+            </div>
+        </div>
+    </section>
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script id="initial-drops-data" type="application/json">{{ (initial_data or {})|tojson|safe }}</script>
+<script>
+    const dropsState = {
+        page: {{ current_page if current_page else 1 }},
+        limit: 24,
+        totalPages: {{ initial_data.total_pages if initial_data and initial_data.total_pages else 1 }},
+        minDrop: {{ current_min_drop if current_min_drop is not none else 20 }},
+        platform: '{{ current_platform if current_platform else "" }}',
+        sortBy: '{{ current_sort if current_sort else "drop_desc" }}',
+        items: [],
+        itemsMap: {}
+    };
+
+    let dropsAutoRefreshTimer = null;
+    function startDropsAutoRefresh() {
+        if (dropsAutoRefreshTimer) clearInterval(dropsAutoRefreshTimer);
+        const settings = window.getUserSettings ? window.getUserSettings() : null;
+        const intervalSec = (settings && settings.syncInterval !== undefined && settings.syncInterval > 0) ? settings.syncInterval : 60;
+        if (intervalSec <= 0) return;
+        dropsAutoRefreshTimer = setInterval(() => {
+            if (dropsState.page === 1 && !document.hidden) {
+                loadPriceDrops(true);
+            }
+        }, intervalSec * 1000);
+    }
+
+    function syncDropsWatchlistHearts() {
+        if (!window.isInWatchlist) return;
+        document.querySelectorAll('#dropsGrid [data-deal-id]').forEach(card => {
+            const id = card.dataset.dealId;
+            const heartIcon = card.querySelector('[title="Save to Watchlist"] i');
+            if (id && heartIcon && isInWatchlist(id)) {
+                heartIcon.classList.add('fill-rose-500', 'text-rose-500');
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const rawDrops = document.getElementById('initial-drops-data');
+        let hasInitialData = false;
+        if (rawDrops && rawDrops.textContent.trim()) {
+            try {
+                const parsed = JSON.parse(rawDrops.textContent);
+                if (parsed && parsed.drops && parsed.drops.length > 0) {
+                    dropsState.items = (parsed.drops || []).map(d => ({
+                        ...d,
+                        id: d.product_id || d.deal_id,
+                        current_price: d.deal_price !== undefined ? d.deal_price : (d.current_price || 0),
+                        discount_percent: d.discount_pct !== undefined ? d.discount_pct : (d.discount_percent || 0),
+                        drop_percent: d.drop_pct !== undefined ? d.drop_pct : (d.drop_percent || 0),
+                        affiliate_url: d.affiliate_url || d.product_url
+                    }));
+                    dropsState.totalPages = parsed.total_pages || 1;
+                    dropsState.itemsMap = {};
+                    dropsState.items.forEach(d => { dropsState.itemsMap[d.id] = d; });
+                    hasInitialData = true;
+                }
+            } catch (e) {}
+        }
+
+        if (!hasInitialData) {
+            loadPriceDrops();
+        } else {
+            if (window.lucide) lucide.createIcons();
+            syncDropsWatchlistHearts();
+        }
+        startDropsAutoRefresh();
+    });
+
+    window.addEventListener('budgetby:syncRateChanged', () => {
+        startDropsAutoRefresh();
+    });
+
+    async function loadPriceDrops(isBackground = false) {
+        if (isBackground && document.hidden) return;
+        const grid = document.getElementById('dropsGrid');
+        if (!isBackground) {
+            if (typeof showPageProgress === 'function') showPageProgress();
+            if (grid) {
+                grid.classList.add('opacity-50', 'pointer-events-none');
+            }
+        }
+
+        try {
+            const params = new URLSearchParams({
+                page: dropsState.page,
+                limit: dropsState.limit,
+                min_drop_pct: dropsState.minDrop,
+                sort_by: dropsState.sortBy
+            });
+            if (dropsState.platform) params.append('platform', dropsState.platform);
+
+            const res = await fetch(`/api/public/price-drops?${params.toString()}`);
+            const data = await res.json();
+
+            dropsState.items = (data.drops || data.items || []).map(d => ({
+                ...d,
+                id: d.product_id || d.deal_id,
+                current_price: d.deal_price !== undefined ? d.deal_price : (d.current_price || 0),
+                discount_percent: d.discount_pct !== undefined ? d.discount_pct : (d.discount_percent || 0),
+                drop_percent: d.drop_pct !== undefined ? d.drop_pct : (d.drop_percent || 0),
+                affiliate_url: d.affiliate_url || d.product_url
+            }));
+            dropsState.totalPages = data.total_pages || 1;
+
+            const totalMatches = data.total_matches !== undefined ? data.total_matches : (data.total || dropsState.items.length);
+            const countEl = document.getElementById('statDropsTotal');
+            if (countEl) countEl.innerText = totalMatches.toLocaleString('en-IN');
+            const pageEl = document.getElementById('dropsCurrentPage');
+            if (pageEl) pageEl.innerText = data.page || 1;
+            const totalPageEl = document.getElementById('dropsTotalPages');
+            if (totalPageEl) totalPageEl.innerText = dropsState.totalPages;
+
+            const prevBtn = document.getElementById('dropsPrevBtn');
+            if (prevBtn) prevBtn.disabled = (dropsState.page <= 1);
+            const nextBtn = document.getElementById('dropsNextBtn');
+            if (nextBtn) nextBtn.disabled = (dropsState.page >= dropsState.totalPages);
+
+                        if (isBackground && data.drops && data.drops.length > 0) {
+                const firstId = String(data.drops[0].product_id || data.drops[0].deal_id);
+                if (window._lastFirstDropId && window._lastFirstDropId !== firstId) {
+                    if (typeof playDealChime === 'function') playDealChime();
+                    if (typeof showDealNotification === 'function') {
+                        showDealNotification('⚡ New 24-hour price cuts just dropped!');
+                    }
+                }
+                window._lastFirstDropId = firstId;
+            } else if (data.drops && data.drops.length > 0) {
+                window._lastFirstDropId = String(data.drops[0].product_id || data.drops[0].deal_id);
+            }
+
+            renderDropsCards(dropsState.items);
+        } catch (err) {
+            if (grid && (!dropsState.items || dropsState.items.length === 0)) {
+                grid.innerHTML = '<div class="col-span-full py-12 text-center text-xs text-rose-600 font-semibold">Failed to load price drops. Please refresh.</div>';
+            }
+        } finally {
+            if (typeof hidePageProgress === 'function') hidePageProgress();
+            if (grid) {
+                grid.classList.remove('opacity-50', 'pointer-events-none');
+            }
+        }
+    }
+
+    function renderDropsCards(items) {
+        const grid = document.getElementById('dropsGrid');
+        if (items.length === 0) {
+            grid.innerHTML = `<div class="col-span-full py-16 text-center text-xs text-slate-500">No active price drops found with current filters.</div>`;
+            return;
+        }
+
+        dropsState.itemsMap = {};
+        const seenPids = new Set();
+        const seenLinks = new Set();
+        const uniqueItems = [];
+
+        items.forEach(d => {
+            const pid = d.product_id || d.id;
+            const link = (d.affiliate_url || d.product_url || '').split('?')[0].toLowerCase();
+            if (seenPids.has(pid) || (link && seenLinks.has(link))) return;
+            seenPids.add(pid);
+            if (link) seenLinks.add(link);
+            dropsState.itemsMap[d.id] = d;
+            uniqueItems.push(d);
+        });
+
+        grid.innerHTML = uniqueItems.map(deal => {
+            const store = (deal.platform || 'amazon').toLowerCase();
+            const storeCfg = STORES[store] || STORES.amazon;
+            const dropPct = Math.round(deal.drop_percent || deal.discount_percent || 0);
+            const liveAgo = deal.last_price_change ? formatTimeAgo(deal.last_price_change) : (deal.last_checked ? formatTimeAgo(deal.last_checked) : 'Recently');
+            const inWatch = isInWatchlist(deal.id);
+            const safeTitle = escapeHtml(deal.title);
+            const dealLink = deal.affiliate_url || deal.product_url || '#';
+            const postedTimeStr = formatPostedDateTime(deal.last_price_change || deal.deal_time || deal.posted_at || deal.last_checked);
+            const hasValidRating = deal.rating && typeof deal.rating === 'number' && deal.rating >= 1.0 && deal.rating <= 5.0;
+            const ratingHtml = hasValidRating ? `
+                <div class="flex items-center gap-1.5 mt-1.5">
+                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-900 text-[10px] font-bold font-mono">
+                        <span class="text-amber-500">★</span> ${deal.rating.toFixed(1)}
+                    </span>
+                    ${deal.review_count && deal.review_count > 0 ? `
+                        <span class="text-[10px] text-slate-500 font-mono">(${Number(deal.review_count).toLocaleString('en-IN')})</span>
+                    ` : ''}
+                </div>
+            ` : '';
+
+            const cp = deal.current_price || 0;
+            const mrp = deal.mrp || 0;
+            const discPct = (mrp > cp && mrp > 0) ? Math.round(((mrp - cp) / mrp) * 100) : Math.round(deal.discount_pct || deal.discount_percent || 0);
+            const prevPrice = deal.previous_price || 0;
+            const wasPriceHtml = (prevPrice > cp) ? `
+                <div class="text-[10px] font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 font-mono">
+                    Was ${formatINR(prevPrice)}
+                </div>
+            ` : '';
+
+            return `
+                <div data-deal-id="${deal.id}" class="bg-white border border-slate-200/90 hover:border-rose-400 rounded-2xl p-3.5 flex flex-col justify-between transition-all duration-200 shadow-sm hover:shadow-md group relative">
+                    <div>
+                        <div class="flex items-center justify-between gap-2 mb-2">
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${storeCfg.badge}">
+                                ${storeCfg.name}
+                            </span>
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 font-mono">
+                                -${dropPct}% DROP
+                            </span>
+                        </div>
+
+                        <div class="relative w-full h-44 rounded-xl bg-slate-50 p-2 flex items-center justify-center overflow-hidden border border-slate-100">
+                            <img src="${deal.image_url || '/static/placeholder.svg'}" alt="${safeTitle}" class="w-full h-full object-contain group-hover:scale-105 transition" loading="lazy" onerror="this.onerror=null;this.src='/static/placeholder.svg'"/>
+                            <button onclick="handleDropsCardWatchlist(this, ${deal.id})" class="absolute top-2 right-2 p-1.5 rounded-xl bg-white/90 backdrop-blur-md border border-slate-200 text-slate-400 hover:text-rose-500 transition shadow-sm" title="Save to Watchlist">
+                                <i data-lucide="heart" class="w-4 h-4 ${inWatch ? 'fill-rose-500 text-rose-500' : ''}"></i>
+                            </button>
+                        </div>
+
+                        <div class="mt-3">
+                            <a href="${dealLink ? dealLink : '#'}" ${dealLink ? 'target="_blank" rel="noopener noreferrer"' : ''} class="text-xs font-bold text-slate-900 hover:text-rose-600 line-clamp-2 break-words transition leading-snug" title="${safeTitle}">
+                                ${safeTitle}
+                            </a>
+                            ${ratingHtml}
+                        </div>
+                    </div>
+
+                    <div class="mt-3 pt-3 border-t border-slate-100">
+                        <div class="flex items-baseline justify-between gap-1 mb-2">
+                            <div class="flex items-baseline gap-1.5 flex-wrap">
+                                <span class="text-lg font-black text-slate-900 font-mono">${formatINR(deal.current_price)}</span>
+                                ${mrp > cp ? `<span class="text-xs text-slate-400 line-through font-mono">${formatINR(mrp)}</span>` : ''}
+                                ${discPct > 0 ? `<span class="text-xs font-black text-rose-600 font-mono">(${discPct}% OFF)</span>` : ''}
+                            </div>
+                            ${wasPriceHtml}
+                        </div>
+
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="handleDropsCardShare(${deal.id})" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 flex items-center justify-center transition shrink-0" title="Share Deal">
+                                <i data-lucide="share-2" class="w-4 h-4 text-indigo-600"></i>
+                            </button>
+                            ${dealLink ? `
+                            <a href="${dealLink}" target="_blank" rel="noopener noreferrer" class="flex-1 py-2 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold flex items-center justify-center gap-1 shadow-sm shadow-rose-600/20 hover:scale-[1.02] active:scale-[0.98] transition">
+                                <span>Get Deal</span>
+                                <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                            </a>` : `
+                            <div class="flex-1 py-2 px-3 rounded-xl bg-slate-100 text-slate-400 text-xs font-bold flex items-center justify-center cursor-not-allowed">
+                                <span>Price Tracked</span>
+                            </div>`}
+                        </div>
+
+                        <div class="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-100 text-[10px] text-slate-500 font-medium">
+                            <span class="truncate">Tracked Deal</span>
+                            <button onclick="handleSendForReview(${deal.id}, '${safeTitle.replace(/'/g, "")}', '${dealLink.replace(/'/g, "")}', ${deal.current_price || 0})" class="text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 shrink-0 transition" title="Send product for price re-check">
+                                <i data-lucide="refresh-cw" class="w-3 h-3 text-indigo-500"></i>
+                                <span>Request Price Check</span>
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        if (window.lucide) lucide.createIcons();
+        syncDropsWatchlistHearts();
+    }
+
+    function setDropFilter(pct) {
+        dropsState.minDrop = pct;
+        dropsState.page = 1;
+        document.querySelectorAll('.drop-pill').forEach(btn => {
+            btn.classList.remove('bg-rose-600', 'text-white', 'shadow-sm');
+            btn.classList.add('bg-slate-100', 'text-slate-700');
+        });
+        const activeBtn = document.getElementById(`dropChip${pct}`);
+        if (activeBtn) {
+            activeBtn.classList.remove('bg-slate-100', 'text-slate-700');
+            activeBtn.classList.add('bg-rose-600', 'text-white', 'shadow-sm');
+        }
+        try {
+            const url = new URL(window.location);
+            if (pct > 0) {
+                url.searchParams.set('min_drop_pct', pct);
+            } else {
+                url.searchParams.delete('min_drop_pct');
+            }
+            url.searchParams.set('page', '1');
+            window.history.pushState(dropsState, '', url);
+        } catch (e) {}
+        loadPriceDrops();
+    }
+
+    function onDropsStoreChange(val) {
+        dropsState.platform = val;
+        dropsState.page = 1;
+        try {
+            const url = new URL(window.location);
+            if (val) url.searchParams.set('platform', val);
+            else url.searchParams.delete('platform');
+            url.searchParams.set('page', '1');
+            window.history.pushState(dropsState, '', url);
+        } catch (e) {}
+        loadPriceDrops();
+    }
+
+    function onDropsSortChange(val) {
+        dropsState.sortBy = val;
+        dropsState.page = 1;
+        try {
+            const url = new URL(window.location);
+            if (val) url.searchParams.set('sort_by', val);
+            else url.searchParams.delete('sort_by');
+            url.searchParams.set('page', '1');
+            window.history.pushState(dropsState, '', url);
+        } catch (e) {}
+        loadPriceDrops();
+    }
+
+    function changeDropsPage(delta) {
+        dropsState.page += delta;
+        window.scrollTo({ top: 150, behavior: 'smooth' });
+        loadPriceDrops();
+    }
+
+    function handleDropsCardWatchlist(btn, id) {
+        const deal = dropsState.itemsMap[id];
+        if (deal) {
+            toggleWatchlist(deal);
+            const icon = btn.querySelector('svg');
+            if (icon) {
+                if (isInWatchlist(deal.id)) {
+                    icon.classList.add('fill-rose-500', 'text-rose-500');
+                } else {
+                    icon.classList.remove('fill-rose-500', 'text-rose-500');
+                }
+            }
+        }
+    }
+
+    function handleDropsCardShare(id) {
+        const deal = dropsState.itemsMap[id];
+        if (deal) openShareModal(deal);
+    }
+
+    window.setDropFilter = setDropFilter;
+    window.onDropsStoreChange = onDropsStoreChange;
+    window.onDropsSortChange = onDropsSortChange;
+    window.changeDropsPage = changeDropsPage;
+    window.handleDropsCardWatchlist = handleDropsCardWatchlist;
+    window.handleDropsCardShare = handleDropsCardShare;
+</script>
+{% endblock %}

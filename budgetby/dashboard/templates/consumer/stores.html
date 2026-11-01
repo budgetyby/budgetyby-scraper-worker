@@ -1,0 +1,702 @@
+{% extends "consumer/layout.html" %}
+
+{% block title %}
+    {% if store_name %}
+        {{ store_name }} Live Deals & Price Cuts — BudgetBy
+    {% else %}
+        Stores Directory — Amazon, Flipkart, Myntra, Ajio & Nykaa | BudgetBy
+    {% endif %}
+{% endblock %}
+
+{% block description %}
+    {% if store_name %}
+        Browse all live deals, live price cuts, and historical price baselines for {{ store_name }} on BudgetBy. 100% free with direct official store checkout.
+    {% else %}
+        Discover real-time price drops across India's top online retailers: Amazon, Flipkart, Myntra, Ajio, and Nykaa. Direct official store checkout and live 30, 60 & 120-day savings.
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<main class="w-full">
+    {% if not store_id %}
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- MODE 1: ALL STORES DIRECTORY (/stores)                             -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pt-6 pb-16">
+        <!-- Breadcrumb -->
+        <nav class="flex items-center gap-2 text-xs text-slate-500 mb-3" aria-label="Breadcrumb">
+            <a href="/" class="hover:text-slate-900 transition flex items-center gap-1">
+                <span>🏠</span> Home
+            </a>
+            <span class="text-slate-300">/</span>
+            <span class="text-indigo-600 font-semibold flex items-center gap-1">
+                <span>🏪</span> Stores Directory
+            </span>
+        </nav>
+
+        <!-- Hub Header -->
+        <div class="relative overflow-hidden rounded-3xl bg-white border border-slate-200/90 p-6 sm:p-8 shadow-sm mb-8">
+            <div class="max-w-2xl">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 font-bold text-xs uppercase tracking-wide border border-indigo-200 mb-3">
+                    <span class="w-2 h-2 rounded-full bg-indigo-600 animate-pulse"></span>
+                    5 Top Retail Stores
+                </div>
+                <h1 class="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 leading-tight">
+                    Shop Live Deals by Store
+                </h1>
+                <p class="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
+                    We continuously monitor millions of price points across India's premier online stores. Click any store to inspect real-time price drops, discounts, and historical 30, 60 & 120-day all-time lows.
+                </p>
+            </div>
+        </div>
+
+        <!-- Stores Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            
+            <!-- Amazon Card -->
+            <div class="bg-white border border-slate-200/90 hover:border-[#FF9900] rounded-2xl p-6 flex flex-col justify-between transition group hover:shadow-lg relative overflow-hidden">
+                <div>
+                    <div class="flex items-center justify-between gap-3 mb-3">
+                        <span class="px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider bg-amber-50 text-amber-900 border border-amber-200">
+                            Amazon India
+                        </span>
+                        <span class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
+                            ● Live Tracking
+                        </span>
+                    </div>
+                    <h2 class="text-xl font-black text-slate-900 group-hover:text-[#FF9900] transition">Amazon India</h2>
+                    <p class="text-xs text-slate-600 mt-2 leading-relaxed">Electronics, Gadgets, Kitchenware, Appliances, Books & Household Daily Needs with genuine price drop detection.</p>
+                </div>
+                <div class="mt-6">
+                    <a href="/deals?platform=amazon" class="w-full py-2.5 rounded-xl bg-[#FF9900] hover:bg-[#FFaa33] text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition">
+                        <span>Explore Amazon Deals</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Flipkart Card -->
+            <div class="bg-white border border-slate-200/90 hover:border-[#2874F0] rounded-2xl p-6 flex flex-col justify-between transition group hover:shadow-lg relative overflow-hidden">
+                <div>
+                    <div class="flex items-center justify-between gap-3 mb-3">
+                        <span class="px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider bg-blue-50 text-blue-900 border border-blue-200">
+                            Flipkart
+                        </span>
+                        <span class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
+                            ● Live Tracking
+                        </span>
+                    </div>
+                    <h2 class="text-xl font-black text-slate-900 group-hover:text-[#2874F0] transition">Flipkart</h2>
+                    <p class="text-xs text-slate-600 mt-2 leading-relaxed">Smartphones, Laptops, Television, Smart Home & Big Billion Days Discounts tracked in real time.</p>
+                </div>
+                <div class="mt-6">
+                    <a href="/deals?platform=flipkart" class="w-full py-2.5 rounded-xl bg-[#2874F0] hover:bg-[#4B8DF8] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition">
+                        <span>Explore Flipkart Deals</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Myntra Card -->
+            <div class="bg-white border border-slate-200/90 hover:border-[#FF3F6C] rounded-2xl p-6 flex flex-col justify-between transition group hover:shadow-lg relative overflow-hidden">
+                <div>
+                    <div class="flex items-center justify-between gap-3 mb-3">
+                        <span class="px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider bg-pink-50 text-pink-900 border border-pink-200">
+                            Myntra
+                        </span>
+                        <span class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
+                            ● Live Tracking
+                        </span>
+                    </div>
+                    <h2 class="text-xl font-black text-slate-900 group-hover:text-[#FF3F6C] transition">Myntra</h2>
+                    <p class="text-xs text-slate-600 mt-2 leading-relaxed">Trendy Men & Women Fashion, Premium Footwear, Accessories & Fragrances with verified baseline discounts.</p>
+                </div>
+                <div class="mt-6">
+                    <a href="/deals?platform=myntra" class="w-full py-2.5 rounded-xl bg-[#FF3F6C] hover:bg-[#FF658B] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition">
+                        <span>Explore Myntra Deals</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Ajio Card -->
+            <div class="bg-white border border-slate-200/90 hover:border-[#D99814] rounded-2xl p-6 flex flex-col justify-between transition group hover:shadow-lg relative overflow-hidden">
+                <div>
+                    <div class="flex items-center justify-between gap-3 mb-3">
+                        <span class="px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider bg-yellow-50 text-yellow-900 border border-yellow-200">
+                            Ajio
+                        </span>
+                        <span class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
+                            ● Live Tracking
+                        </span>
+                    </div>
+                    <h2 class="text-xl font-black text-slate-900 group-hover:text-[#D99814] transition">Ajio</h2>
+                    <p class="text-xs text-slate-600 mt-2 leading-relaxed">Trendy Indie & International Fashion, Sneakers, Athleisure & Denim tracked daily.</p>
+                </div>
+                <div class="mt-6">
+                    <a href="/deals?platform=ajio" class="w-full py-2.5 rounded-xl bg-[#D99814] hover:bg-[#F5B027] text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition">
+                        <span>Explore Ajio Deals</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Nykaa Card -->
+            <div class="bg-white border border-slate-200/90 hover:border-[#FC2779] rounded-2xl p-6 flex flex-col justify-between transition group hover:shadow-lg relative overflow-hidden">
+                <div>
+                    <div class="flex items-center justify-between gap-3 mb-3">
+                        <span class="px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider bg-rose-50 text-rose-900 border border-rose-200">
+                            Nykaa
+                        </span>
+                        <span class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
+                            ● Live Tracking
+                        </span>
+                    </div>
+                    <h2 class="text-xl font-black text-slate-900 group-hover:text-[#FC2779] transition">Nykaa</h2>
+                    <p class="text-xs text-slate-600 mt-2 leading-relaxed">Cosmetics, Skincare, Hair Care, Fragrance & Wellness Essentials with real price history tracking.</p>
+                </div>
+                <div class="mt-6">
+                    <a href="/deals?platform=nykaa" class="w-full py-2.5 rounded-xl bg-[#FC2779] hover:bg-[#FD5797] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition">
+                        <span>Explore Nykaa Deals</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </a>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- How We Track Trust Section -->
+        <div class="mt-12 rounded-2xl bg-white border border-slate-200/90 p-6 sm:p-8 shadow-sm">
+            <h2 class="text-lg font-bold text-slate-900 mb-2">How BudgetBy Finds Lowest Prices</h2>
+            <p class="text-xs text-slate-600 mb-6 max-w-3xl">
+                Every deal listed on BudgetBy undergoes automated validation against 30, 60 & 120-day historical pricing records and minimum baselines. We do not accept paid promotions from third-party sellers that artificially inflate discounts.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div class="text-indigo-600 font-bold mb-1">1. Direct Store Scraping</div>
+                    <div class="text-slate-600">Our ingest engines scan retailer listings in 30–60 minute intervals to ensure price tags are accurate at the time of discovery.</div>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div class="text-emerald-700 font-bold mb-1">2. 30, 60 & 120-Day Median & Min Check</div>
+                    <div class="text-slate-600">Discounts are calculated against true rolling baseline prices and historical minimums, filtering out inflated fake MRPs.</div>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div class="text-amber-700 font-bold mb-1">3. Direct Store Checkout</div>
+                    <div class="text-slate-600">All links redirect directly to the official retailer checkout. We never process payments or collect personal billing data.</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    {% else %}
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- MODE 2: DEDICATED STORE PAGE (/stores/{platform})                  -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pt-6 pb-16">
+        <!-- Breadcrumb -->
+        <nav class="flex items-center gap-2 text-xs text-slate-500 mb-3" aria-label="Breadcrumb">
+            <a href="/" class="hover:text-slate-900 transition flex items-center gap-1">
+                <span>🏠</span> Home
+            </a>
+            <span class="text-slate-300">/</span>
+            <a href="/stores" class="hover:text-slate-900 transition flex items-center gap-1">
+                <span>🏪</span> Stores
+            </a>
+            <span class="text-slate-300">/</span>
+            <span class="text-indigo-600 font-semibold uppercase">{{ store_name }}</span>
+        </nav>
+
+        <!-- Store Branded Header -->
+        <div class="relative overflow-hidden rounded-3xl bg-white border border-slate-200/90 p-6 sm:p-8 shadow-sm mb-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="flex items-center gap-3 sm:gap-4">
+                    <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 shrink-0">
+                        <i data-lucide="store" class="w-6 h-6 sm:w-7 sm:h-7"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 class="text-xl sm:text-3xl font-black text-slate-900">{{ store_name }} Deals & Price Tracker</h1>
+                            <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
+                                Live Tracking
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-600 mt-1">Real-time verified price cuts and live offers on {{ store_name }}. Direct official checkout.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 shrink-0">
+                    <a href="/stores" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition">
+                        All Stores
+                    </a>
+                    <a href="/deals?platform={{ store_id }}" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition flex items-center gap-1.5 shadow-sm">
+                        <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+                        <span>Advanced Filters</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Store Deals Filter Bar -->
+        <div class="bg-white border border-slate-200/90 rounded-2xl p-3.5 mb-6 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-slate-600 font-mono">Found <span id="storeTotalCount" class="font-bold text-slate-900">{{ initial_data.total_matches if initial_data and initial_data.total_matches else 0 }}</span> active deals</span>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <select id="storeCategorySelect" onchange="onStoreCatChange(this.value)" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 transition">
+                    <option value="">All Categories</option>
+                    <option value="electronics">Electronics</option>
+                    <option value="fashion">Fashion</option>
+                    <option value="footwear">Footwear</option>
+                    <option value="home">Home & Kitchen</option>
+                    <option value="beauty">Beauty</option>
+                </select>
+
+                <select id="storeSortSelect" onchange="onStoreSortChange(this.value)" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 transition">
+                    <option value="latest">Recently Added</option>
+                    <option value="discount">Highest Discount %</option>
+                    <option value="price_asc">Price: Low to High</option>
+                    <option value="price_desc">Price: High to Low</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Store Products Grid -->
+        <div id="storeDealsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 transition-opacity duration-200">
+            {% if initial_data and initial_data.deals %}
+                {% for deal in initial_data.deals %}
+                <div data-deal-id="{{ deal.product_id or deal.id }}" class="bg-white border border-slate-200/90 hover:border-indigo-400 rounded-2xl p-3.5 flex flex-col justify-between transition-all duration-200 shadow-sm hover:shadow-md group relative">
+                    <div>
+                        <!-- Store Badge & Discount Meta -->
+                        <div class="flex items-center justify-between gap-2 mb-2">
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider {{ deal.platform|store_badge }}">
+                                {{ deal.platform|store_name }}
+                            </span>
+                            {% if deal.discount_pct and deal.discount_pct > 0 %}
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">
+                                {{ deal.discount_pct|round_int }}% OFF
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Image Area -->
+                        <div class="relative w-full h-44 rounded-xl bg-slate-50 p-2 flex items-center justify-center overflow-hidden border border-slate-100">
+                            <img src="{{ deal.image_url or '/static/placeholder.svg' }}" 
+                                 alt="{{ deal.title }}" 
+                                 class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300" 
+                                 loading="lazy" 
+                                 onerror="this.onerror=null;this.src='/static/placeholder.svg'" />
+                            
+                            <!-- Watchlist Toggle -->
+                            <button onclick="handleStoreWatchlist(this, {{ deal.product_id or deal.id }})" 
+                                    class="absolute top-2 right-2 p-1.5 rounded-xl bg-white/90 backdrop-blur-md border border-slate-200 text-slate-400 hover:text-rose-500 transition shadow-sm" 
+                                    title="Save to Watchlist">
+                                <i data-lucide="heart" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+
+                        <!-- Product Title -->
+                        <div class="mt-3">
+                            <a href="{{ deal.affiliate_url or deal.product_url or '#' }}" target="_blank" rel="noopener noreferrer" 
+                               class="text-xs font-bold text-slate-900 hover:text-indigo-600 line-clamp-2 transition leading-snug" 
+                               title="{{ deal.title }}">
+                                {{ deal.title }}
+                            </a>
+                            {% if deal.rating and deal.rating >= 1.0 %}
+                            <div class="flex items-center gap-1.5 mt-1.5">
+                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-900 text-[10px] font-bold font-mono">
+                                    <span class="text-amber-500">★</span> {{ deal.rating }}
+                                </span>
+                                {% if deal.review_count and deal.review_count > 0 %}
+                                <span class="text-[10px] text-slate-500 font-mono">({{ deal.review_count }})</span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Price & Action Footer -->
+                    <div class="mt-3 pt-3 border-t border-slate-100">
+                        <div class="flex items-baseline justify-between gap-1 mb-2">
+                            <div class="flex items-baseline gap-1.5 flex-wrap">
+                                {% set cp = deal.current_price or deal.deal_price or 0 %}
+                                {% set mrp = deal.mrp or 0 %}
+                                {% set has_disc = mrp > cp %}
+                                {% set disc_pct = ((((mrp - cp) / mrp) * 100)|round_int) if (has_disc and mrp > 0) else (deal.discount_pct or deal.discount_percent or 0) %}
+                                <span class="text-lg font-black text-slate-900 font-mono">{{ cp|format_inr }}</span>
+                                {% if has_disc %}
+                                <span class="text-xs text-slate-400 line-through font-mono">{{ mrp|format_inr }}</span>
+                                {% endif %}
+                                {% if disc_pct and disc_pct > 0 %}
+                                <span class="text-xs font-black text-rose-600 font-mono">({{ disc_pct|round_int }}% OFF)</span>
+                                {% endif %}
+                            </div>
+                            {% if mrp > cp %}
+                            <div class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 font-mono shrink-0">
+                                Save {{ (mrp - cp)|format_inr }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Card Action Buttons -->
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="handleStoreShare({{ deal.product_id or deal.id }})" 
+                                    class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 flex items-center justify-center transition shrink-0" 
+                                    title="Share Deal">
+                                <i data-lucide="share-2" class="w-4 h-4 text-indigo-600"></i>
+                            </button>
+                            <a href="{{ deal.affiliate_url or deal.product_url or '#' }}" target="_blank" rel="noopener noreferrer" 
+                               class="flex-1 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center justify-center gap-1 shadow-sm shadow-indigo-600/20 hover:scale-[1.02] active:scale-[0.98] transition">
+                                <span>Get Deal</span>
+                                <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-span-full py-16 text-center text-xs text-slate-500">
+                    No active deals found for {{ store_name }} right now. Check back soon!
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Pagination Bar -->
+        <div id="storePaginationBar" class="mt-10 flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm">
+            <div class="text-xs text-slate-600">
+                Page <span id="storeCurrentPage" class="font-bold text-slate-900">{{ initial_data.page if initial_data and initial_data.page else 1 }}</span> of <span id="storeTotalPages" class="font-bold text-slate-900">{{ initial_data.total_pages if initial_data and initial_data.total_pages else 1 }}</span>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button onclick="changeStorePage(-1)" id="storePrevBtn" disabled class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:pointer-events-none text-slate-700 border border-slate-200 transition">
+                    ← Previous
+                </button>
+                <button onclick="changeStorePage(1)" id="storeNextBtn" {% if not initial_data or initial_data.total_pages <= 1 %}disabled{% endif %} class="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:pointer-events-none text-white transition flex items-center gap-1.5 shadow-sm">
+                    <span>Next Page</span>
+                    <span>→</span>
+                </button>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script id="initial-store-data" type="application/json">{{ (initial_data or {})|tojson|safe }}</script>
+<script>
+    {% if store_id %}
+    const storeState = {
+        platform: "{{ store_id }}",
+        category: '',
+        sortBy: 'latest',
+        page: {{ initial_data.page if initial_data and initial_data.page else 1 }},
+        limit: 24,
+        totalPages: {{ initial_data.total_pages if initial_data and initial_data.total_pages else 1 }},
+        items: [],
+        itemsMap: {}
+    };
+
+    let storeDealsAutoRefreshTimer = null;
+    function startStoreDealsAutoRefresh() {
+        if (storeDealsAutoRefreshTimer) clearInterval(storeDealsAutoRefreshTimer);
+        const settings = window.getUserSettings ? window.getUserSettings() : null;
+        const intervalSec = (settings && settings.syncInterval !== undefined && settings.syncInterval > 0) ? settings.syncInterval : 60;
+        if (intervalSec <= 0) return;
+        storeDealsAutoRefreshTimer = setInterval(() => {
+            if (storeState.page === 1 && !document.hidden) {
+                loadStoreDeals(true);
+            }
+        }, intervalSec * 1000);
+    }
+
+    function syncStoreWatchlistHearts() {
+        if (!window.isInWatchlist) return;
+        document.querySelectorAll('#storeDealsGrid [data-deal-id]').forEach(card => {
+            const id = card.dataset.dealId;
+            const heartIcon = card.querySelector('[title="Save to Watchlist"] i');
+            if (id && heartIcon && isInWatchlist(id)) {
+                heartIcon.classList.add('fill-rose-500', 'text-rose-500');
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const rawStoreData = document.getElementById('initial-store-data');
+        let hasInitialData = false;
+        if (rawStoreData && rawStoreData.textContent.trim()) {
+            try {
+                const parsed = JSON.parse(rawStoreData.textContent);
+                if (parsed && parsed.deals && parsed.deals.length > 0) {
+                    storeState.items = (parsed.deals || []).map(d => ({
+                        ...d,
+                        id: d.product_id || d.deal_id,
+                        current_price: d.deal_price !== undefined ? d.deal_price : (d.current_price || 0),
+                        discount_percent: d.discount_pct !== undefined ? d.discount_pct : (d.discount_percent || 0),
+                        drop_percent: d.drop_pct !== undefined ? d.drop_pct : (d.drop_percent || 0),
+                        affiliate_url: d.affiliate_url || d.product_url
+                    }));
+                    storeState.totalPages = parsed.total_pages || 1;
+                    storeState.itemsMap = {};
+                    storeState.items.forEach(d => { storeState.itemsMap[d.id] = d; });
+                    hasInitialData = true;
+                }
+            } catch (e) {}
+        }
+
+        if (!hasInitialData) {
+            loadStoreDeals();
+        } else {
+            if (window.lucide) lucide.createIcons();
+            syncStoreWatchlistHearts();
+        }
+        startStoreDealsAutoRefresh();
+    });
+
+    window.addEventListener('budgetby:syncRateChanged', () => {
+        startStoreDealsAutoRefresh();
+    });
+
+    async function loadStoreDeals(isBackground = false) {
+        if (isBackground && document.hidden) return;
+        const grid = document.getElementById('storeDealsGrid');
+        if (!isBackground) {
+            if (typeof showPageProgress === 'function') showPageProgress();
+            if (grid) {
+                grid.classList.add('opacity-50', 'pointer-events-none');
+            }
+        }
+
+        try {
+            const params = new URLSearchParams({
+                platform: storeState.platform,
+                page: storeState.page,
+                limit: storeState.limit,
+                sort_by: storeState.sortBy
+            });
+            if (storeState.category) params.append('category', storeState.category);
+
+            const res = await fetch(`/api/public/deals?${params.toString()}`);
+            const data = await res.json();
+
+            storeState.items = (data.deals || data.items || []).map(d => ({
+                ...d,
+                id: d.product_id || d.deal_id,
+                current_price: d.deal_price !== undefined ? d.deal_price : (d.current_price || 0),
+                discount_percent: d.discount_pct !== undefined ? d.discount_pct : (d.discount_percent || 0),
+                drop_percent: d.drop_pct !== undefined ? d.drop_pct : (d.drop_percent || 0),
+                affiliate_url: d.affiliate_url || d.product_url
+            }));
+            storeState.totalPages = data.total_pages || 1;
+
+            const totalCount = data.total_matches !== undefined ? data.total_matches : (data.total || storeState.items.length);
+            const totalEl = document.getElementById('storeTotalCount');
+            if (totalEl) totalEl.innerText = totalCount.toLocaleString('en-IN');
+            const curPageEl = document.getElementById('storeCurrentPage');
+            if (curPageEl) curPageEl.innerText = data.page || 1;
+            const totalPagesEl = document.getElementById('storeTotalPages');
+            if (totalPagesEl) totalPagesEl.innerText = storeState.totalPages;
+
+            const prevBtn = document.getElementById('storePrevBtn');
+            if (prevBtn) prevBtn.disabled = (storeState.page <= 1);
+            const nextBtn = document.getElementById('storeNextBtn');
+            if (nextBtn) nextBtn.disabled = (storeState.page >= storeState.totalPages);
+
+            renderStoreCards(storeState.items);
+        } catch (err) {
+            if (grid && (!storeState.items || storeState.items.length === 0)) {
+                grid.innerHTML = '<div class="col-span-full py-12 text-center text-xs text-rose-600 font-semibold">Failed to load deals for this store. Please refresh.</div>';
+            }
+        } finally {
+            if (typeof hidePageProgress === 'function') hidePageProgress();
+            if (grid) {
+                grid.classList.remove('opacity-50', 'pointer-events-none');
+            }
+        }
+    }
+
+    function renderStoreCards(items) {
+        const grid = document.getElementById('storeDealsGrid');
+        if (items.length === 0) {
+            grid.innerHTML = `<div class="col-span-full py-12 text-center text-xs text-slate-500">No active deals found for {{ store_name }} with current filter.</div>`;
+            return;
+        }
+
+        storeState.itemsMap = {};
+        const seenPids = new Set();
+        const seenLinks = new Set();
+        const uniqueItems = [];
+
+        items.forEach(d => {
+            const pid = d.product_id || d.id;
+            const link = (d.affiliate_url || d.product_url || '').split('?')[0].toLowerCase();
+            if (seenPids.has(pid) || (link && seenLinks.has(link))) return;
+            seenPids.add(pid);
+            if (link) seenLinks.add(link);
+            storeState.itemsMap[d.id] = d;
+            uniqueItems.push(d);
+        });
+
+        grid.innerHTML = uniqueItems.map(deal => {
+            const store = (deal.platform || 'amazon').toLowerCase();
+            const storeCfg = STORES[store] || STORES.amazon;
+            const cp = deal.current_price || 0;
+            const mrp = deal.mrp || 0;
+            const discPct = (mrp > cp && mrp > 0) ? Math.round(((mrp - cp) / mrp) * 100) : Math.round(deal.discount_pct || deal.discount_percent || 0);
+            const liveAgo = deal.last_checked ? formatTimeAgo(deal.last_checked) : 'Recently';
+            const inWatch = isInWatchlist(deal.id);
+            const safeTitle = escapeHtml(deal.title);
+            const dealLink = deal.affiliate_url || deal.product_url || '#';
+            const postedTimeStr = formatPostedDateTime(deal.posted_at || deal.deal_time || deal.last_checked);
+            const hasValidRating = deal.rating && typeof deal.rating === 'number' && deal.rating >= 1.0 && deal.rating <= 5.0;
+            const ratingHtml = hasValidRating ? `
+                <div class="flex items-center gap-1.5 mt-1.5">
+                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-900 text-[10px] font-bold font-mono">
+                        <span class="text-amber-500">★</span> ${deal.rating.toFixed(1)}
+                    </span>
+                    ${deal.review_count && deal.review_count > 0 ? `
+                        <span class="text-[10px] text-slate-500 font-mono">(${Number(deal.review_count).toLocaleString('en-IN')})</span>
+                    ` : ''}
+                </div>
+            ` : '';
+
+            const savingsHtml = (mrp > cp) ? `
+                <div class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 font-mono">
+                    Save ${formatINR(mrp - cp)}
+                </div>
+            ` : '';
+
+            return `
+                <div class="bg-white border border-slate-200/90 hover:border-indigo-400 rounded-2xl p-3.5 flex flex-col justify-between transition-all duration-200 shadow-sm hover:shadow-md group relative">
+                    <div>
+                        <div class="flex items-center justify-between gap-2 mb-2">
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${storeCfg.badge}">
+                                ${storeCfg.name}
+                            </span>
+                            ${discPct > 0 ? `
+                                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">
+                                    ${discPct}% OFF
+                                </span>
+                            ` : ''}
+                        </div>
+
+                        <div class="relative w-full h-44 rounded-xl bg-slate-50 p-2 flex items-center justify-center overflow-hidden border border-slate-100">
+                            <img src="${deal.image_url || '/static/placeholder.svg'}" alt="${safeTitle}" class="w-full h-full object-contain group-hover:scale-105 transition" loading="lazy" onerror="this.onerror=null;this.src='/static/placeholder.svg'"/>
+                            <button onclick="handleStoreWatchlist(this, ${deal.id})" class="absolute top-2 right-2 p-1.5 rounded-xl bg-white/90 backdrop-blur-md border border-slate-200 text-slate-400 hover:text-rose-500 transition shadow-sm" title="Save to Watchlist">
+                                <i data-lucide="heart" class="w-4 h-4 ${inWatch ? 'fill-rose-500 text-rose-500' : ''}"></i>
+                            </button>
+                        </div>
+
+                        <div class="mt-3">
+                            <a href="${dealLink}" target="_blank" rel="noopener noreferrer" class="text-xs font-bold text-slate-900 hover:text-indigo-600 line-clamp-2 transition leading-snug" title="${safeTitle}">
+                                ${safeTitle}
+                            </a>
+                            ${ratingHtml}
+                        </div>
+                    </div>
+
+                    <div class="mt-3 pt-3 border-t border-slate-100">
+                        <div class="flex items-baseline justify-between gap-1 mb-2">
+                            <div class="flex items-baseline gap-1.5 flex-wrap">
+                                <span class="text-lg font-black text-slate-900 font-mono">${formatINR(deal.current_price)}</span>
+                                ${mrp > cp ? `<span class="text-xs text-slate-400 line-through font-mono">${formatINR(mrp)}</span>` : ''}
+                                ${discPct > 0 ? `<span class="text-xs font-black text-rose-600 font-mono">(${discPct}% OFF)</span>` : ''}
+                            </div>
+                            ${savingsHtml}
+                        </div>
+
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="handleStoreShare(${deal.id})" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 flex items-center justify-center transition shrink-0" title="Share Deal">
+                                <i data-lucide="share-2" class="w-4 h-4 text-indigo-600"></i>
+                            </button>
+                            <a href="${dealLink}" target="_blank" rel="noopener noreferrer" class="flex-1 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center justify-center gap-1 shadow-sm shadow-indigo-600/20 hover:scale-[1.02] active:scale-[0.98] transition">
+                                <span>Get Deal</span>
+                                <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                            </a>
+                        </div>
+
+                        <div class="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-100 text-[10px] text-slate-500 font-medium">
+                            <span class="truncate">Price changed on the platform?</span>
+                            <button onclick="handleSendForReview(${deal.id}, '${safeTitle.replace(/'/g, "\\'")}', '${dealLink.replace(/'/g, "\\'")}', ${deal.current_price || 0})" class="text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 shrink-0 transition" title="Send product for price re-check">
+                                <i data-lucide="help-circle" class="w-3 h-3 text-indigo-500"></i>
+                                <span>Flag for Re-Check</span>
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        lucide.createIcons();
+    }
+
+    function onStoreCatChange(val) {
+        storeState.category = val;
+        storeState.page = 1;
+        loadStoreDeals();
+    }
+
+    function onStoreSortChange(val) {
+        storeState.sortBy = val;
+        storeState.page = 1;
+        loadStoreDeals();
+    }
+
+    function changeStorePage(delta) {
+        storeState.page += delta;
+        window.scrollTo({ top: 150, behavior: 'smooth' });
+        loadStoreDeals();
+    }
+
+    function handleStoreWatchlist(btn, id) {
+        const deal = storeState.itemsMap[id];
+        if (deal) {
+            toggleWatchlist(deal);
+            const icon = btn.querySelector('svg');
+            if (icon) {
+                if (isInWatchlist(deal.id)) {
+                    icon.classList.add('fill-rose-500', 'text-rose-500');
+                } else {
+                    icon.classList.remove('fill-rose-500', 'text-rose-500');
+                }
+            }
+        }
+    }
+
+    function handleStoreShare(id) {
+        const deal = storeState.itemsMap[id];
+        if (deal) openShareModal(deal);
+    }
+
+    {% else %}
+    // Load dynamic store counts and max cuts for directory mode
+    function refreshDirectoryStats() {
+        fetch('/api/public/stats')
+            .then(r => r.json())
+            .then(data => {
+                if (data.by_platform) {
+                    Object.entries(data.by_platform).forEach(([plat, info]) => {
+                        const capitalized = plat.charAt(0).toUpperCase() + plat.slice(1);
+                        const cntEl = document.getElementById(`storeCnt${capitalized}`);
+                        if (cntEl && info.count) {
+                            cntEl.innerText = `${info.count.toLocaleString('en-IN')}`;
+                        }
+                        const cutEl = document.getElementById(`storeCut${capitalized}`);
+                        if (cutEl && info.max_discount) {
+                            cutEl.innerText = `-${info.max_discount}%`;
+                        }
+                    });
+                }
+            }).catch(err => console.warn('Store stats error:', err));
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        refreshDirectoryStats();
+        setInterval(() => {
+            if (!document.hidden) refreshDirectoryStats();
+        }, 300000);  // 5 min — store counts don't change in seconds
+    });
+    {% endif %}
+</script>
+{% endblock %}

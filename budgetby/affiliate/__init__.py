@@ -1,0 +1,1 @@
+"""Affiliate package init."""

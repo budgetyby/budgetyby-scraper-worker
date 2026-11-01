@@ -1,0 +1,937 @@
+{% extends "consumer/layout.html" %}
+
+{% set cat_info = categories_taxonomy.get(current_category) if current_category and current_category in categories_taxonomy else None %}
+{% set sub_info = cat_info.subcategories.get(current_sub) if cat_info and cat_info.subcategories and current_sub else None %}
+{% set page_heading = (sub_info.name if sub_info else (cat_info.name if cat_info else 'All Deals & Offers')) %}
+
+{% block title %}{{ page_heading }} Tracker — BudgetBy{% endblock %}
+{% block description %}Browse live {{ page_heading }} across Amazon, Flipkart, Myntra, Ajio, and Nykaa. Filtered against 30, 60 & 120-day median price baselines.{% endblock %}
+
+{% block content %}
+<main class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full pt-4 pb-16">
+    
+    <!-- Breadcrumb -->
+    <nav class="flex items-center gap-2 text-xs text-slate-500 mb-3" aria-label="Breadcrumb">
+        <a href="/" class="hover:text-slate-900 transition flex items-center gap-1">
+            <span>🏠</span> Home
+        </a>
+        <span class="text-slate-300">/</span>
+        <a href="/deals" class="hover:text-slate-900 transition">Deals</a>
+        {% if cat_info %}
+        <span class="text-slate-300">/</span>
+        <a href="/deals?category={{ current_category }}" class="hover:text-slate-900 transition flex items-center gap-1">
+            <span>{{ cat_info.icon }}</span> {{ cat_info.name }}
+        </a>
+        {% if sub_info %}
+        <span class="text-slate-300">/</span>
+        <span class="text-indigo-600 font-bold flex items-center gap-1">
+            <span>{{ sub_info.icon or '🏷️' }}</span> {{ sub_info.name }}
+        </span>
+        {% endif %}
+        {% endif %}
+    </nav>
+
+
+
+    <!-- ── Visual Subcategories Card Showcase (Shown ONLY on main category page, hidden on dedicated subcategory pages) ─── -->
+    {% if cat_info and cat_info.subcategories and not current_sub %}
+    <section class="mb-6">
+        <div class="mb-3">
+            <h2 class="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                <span>{{ cat_info.icon }}</span>
+                <span>Select {{ cat_info.name }} Subcategory</span>
+            </h2>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5 sm:gap-4 py-1">
+            
+            <!-- All in category large link card -->
+            <a href="/deals?category={{ current_category }}" 
+               class="subcat-card rounded-2xl border transition-all text-left flex flex-col justify-between overflow-hidden min-h-[140px] shadow-sm {% if not current_sub %}bg-indigo-600 text-white border-indigo-600 shadow-md ring-2 ring-indigo-500/30{% else %}bg-white border-slate-200 text-slate-900 hover:border-indigo-400 hover:shadow-md{% endif %}">
+                <div class="w-full h-24 sm:h-28 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center text-4xl">
+                    {{ cat_info.icon }}
+                </div>
+                <div class="p-2.5 sm:p-3">
+                    <span class="text-xs sm:text-sm font-black block leading-tight">All {{ cat_info.name }}</span>
+                    <span class="text-[10px] {% if not current_sub %}text-indigo-100{% else %}text-slate-500{% endif %} font-medium">Browse All Deals</span>
+                </div>
+            </a>
+
+            {% for sub_key, sub_val in cat_info.subcategories.items() %}
+            <a href="/deals?category={{ current_category }}&sub={{ sub_key }}" 
+               data-sub-key="{{ sub_key }}"
+               class="subcat-card relative group rounded-2xl border overflow-hidden transition-all text-left flex flex-col justify-between min-h-[140px] shadow-sm {% if current_sub == sub_key %}bg-indigo-50 border-indigo-600 ring-2 ring-indigo-500/20 shadow-md{% else %}bg-white border-slate-200 hover:border-indigo-400 hover:shadow-md{% endif %}">
+                
+                <!-- Subcategory Image Thumbnail -->
+                <div class="relative w-full h-24 sm:h-28 bg-slate-100 overflow-hidden">
+                    <img src="{{ sub_val.image }}" alt="{{ sub_val.name }}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" loading="lazy" />
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent"></div>
+                    <span class="absolute bottom-2 left-2 text-lg drop-shadow">{{ sub_val.icon }}</span>
+                </div>
+
+                <!-- Subcategory Name Inside Box -->
+                <div class="p-2.5 sm:p-3 bg-white">
+                    <span class="text-xs sm:text-sm font-bold text-slate-900 line-clamp-1 block leading-tight group-hover:text-indigo-600 transition">
+                        {{ sub_val.name }}
+                    </span>
+                    <span class="text-[10px] text-indigo-600 font-semibold mt-0.5 block">View Dedicated Page ➔</span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- ── Main Deals Feed & Toolbar ─────────────────────────────────── -->
+    <section class="w-full min-w-0">
+        
+        <!-- Toolbar: Filter Products Collapsible Button, Matches Counter & Sorting -->
+        <div class="bg-white border border-slate-200/90 rounded-2xl p-3.5 mb-4 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+            <div class="flex items-center gap-2.5">
+                <!-- Filter Products Collapsible Button -->
+                <button onclick="toggleFilterModal()" 
+                        id="filterModalTriggerBtn" 
+                        class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-extrabold text-xs shadow-md shadow-indigo-600/20 transition flex items-center gap-2 shrink-0">
+                    <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+                    <span>Filter Products</span>
+                    <span id="activeFilterBadge" class="hidden px-1.5 py-0.5 rounded-full bg-white text-indigo-700 font-extrabold text-[10px]">0</span>
+                </button>
+
+                <div>
+                    <h2 id="dealsSectionTitle" class="text-sm sm:text-base font-black text-slate-900 leading-tight">
+                        {% if sub_info %}{{ sub_info.name }}{% elif cat_info %}All {{ cat_info.name }}{% else %}All Live Deals & Offers{% endif %}
+                    </h2>
+                    <span class="text-[11px] text-slate-500 font-mono">
+                        Showing <span id="dealsMatchesCount" class="font-bold text-slate-900">{{ initial_data.total_matches if initial_data and initial_data.total_matches else 0 }}</span> products
+                    </span>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <label for="dealsSortSelect" class="text-xs font-bold text-slate-500 hidden sm:inline">Sort By:</label>
+                <select id="dealsSortSelect" onchange="onSortChange(this.value)" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 transition font-bold">
+                    <option value="latest" {% if not current_sort or current_sort == 'latest' %}selected{% endif %}>⚡ Recently Added</option>
+                    <option value="score_desc" {% if current_sort == 'score_desc' or current_sort == 'best' %}selected{% endif %}>🎯 Best Deal Quality</option>
+                    <option value="discount_desc" {% if current_sort == 'discount_desc' %}selected{% endif %}>🔥 Highest Discount %</option>
+                    <option value="price_asc" {% if current_sort == 'price_asc' %}selected{% endif %}>💰 Price: Low to High</option>
+                    <option value="price_desc" {% if current_sort == 'price_desc' %}selected{% endif %}>💎 Price: High to Low</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Products Grid Container -->
+        <div id="dealsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 transition-opacity duration-200">
+            {% if initial_data and initial_data.deals %}
+                {% for deal in initial_data.deals %}
+                {% include "consumer/partials/product_card.html" %}
+                {% endfor %}
+            {% else %}
+                <div class="col-span-full py-16 text-center text-xs text-slate-500 bg-white rounded-2xl border border-slate-200 p-8">
+                    <span class="text-3xl mb-2 block">🔍</span>
+                    <span class="font-bold text-slate-800 text-sm">No deals found matching your selected criteria.</span>
+                    <p class="text-slate-500 mt-1">Try resetting your filters or selecting a different category.</p>
+                    <button onclick="resetAllFilters()" class="mt-4 px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs">Reset All Filters</button>
+                </div>
+            {% endif %}
+        </div>
+
+            <!-- Pagination Bar -->
+            <div id="dealsPaginationBar" class="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm">
+                <div class="text-xs text-slate-600 font-mono">
+                    Page <span id="dealsCurrentPage" class="font-bold text-slate-900">{{ initial_data.page if initial_data and initial_data.page else 1 }}</span> of <span id="dealsTotalPages" class="font-bold text-slate-900">{{ initial_data.total_pages if initial_data and initial_data.total_pages else 1 }}</span>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button onclick="changeDealsPage(-1)" id="dealsPrevBtn" disabled class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:pointer-events-none text-slate-700 border border-slate-200 transition">
+                        ← Previous
+                    </button>
+                    <button onclick="changeDealsPage(1)" id="dealsNextBtn" {% if not initial_data or initial_data.total_pages <= 1 %}disabled{% endif %} class="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:pointer-events-none text-white transition flex items-center gap-1.5 shadow-sm shadow-indigo-600/20">
+                        <span>Next Page</span>
+                        <span>→</span>
+                    </button>
+                </div>
+            </div>
+
+        </section>
+</main>
+
+<!-- ── Filter Products Slide-Over Drawer Modal ────────────────────────────── -->
+<div id="filterProductsModal" class="hidden fixed inset-0 z-[999999] overflow-hidden">
+    <!-- Backdrop -->
+    <div onclick="closeFilterModal()" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity duration-300"></div>
+
+    <!-- Slide-over Container -->
+    <div class="fixed inset-y-0 right-0 max-w-full flex pl-10">
+        <div class="w-screen max-w-md bg-white shadow-2xl flex flex-col justify-between">
+            
+            <!-- Modal Header -->
+            <div class="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-md shadow-indigo-600/20">
+                        <i data-lucide="sliders-horizontal" class="w-4.5 h-4.5"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-black text-slate-900">Filter Products</h2>
+                        <p class="text-xs text-slate-500">Refine by audience, store, price & discount</p>
+                    </div>
+                </div>
+                <button onclick="closeFilterModal()" class="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition" title="Close filters">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body (Scrollable) -->
+            <div class="p-5 overflow-y-auto custom-scrollbar space-y-6 flex-1">
+                
+                <!-- Audience / Gender Filter (Contextual to Fashion, Footwear, Watches, Beauty, Jewellery, Sports) -->
+                {% if not current_category or current_category in ['fashion', 'footwear', 'watches', 'beauty', 'jewellery', 'sports'] %}
+                <div>
+                    <h3 class="text-xs font-black text-slate-800 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                        <span>👥</span> Audience / Gender
+                    </h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        <button onclick="onGenderFilterChange('')" data-gender="" class="gender-btn px-3 py-2.5 rounded-xl text-xs font-bold transition text-center {% if not current_gender %}bg-indigo-600 text-white shadow-sm{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                            🌟 All
+                        </button>
+                        <button onclick="onGenderFilterChange('men')" data-gender="men" class="gender-btn px-3 py-2.5 rounded-xl text-xs font-bold transition text-center {% if current_gender == 'men' %}bg-indigo-600 text-white shadow-sm{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                            👨 Men
+                        </button>
+                        <button onclick="onGenderFilterChange('women')" data-gender="women" class="gender-btn px-3 py-2.5 rounded-xl text-xs font-bold transition text-center {% if current_gender == 'women' %}bg-indigo-600 text-white shadow-sm{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                            👩 Women
+                        </button>
+                        <button onclick="onGenderFilterChange('boys')" data-gender="boys" class="gender-btn px-3 py-2.5 rounded-xl text-xs font-bold transition text-center {% if current_gender == 'boys' %}bg-indigo-600 text-white shadow-sm{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                            👦 Boys
+                        </button>
+                        <button onclick="onGenderFilterChange('girls')" data-gender="girls" class="gender-btn px-3 py-2.5 rounded-xl text-xs font-bold transition text-center {% if current_gender == 'girls' %}bg-indigo-600 text-white shadow-sm{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                            👧 Girls
+                        </button>
+                        <button onclick="onGenderFilterChange('kids')" data-gender="kids" class="gender-btn px-3 py-2.5 rounded-xl text-xs font-bold transition text-center {% if current_gender == 'kids' %}bg-indigo-600 text-white shadow-sm{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                            👶 Kids
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Store / Platform Filter -->
+                <div>
+                    <h3 class="text-xs font-black text-slate-800 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                        <span>🏪</span> Store / Platform
+                    </h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="onStoreFilterChange('')" id="filterStore_all" class="store-filter-btn px-3 py-2.5 rounded-xl text-xs transition text-left border {% if not current_platform %}bg-indigo-50 border-indigo-600 text-indigo-700 ring-2 ring-indigo-500/20 font-black shadow-sm{% else %}bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 font-bold{% endif %}">
+                            All 5 Stores
+                        </button>
+                        <button onclick="onStoreFilterChange('amazon')" id="filterStore_amazon" class="store-filter-btn px-3 py-2.5 rounded-xl text-xs transition flex items-center gap-2 border {% if current_platform == 'amazon' %}bg-indigo-50 border-indigo-600 text-indigo-700 ring-2 ring-indigo-500/20 font-black shadow-sm{% else %}bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 font-bold{% endif %}">
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#FF9900]"></span>
+                            <span>Amazon</span>
+                        </button>
+                        <button onclick="onStoreFilterChange('flipkart')" id="filterStore_flipkart" class="store-filter-btn px-3 py-2.5 rounded-xl text-xs transition flex items-center gap-2 border {% if current_platform == 'flipkart' %}bg-indigo-50 border-indigo-600 text-indigo-700 ring-2 ring-indigo-500/20 font-black shadow-sm{% else %}bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 font-bold{% endif %}">
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#2874F0]"></span>
+                            <span>Flipkart</span>
+                        </button>
+                        <button onclick="onStoreFilterChange('myntra')" id="filterStore_myntra" class="store-filter-btn px-3 py-2.5 rounded-xl text-xs transition flex items-center gap-2 border {% if current_platform == 'myntra' %}bg-indigo-50 border-indigo-600 text-indigo-700 ring-2 ring-indigo-500/20 font-black shadow-sm{% else %}bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 font-bold{% endif %}">
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#FF3F6C]"></span>
+                            <span>Myntra</span>
+                        </button>
+                        <button onclick="onStoreFilterChange('ajio')" id="filterStore_ajio" class="store-filter-btn px-3 py-2.5 rounded-xl text-xs transition flex items-center gap-2 border {% if current_platform == 'ajio' %}bg-indigo-50 border-indigo-600 text-indigo-700 ring-2 ring-indigo-500/20 font-black shadow-sm{% else %}bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 font-bold{% endif %}">
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#D99814]"></span>
+                            <span>Ajio</span>
+                        </button>
+                        <button onclick="onStoreFilterChange('nykaa')" id="filterStore_nykaa" class="store-filter-btn px-3 py-2.5 rounded-xl text-xs transition flex items-center gap-2 border {% if current_platform == 'nykaa' %}bg-indigo-50 border-indigo-600 text-indigo-700 ring-2 ring-indigo-500/20 font-black shadow-sm{% else %}bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 font-bold{% endif %}">
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#FC2779]"></span>
+                            <span>Nykaa</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Minimum Discount Filter -->
+                <div>
+                    <h3 class="text-xs font-black text-slate-800 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                        <span>🔥</span> Minimum Discount
+                    </h3>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <button onclick="setMinDiscount(0)" id="discChip0" class="disc-chip px-3 py-2.5 rounded-xl font-bold bg-indigo-600 text-white transition text-center shadow-sm">Any %</button>
+                        <button onclick="setMinDiscount(20)" id="discChip20" class="disc-chip px-3 py-2.5 rounded-xl font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition text-center">20%+ OFF</button>
+                        <button onclick="setMinDiscount(40)" id="discChip40" class="disc-chip px-3 py-2.5 rounded-xl font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition text-center">40%+ OFF</button>
+                        <button onclick="setMinDiscount(60)" id="discChip60" class="disc-chip px-3 py-2.5 rounded-xl font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition text-center">60%+ OFF</button>
+                        <button onclick="setMinDiscount(70)" id="discChip70" class="disc-chip col-span-2 px-3 py-2.5 rounded-xl font-bold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition text-center">🔥 70%+ Off Loot</button>
+                    </div>
+                </div>
+
+                <!-- Custom Price Range & Quick Price Filters -->
+                <div>
+                    <h3 class="text-xs font-black text-slate-800 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                        <span>💰</span> Price Range (₹)
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <input type="number" id="minPriceInput" placeholder="Min ₹" class="w-1/2 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 font-mono" />
+                        <span class="text-slate-400 text-xs">-</span>
+                        <input type="number" id="maxPriceInput" placeholder="Max ₹" class="w-1/2 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 font-mono" />
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 mt-2">
+                        <button onclick="onPriceQuickFilter(499)" class="px-3 py-2 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition text-center">⚡ Under ₹499</button>
+                        <button onclick="onPriceQuickFilter(999)" class="px-3 py-2 rounded-xl text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition text-center">⚡ Under ₹999</button>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-2 text-center">Price filter applies automatically when you click "Show Products" below</p>
+                </div>
+
+                <!-- Minimum Rating Filter -->
+                <div>
+                    <h3 class="text-xs font-black text-slate-800 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                        <span>⭐</span> Minimum Rating
+                    </h3>
+                    <div class="grid grid-cols-4 gap-2 text-xs">
+                        <button onclick="setMinRating(0)" id="ratingChip0" class="rating-chip px-2.5 py-2 rounded-xl font-bold bg-indigo-600 text-white transition text-center shadow-sm">Any ★</button>
+                        <button onclick="setMinRating(3.5)" id="ratingChip35" class="rating-chip px-2.5 py-2 rounded-xl font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition text-center">3.5+ ★</button>
+                        <button onclick="setMinRating(4.0)" id="ratingChip40" class="rating-chip px-2.5 py-2 rounded-xl font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition text-center">4.0+ ★</button>
+                        <button onclick="setMinRating(4.5)" id="ratingChip45" class="rating-chip px-2.5 py-2 rounded-xl font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition text-center">4.5+ ★</button>
+                    </div>
+                </div>
+
+                <!-- Brand Search Helper Note -->
+                <div class="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl text-[11px] text-indigo-900 flex items-start gap-2">
+                    <span class="text-sm">💡</span>
+                    <span><strong>Brand Filtering:</strong> Looking for a specific brand (e.g. Nike, Puma, Boat, Levi's)? Use the top search bar to instantly filter products by brand name.</span>
+                </div>
+
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-4 border-t border-slate-200 bg-slate-50 flex items-center gap-3">
+                <button onclick="resetAllFilters()" class="w-1/3 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-200 transition text-center">
+                    Reset All
+                </button>
+                <button onclick="applyFilterDrawer()" class="w-2/3 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs transition shadow-md shadow-indigo-600/20 text-center">
+                    Show Products ➔
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script id="initial-deals-data" type="application/json">{{ (initial_data or {})|tojson|safe }}</script>
+<script>
+    let draftFilterState = {
+        platform: "{{ current_platform if current_platform else '' }}",
+        gender: "{{ current_gender if current_gender else '' }}",
+        minDiscount: {{ current_min_discount if current_min_discount is defined and current_min_discount else 0 }},
+        minRating: {{ current_min_rating if current_min_rating is defined and current_min_rating else 0 }},
+        minPrice: {{ current_min_price if current_min_price is defined and current_min_price else 0 }},
+        maxPrice: {{ current_max_price if current_max_price is defined and current_max_price else 0 }}
+    };
+
+    const dealsState = {
+        page: {{ current_page if current_page else 1 }},
+        limit: 24,
+        totalPages: {{ initial_data.total_pages if initial_data and initial_data.total_pages else 1 }},
+        search: "{{ current_search if current_search else '' }}",
+        platform: "{{ current_platform if current_platform else '' }}",
+        category: "{{ current_category if current_category else '' }}",
+        sub: "{{ current_sub if current_sub else '' }}",
+        gender: "{{ current_gender if current_gender else '' }}",
+        minDiscount: {{ current_min_discount if current_min_discount is defined and current_min_discount else 0 }},
+        minPrice: {{ current_min_price if current_min_price is defined and current_min_price else 0 }},
+        maxPrice: {{ current_max_price if current_max_price is defined and current_max_price else 0 }},
+        minRating: {{ current_min_rating if current_min_rating is defined and current_min_rating else 0 }},
+        sortBy: "{{ current_sort if current_sort else 'latest' }}",
+        items: [],
+        itemsMap: {}
+    };
+
+    function setMinRating(val) {
+        draftFilterState.minRating = val;
+        document.querySelectorAll('.rating-chip').forEach(c => {
+            c.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm');
+            c.classList.add('bg-slate-100', 'text-slate-700');
+        });
+        const chipId = val === 0 ? 'ratingChip0' : (val === 3.5 ? 'ratingChip35' : (val === 4.0 ? 'ratingChip40' : 'ratingChip45'));
+        const active = document.getElementById(chipId);
+        if (active) {
+            active.classList.add('bg-indigo-600', 'text-white', 'shadow-sm');
+            active.classList.remove('bg-slate-100', 'text-slate-700');
+        }
+    }
+
+    let dealsAutoRefreshTimer = null;
+    function startDealsAutoRefresh() {
+        if (dealsAutoRefreshTimer) clearInterval(dealsAutoRefreshTimer);
+        const settings = window.getUserSettings ? window.getUserSettings() : null;
+        const intervalSec = (settings && settings.syncInterval !== undefined && settings.syncInterval > 0) ? settings.syncInterval : 60;
+        if (intervalSec <= 0) return;
+        dealsAutoRefreshTimer = setInterval(() => {
+            if (dealsState.page === 1 && !document.hidden) {
+                loadDeals(true);
+            }
+        }, intervalSec * 1000);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const rawDeals = document.getElementById('initial-deals-data');
+        let hasInitialData = false;
+        if (rawDeals && rawDeals.textContent.trim()) {
+            try {
+                const parsed = JSON.parse(rawDeals.textContent);
+                if (parsed && parsed.deals && parsed.deals.length > 0) {
+                    dealsState.items = (parsed.deals || []).map(d => ({
+                        ...d,
+                        id: d.product_id || d.deal_id,
+                        current_price: d.deal_price !== undefined ? d.deal_price : (d.current_price || 0),
+                        discount_percent: d.discount_pct !== undefined ? d.discount_pct : (d.discount_percent || 0),
+                        drop_percent: d.drop_pct !== undefined ? d.drop_pct : (d.drop_percent || 0),
+                        affiliate_url: d.affiliate_url || d.product_url
+                    }));
+                    dealsState.totalPages = parsed.total_pages || 1;
+                    dealsState.itemsMap = {};
+                    dealsState.items.forEach(d => { dealsState.itemsMap[d.id] = d; });
+                    hasInitialData = true;
+                }
+            } catch (e) {}
+        }
+
+        if (!hasInitialData) {
+            showSkeletonCards(6);
+            loadDeals();
+        } else {
+            if (window.lucide) lucide.createIcons();
+        }
+        startDealsAutoRefresh();
+
+        // Dynamically bind global search form on deals page to prevent losing active filters
+        const searchForm = document.getElementById('globalSearchForm');
+        if (searchForm) {
+            searchForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const searchInput = document.getElementById('globalSearchInput');
+                const val = searchInput ? searchInput.value.trim() : '';
+                dealsState.search = val;
+                dealsState.page = 1;
+                
+                try {
+                    const url = new URL(window.location);
+                    if (val) url.searchParams.set('search', val);
+                    else url.searchParams.delete('search');
+                    url.searchParams.set('page', '1');
+                    window.history.pushState(dealsState, '', url);
+                } catch (err) {}
+
+                const suggestionsDropdown = document.getElementById('searchSuggestionsDropdown');
+                if (suggestionsDropdown) suggestionsDropdown.classList.add('hidden');
+
+                loadDeals();
+            });
+        }
+
+        const clearBtn = document.getElementById('globalSearchClearBtn');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                dealsState.search = '';
+                dealsState.page = 1;
+                try {
+                    const url = new URL(window.location);
+                    url.searchParams.delete('search');
+                    url.searchParams.set('page', '1');
+                    window.history.pushState(dealsState, '', url);
+                } catch (err) {}
+                loadDeals();
+            });
+        }
+    });
+
+    function showSkeletonCards(count = 6) {
+        const grid = document.getElementById('dealsGrid');
+        if (!grid) return;
+        const skeleton = Array(count).fill(0).map(() => `
+            <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden animate-pulse">
+                <div class="h-48 bg-slate-200 rounded-t-2xl"></div>
+                <div class="p-4 space-y-3">
+                    <div class="h-2.5 bg-slate-200 rounded w-1/3"></div>
+                    <div class="h-3 bg-slate-200 rounded w-full"></div>
+                    <div class="h-3 bg-slate-200 rounded w-4/5"></div>
+                    <div class="h-8 bg-slate-200 rounded-xl mt-4 w-full"></div>
+                </div>
+            </div>
+        `).join('');
+        grid.innerHTML = skeleton;
+        grid.classList.remove('opacity-50', 'pointer-events-none');
+    }
+
+    async function loadDeals(isBackground = false) {
+        if (isBackground && document.hidden) return;
+        const grid = document.getElementById('dealsGrid');
+        if (!isBackground) {
+            if (typeof showPageProgress === 'function') showPageProgress();
+            if (grid) {
+                if (dealsState.items && dealsState.items.length > 0) {
+                    grid.classList.add('opacity-50', 'pointer-events-none');
+                } else {
+                    showSkeletonCards(6);
+                }
+            }
+        }
+
+        try {
+            const params = new URLSearchParams({
+                page: dealsState.page,
+                limit: dealsState.limit,
+                sort_by: dealsState.sortBy
+            });
+            if (dealsState.search) params.append('search', dealsState.search);
+            if (dealsState.platform) params.append('platform', dealsState.platform);
+            if (dealsState.category) params.append('category', dealsState.category);
+            if (dealsState.sub) params.append('sub', dealsState.sub);
+            if (dealsState.gender) params.append('gender', dealsState.gender);
+            if (dealsState.minDiscount > 0) params.append('min_discount', dealsState.minDiscount);
+            if (dealsState.minPrice > 0) params.append('min_price', dealsState.minPrice);
+            if (dealsState.maxPrice > 0) params.append('max_price', dealsState.maxPrice);
+            if (dealsState.minRating > 0) params.append('min_rating', dealsState.minRating);
+
+            const controller = new AbortController();
+            const fetchTimeout = setTimeout(() => controller.abort(), 8000); // 8-second timeout
+            let res;
+            try {
+                res = await fetch(`/api/public/deals?${params.toString()}`, { signal: controller.signal });
+            } finally {
+                clearTimeout(fetchTimeout);
+            }
+            if (!res.ok) throw new Error(`Server error: ${res.status}`);
+            const data = await res.json();
+
+            dealsState.items = (data.deals || data.items || []).map(d => ({
+                ...d,
+                id: d.product_id || d.deal_id,
+                current_price: d.deal_price !== undefined ? d.deal_price : (d.current_price || 0),
+                discount_percent: d.discount_pct !== undefined ? d.discount_pct : (d.discount_percent || 0),
+                drop_percent: d.drop_pct !== undefined ? d.drop_pct : (d.drop_percent || 0),
+                affiliate_url: d.affiliate_url || d.product_url
+            }));
+            dealsState.totalPages = data.total_pages || 1;
+
+            const totalMatches = data.total_matches !== undefined ? data.total_matches : (data.total || dealsState.items.length);
+            const countEl = document.getElementById('dealsMatchesCount');
+            if (countEl) countEl.innerText = totalMatches.toLocaleString('en-IN');
+            const pageEl = document.getElementById('dealsCurrentPage');
+            if (pageEl) pageEl.innerText = data.page || 1;
+            const totalPageEl = document.getElementById('dealsTotalPages');
+            if (totalPageEl) totalPageEl.innerText = dealsState.totalPages;
+
+            const prevBtn = document.getElementById('dealsPrevBtn');
+            if (prevBtn) prevBtn.disabled = (dealsState.page <= 1);
+            const nextBtn = document.getElementById('dealsNextBtn');
+            if (nextBtn) nextBtn.disabled = (dealsState.page >= dealsState.totalPages);
+
+            renderDealsCards(dealsState.items);
+            updateActiveFilterBadge();
+        } catch (err) {
+            if (grid && (!dealsState.items || dealsState.items.length === 0)) {
+                grid.innerHTML = '<div class="col-span-full py-12 text-center text-xs text-rose-600 font-semibold">Unable to load deals. Please check your connection.</div>';
+            }
+        } finally {
+            if (typeof hidePageProgress === 'function') hidePageProgress();
+            if (grid) {
+                grid.classList.remove('opacity-50', 'pointer-events-none');
+            }
+        }
+    }
+
+    function renderDealsCards(items) {
+        const grid = document.getElementById('dealsGrid');
+        if (items.length === 0) {
+            grid.innerHTML = `
+                <div class="col-span-full py-16 text-center text-xs text-slate-500 bg-white rounded-2xl border border-slate-200 p-8">
+                    <span class="text-3xl mb-2 block">🔍</span>
+                    <span class="font-bold text-slate-800 text-sm">No deals found matching your selected criteria.</span>
+                    <p class="text-slate-500 mt-1">Try resetting your filters or selecting another category.</p>
+                    <button onclick="resetAllFilters()" class="mt-4 px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs">Reset All Filters</button>
+                </div>
+            `;
+            return;
+        }
+
+        dealsState.itemsMap = {};
+        const seenPids = new Set();
+        const seenLinks = new Set();
+        const uniqueItems = [];
+
+        items.forEach(d => {
+            const pid = d.product_id || d.id;
+            const link = (d.affiliate_url || d.product_url || '').split('?')[0].toLowerCase();
+            if (seenPids.has(pid) || (link && seenLinks.has(link))) return;
+            seenPids.add(pid);
+            if (link) seenLinks.add(link);
+            dealsState.itemsMap[d.id] = d;
+            uniqueItems.push(d);
+        });
+
+        grid.innerHTML = uniqueItems.map(deal => {
+            const store = (deal.platform || 'amazon').toLowerCase();
+            const storeCfg = STORES[store] || STORES.amazon;
+            const cp = deal.current_price || deal.deal_price || 0;
+            const mrp = deal.mrp || 0;
+            const hasDiscount = mrp > cp;
+            const discPct = hasDiscount ? Math.round(((mrp - cp) / mrp) * 100) : Math.round(deal.discount_percent || 0);
+            const savings = hasDiscount ? mrp - cp : 0;
+            const safeTitle = escapeHtml(deal.title);
+            const lastCheckedTimeStr = formatPostedDateTime(deal.last_price_change || deal.deal_time || deal.last_checked || deal.posted_at);
+            const dealLink = deal.affiliate_url || deal.product_url || '#';
+            const rating = deal.rating || 0;
+            const reviews = deal.review_count || 0;
+            const badge = deal.badge || '';
+            const inStock = deal.in_stock !== false; // defaults to true if undefined
+
+            return `
+                <div class="bg-white border border-slate-200/90 hover:border-indigo-400 rounded-2xl p-3 sm:p-3.5 flex flex-col justify-between transition-all duration-200 shadow-sm hover:shadow-md group relative ${!inStock ? 'opacity-60 grayscale' : ''}">
+                    ${!inStock ? '<div class="absolute inset-0 bg-white/40 z-10 rounded-2xl pointer-events-none flex items-center justify-center"><span class="bg-black text-white px-3 py-1 rounded-full font-black tracking-widest text-xs uppercase shadow-xl transform -rotate-12 border-2 border-white">Out of Stock</span></div>' : ''}
+                    <div>
+                        <!-- Store Badge & Discount Tag -->
+                        <div class="flex items-center justify-between gap-1.5 mb-2">
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${storeCfg.badge}">
+                                ${storeCfg.name}
+                            </span>
+                            ${discPct > 0 ? `
+                            <span class="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-200 font-mono">
+                                -${discPct}%
+                            </span>` : (badge ? `
+                            <span class="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-amber-50 text-amber-700 border border-amber-200 uppercase font-mono">
+                                ${badge}
+                            </span>` : '')}
+                        </div>
+
+                        <!-- Image Area -->
+                        <div class="relative w-full h-36 sm:h-44 rounded-xl bg-slate-50 p-2 flex items-center justify-center overflow-hidden border border-slate-100">
+                            <img src="${deal.image_url || '/static/placeholder.svg'}" 
+                                 alt="${safeTitle}" 
+                                 class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                                 loading="lazy"
+                                 onerror="this.onerror=null;this.src='/static/placeholder.svg'" />
+                            
+                            ${badge === 'ATL' ? `
+                            <span class="absolute top-2 left-2 px-1.5 py-0.5 rounded-md text-[9px] font-black bg-amber-500 text-white uppercase font-mono shadow-sm">
+                                🏆 ATL
+                            </span>` : (discPct >= 60 ? `
+                            <span class="absolute top-2 left-2 px-1.5 py-0.5 rounded-md text-[9px] font-black bg-rose-600 text-white uppercase font-mono shadow-sm">
+                                🔥 LOOT
+                            </span>` : '')}
+
+                            <button onclick="handleDealsWatchlist(this, ${deal.product_id || deal.id})" 
+                                    class="absolute top-2 right-2 p-1.5 rounded-xl bg-white/90 backdrop-blur-md border border-slate-200 text-slate-400 hover:text-rose-500 transition shadow-sm" 
+                                    title="Save to Watchlist">
+                                <i data-lucide="heart" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+
+                        <!-- Ratings Row -->
+                        <div class="mt-2 flex items-center justify-between text-[10px] text-slate-500">
+                            ${rating > 0 ? `
+                            <span class="flex items-center gap-1 font-bold text-amber-600 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200/60">
+                                <span>★</span> ${rating.toFixed(1)} ${reviews > 0 ? `<span class="text-slate-400 font-normal">(${reviews})</span>` : ''}
+                            </span>` : `<span class="text-slate-400 text-[10px] font-medium">Verified Product</span>`}
+                        </div>
+
+                        <!-- Title -->
+                        <div class="mt-1.5">
+                            <a href="${dealLink ? dealLink : '#'}" ${dealLink ? 'target="_blank" rel="noopener noreferrer"' : ''} 
+                                class="text-xs font-bold text-slate-900 hover:text-indigo-600 line-clamp-2 break-words transition leading-snug" 
+                                title="${safeTitle}">
+                                ${safeTitle}
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Price & Buy Button -->
+                    <div class="mt-3 pt-2.5 border-t border-slate-100">
+                        <div class="flex items-baseline justify-between gap-1 mb-2">
+                            <div class="flex items-baseline gap-1.5 flex-wrap">
+                                <span class="text-base sm:text-lg font-black text-slate-900 font-mono">${formatINR(cp)}</span>
+                                ${hasDiscount ? `<span class="text-xs text-slate-400 line-through font-mono">${formatINR(mrp)}</span>` : ''}
+                                ${discPct > 0 ? `<span class="text-xs font-black text-rose-600 font-mono">(${discPct}% OFF)</span>` : ''}
+                            </div>
+                            ${savings > 0 ? `
+                            <div class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 font-mono shrink-0">
+                                Save ${formatINR(savings)}
+                            </div>` : ''}
+                        </div>
+
+                        ${dealLink ? `
+                        <a href="${dealLink}" target="_blank" rel="noopener noreferrer" 
+                           class="w-full py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 transition shadow-sm shadow-indigo-600/20 active:scale-98">
+                            <span>Buy on ${storeCfg.name}</span>
+                            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                        </a>` : `
+                        <div class="w-full py-2 px-3 rounded-xl bg-slate-100 text-slate-400 font-bold text-xs flex items-center justify-center gap-1.5 cursor-not-allowed">
+                            <span>Price Tracked on ${storeCfg.name}</span>
+                        </div>`}
+
+                        <!-- Report Price Change -->
+                        <div class="mt-2 flex items-center justify-between text-[10px] text-slate-400 pt-1.5 border-t border-slate-50">
+                            <span class="text-[10px] text-slate-400">Tracked Deal</span>
+                            <button onclick="handleSendForReview(${deal.product_id || deal.id}, '${safeTitle.replace(/'/g, "")}', '${dealLink.replace(/'/g, "")}', ${cp})" 
+                                    class="font-semibold text-indigo-600 hover:text-indigo-800 transition flex items-center gap-1">
+                                <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+                                <span>Request Price Check</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function onSubcategoryClick(subKey, btn) {
+        dealsState.sub = subKey;
+        dealsState.page = 1;
+        
+        const url = new URL(window.location);
+        if (subKey) {
+            url.searchParams.set('sub', subKey);
+        } else {
+            url.searchParams.delete('sub');
+        }
+        url.searchParams.set('page', '1');
+        window.history.pushState(dealsState, '', url);
+
+        loadDeals();
+    }
+
+    function syncDraftFilterUI() {
+        // 1. Store buttons
+        document.querySelectorAll('.store-filter-btn').forEach(btn => {
+            btn.className = 'store-filter-btn px-3 py-2.5 rounded-xl text-xs transition flex items-center gap-2 border bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 font-bold';
+        });
+        const activeStoreKey = draftFilterState.platform ? `filterStore_${draftFilterState.platform}` : 'filterStore_all';
+        const activeStoreBtn = document.getElementById(activeStoreKey);
+        if (activeStoreBtn) {
+            activeStoreBtn.className = 'store-filter-btn px-3 py-2.5 rounded-xl text-xs transition flex items-center gap-2 border bg-indigo-50 border-indigo-600 text-indigo-700 ring-2 ring-indigo-500/20 font-black shadow-sm';
+        }
+
+        // 2. Gender buttons
+        document.querySelectorAll('.gender-btn').forEach(b => {
+            b.className = 'gender-btn px-3 py-2.5 rounded-xl text-xs font-bold transition text-center bg-slate-100 text-slate-700 hover:bg-slate-200';
+        });
+        const targetGender = draftFilterState.gender || '';
+        const activeGenderBtn = document.querySelector(`.gender-btn[data-gender="${targetGender}"]`);
+        if (activeGenderBtn) {
+            activeGenderBtn.className = 'gender-btn px-3 py-2.5 rounded-xl text-xs font-bold transition text-center bg-indigo-600 text-white shadow-sm';
+        }
+
+        // 3. Discount chips
+        document.querySelectorAll('.disc-chip').forEach(c => {
+            c.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm');
+            c.classList.add('bg-slate-100', 'text-slate-700');
+        });
+        const discChip = document.getElementById(`discChip${draftFilterState.minDiscount || 0}`);
+        if (discChip) {
+            discChip.classList.remove('bg-slate-100', 'text-slate-700');
+            discChip.classList.add('bg-indigo-600', 'text-white', 'shadow-sm');
+        }
+
+        // 4. Rating chips
+        document.querySelectorAll('.rating-chip').forEach(c => {
+            c.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm');
+            c.classList.add('bg-slate-100', 'text-slate-700');
+        });
+        const rVal = draftFilterState.minRating || 0;
+        const rKey = rVal === 0 ? 'ratingChip0' : (rVal === 3.5 ? 'ratingChip35' : (rVal === 4.0 ? 'ratingChip40' : 'ratingChip45'));
+        const rChip = document.getElementById(rKey);
+        if (rChip) {
+            rChip.classList.remove('bg-slate-100', 'text-slate-700');
+            rChip.classList.add('bg-indigo-600', 'text-white', 'shadow-sm');
+        }
+
+        // 5. Price inputs
+        const minIn = document.getElementById('minPriceInput');
+        if (minIn) minIn.value = draftFilterState.minPrice > 0 ? draftFilterState.minPrice : '';
+        const maxIn = document.getElementById('maxPriceInput');
+        if (maxIn) maxIn.value = draftFilterState.maxPrice > 0 ? draftFilterState.maxPrice : '';
+    }
+
+    function toggleFilterModal() {
+        const modal = document.getElementById('filterProductsModal');
+        if (!modal) return;
+        const isOpening = modal.classList.contains('hidden');
+        if (isOpening) {
+            draftFilterState = {
+                platform: dealsState.platform || '',
+                gender: dealsState.gender || '',
+                minDiscount: dealsState.minDiscount || 0,
+                minRating: dealsState.minRating || 0,
+                minPrice: dealsState.minPrice || 0,
+                maxPrice: dealsState.maxPrice || 0
+            };
+            syncDraftFilterUI();
+            modal.classList.remove('hidden');
+        } else {
+            modal.classList.add('hidden');
+        }
+    }
+
+    function closeFilterModal() {
+        const modal = document.getElementById('filterProductsModal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    function onStoreFilterChange(plat) {
+        draftFilterState.platform = plat;
+        syncDraftFilterUI();
+    }
+
+    function onGenderFilterChange(gender) {
+        draftFilterState.gender = gender;
+        syncDraftFilterUI();
+    }
+
+    function setMinDiscount(pct) {
+        draftFilterState.minDiscount = pct;
+        syncDraftFilterUI();
+    }
+
+    function onPriceQuickFilter(maxP) {
+        draftFilterState.minPrice = 0;
+        draftFilterState.maxPrice = maxP;
+        syncDraftFilterUI();
+    }
+
+    function applyFilterDrawer() {
+        const minVal = parseFloat(document.getElementById('minPriceInput').value) || 0;
+        const maxVal = parseFloat(document.getElementById('maxPriceInput').value) || 0;
+        draftFilterState.minPrice = minVal;
+        draftFilterState.maxPrice = maxVal;
+
+        dealsState.platform = draftFilterState.platform;
+        dealsState.gender = draftFilterState.gender;
+        dealsState.minDiscount = draftFilterState.minDiscount;
+        dealsState.minRating = draftFilterState.minRating;
+        dealsState.minPrice = draftFilterState.minPrice;
+        dealsState.maxPrice = draftFilterState.maxPrice;
+        dealsState.page = 1;
+
+        const searchInput = document.getElementById('globalSearchInput');
+        if (searchInput && searchInput.value.trim()) {
+            dealsState.search = searchInput.value.trim();
+        }
+
+        try {
+            const url = new URL(window.location);
+            if (dealsState.search) url.searchParams.set('search', dealsState.search);
+            else url.searchParams.delete('search');
+            if (dealsState.platform) url.searchParams.set('platform', dealsState.platform);
+            else url.searchParams.delete('platform');
+            if (dealsState.gender) url.searchParams.set('gender', dealsState.gender);
+            else url.searchParams.delete('gender');
+            if (dealsState.minDiscount > 0) url.searchParams.set('min_discount', dealsState.minDiscount);
+            else url.searchParams.delete('min_discount');
+            if (dealsState.minPrice > 0) url.searchParams.set('min_price', dealsState.minPrice);
+            else url.searchParams.delete('min_price');
+            if (dealsState.maxPrice > 0) url.searchParams.set('max_price', dealsState.maxPrice);
+            else url.searchParams.delete('max_price');
+            if (dealsState.minRating > 0) url.searchParams.set('min_rating', dealsState.minRating);
+            else url.searchParams.delete('min_rating');
+            url.searchParams.set('page', '1');
+            window.history.pushState(dealsState, '', url);
+        } catch (e) {}
+
+        updateActiveFilterBadge();
+        closeFilterModal();
+        loadDeals();
+    }
+
+    function onSortChange(sortBy) {
+        dealsState.sortBy = sortBy;
+        dealsState.page = 1;
+        try {
+            const url = new URL(window.location);
+            url.searchParams.set('sort_by', sortBy);
+            url.searchParams.set('page', '1');
+            window.history.pushState(dealsState, '', url);
+        } catch (e) {}
+        loadDeals();
+    }
+
+    function changeDealsPage(delta) {
+        dealsState.page += delta;
+        window.scrollTo({ top: 200, behavior: 'smooth' });
+        loadDeals();
+    }
+
+    function resetAllFilters() {
+        draftFilterState = {
+            platform: '',
+            gender: '',
+            minDiscount: 0,
+            minRating: 0,
+            minPrice: 0,
+            maxPrice: 0
+        };
+        syncDraftFilterUI();
+
+        dealsState.page = 1;
+        dealsState.platform = '';
+        dealsState.sub = '';
+        dealsState.gender = '';
+        dealsState.minDiscount = 0;
+        dealsState.minPrice = 0;
+        dealsState.maxPrice = 0;
+        dealsState.minRating = 0;
+
+        const searchInput = document.getElementById('globalSearchInput');
+        dealsState.search = searchInput ? searchInput.value.trim() : '';
+
+        try {
+            const url = new URL(window.location);
+            url.searchParams.delete('platform');
+            url.searchParams.delete('gender');
+            url.searchParams.delete('min_discount');
+            url.searchParams.delete('min_price');
+            url.searchParams.delete('max_price');
+            url.searchParams.delete('min_rating');
+            url.searchParams.delete('sub');
+            if (dealsState.search) url.searchParams.set('search', dealsState.search);
+            else url.searchParams.delete('search');
+            url.searchParams.set('page', '1');
+            window.history.pushState(dealsState, '', url);
+        } catch (e) {}
+
+        updateActiveFilterBadge();
+        closeFilterModal();
+        loadDeals();
+    }
+
+    function updateActiveFilterBadge() {
+        let count = 0;
+        if (dealsState.gender) count++;
+        if (dealsState.platform) count++;
+        if (dealsState.minDiscount > 0) count++;
+        if (dealsState.minPrice > 0 || dealsState.maxPrice > 0) count++;
+        if (dealsState.minRating > 0) count++;
+        
+        const badge = document.getElementById('activeFilterBadge');
+        if (badge) {
+            if (count > 0) {
+                badge.textContent = count;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+    }
+
+    window.toggleFilterModal = toggleFilterModal;
+    window.closeFilterModal = closeFilterModal;
+    window.applyFilterDrawer = applyFilterDrawer;
+    window.resetAllFilters = resetAllFilters;
+
+    window.addEventListener('popstate', function(e) {
+        const params = new URLSearchParams(window.location.search);
+        dealsState.category = params.get('category') || '{{ current_category }}';
+        dealsState.sub = params.get('sub') || '';
+        dealsState.gender = params.get('gender') || '';
+        dealsState.platform = params.get('platform') || '';
+        dealsState.search = params.get('search') || '';
+        dealsState.page = parseInt(params.get('page') || '1', 10);
+        loadDeals();
+    });
+</script>
+{% endblock %}

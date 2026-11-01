@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BudgetBy DealPulse — 100% Local Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // ── 24-Hour Price Movements Logic ─────────────────────────────
+        let currentMovDirection = 'all';
+        let currentMovPage = 1;
+        const movLimit = 15;
+        let movSearchTimeout = null;
+
+        function setMovementDirection(dir) {
+            currentMovDirection = dir;
+            currentMovPage = 1;
+            ['all', 'drops', 'hikes'].forEach(d => {
+                const btn = document.getElementById(`tab-mov-${d}`);
+                if (btn) {
+                    if (d === dir) {
+                        btn.className = 'px-3 py-1 text-xs font-bold rounded-md bg-indigo-600 text-white transition';
+                    } else {
+                        btn.className = 'px-3 py-1 text-xs font-semibold rounded-md text-slate-400 hover:text-white transition';
+                    }
+                }
+            });
+            fetch24hMovements();
+        }
+
+        function onMovementFilterChange() {
+            currentMovPage = 1;
+            fetch24hMovements();
+        }
+
+        function changeMovementPage(delta) {
+            currentMovPage += delta;
+            fetch24hMovements();
+        }
+
+        async function fetch24hMovements() {
+            const tbody = document.getElementById('movementsTableBody');
+            if (!tbody) return;
+
+            const platform = document.getElementById('movementPlatformSelect') ? document.getElementById('movementPlatformSelect').value : '';
+            const sortBy = document.getElementById('movementSortSelect') ? document.getElementById('movementSortSelect').value : 'latest';
+            const search = document.getElementById('movementSearchInput') ? document.getElementById('movementSearchInput').value : '';
+
+            try {
+                const params = new URLSearchParams({
+                    direction: currentMovDirection,
+                    platform: platform,
+                    search: search,
+                    sort_by: sortBy,
+                    page: currentMovPage,
+                    limit: movLimit
+                });
+
+                const res = await fetch(`/api/price_changes_24h?${params}`);
+                if (!res.ok) throw new Error("API error");
+                const data = await res.json();
+
+                // Update Badges
+                const g = data.global_stats || {total: 0, drops: 0, hikes: 0};
+                if (document.getElementById('movementsTotalBadge'))
+                    document.getElementById('movementsTotalBadge').innerText = `${g.total} Changes (24h)`;
+                if (document.getElementById('movementsDropsBadge'))
+                    document.getElementById('movementsDropsBadge').innerText = `🟢 ${g.drops} Drops`;
+                if (document.getElementById('movementsHikesBadge'))
+                    document.getElementById('movementsHikesBadge').innerText = `🔴 ${g.hikes} Hikes`;
+
+                // Update Tab Counters
+                if (document.getElementById('tab-mov-all')) document.getElementById('tab-mov-all').innerText = `🔥 All (${g.total})`;
+                if (document.getElementById('tab-mov-drops')) document.getElementById('tab-mov-drops').innerText = `🟢 Price Drops (${g.drops})`;
+                if (document.getElementById('tab-mov-hikes')) document.getElementById('tab-mov-hikes').innerText = `🔴 Price Hikes (${g.hikes})`;
+
+                // Update Pagination
+                if (document.getElementById('movementPaginationInfo'))
+                    document.getElementById('movementPaginationInfo').innerText = `Showing page ${data.page} of ${data.total_pages} (${data.total_matches} items)`;
+                if (document.getElementById('movPageNum'))
+                    document.getElementById('movPageNum').innerText = data.page;
+                if (document.getElementById('movPrevBtn'))
+                    document.getElementById('movPrevBtn').disabled = data.page <= 1;
+                if (document.getElementById('movNextBtn'))
+                    document.getElementById('movNextBtn').disabled = data.page >= data.total_pages;
+
+                if (!data.products || data.products.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="py-8 text-center text-slate-500">No price movements found for current filters (older than 24h items are auto-pruned).</td></tr>';
+                    return;
+                }
+
+                let html = '';
+                data.products.forEach(p => {
+                    const storeColors = {
+                        amazon: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+                        flipkart: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+                        myntra: 'bg-pink-500/10 text-pink-400 border-pink-500/20',
+                        ajio: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+                        nykaa: 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                    };
+                    const sBadge = storeColors[p.platform] || 'bg-slate-800 text-slate-300';
+                    const isDrop = p.is_drop;
+                    const movBadge = isDrop 
+                        ? `<span class="px-2.5 py-1 bg-emerald-500/15 text-emerald-400 font-bold rounded-lg border border-emerald-500/20 font-mono text-xs">↓ ₹${Math.abs(p.price_diff).toLocaleString('en-IN')} (${p.change_pct}%)</span>`
+                        : `<span class="px-2.5 py-1 bg-rose-500/15 text-rose-400 font-bold rounded-lg border border-rose-500/20 font-mono text-xs">↑ ₹${p.price_diff.toLocaleString('en-IN')} (+${p.change_pct}%)</span>`;
+
+                    const imgTag = p.image_url 
+                        ? `<img src="${p.image_url}" class="w-8 h-8 object-contain rounded bg-slate-950 p-0.5 shrink-0 border border-slate-800" onerror="this.style.display='none'">` 
+                        : `<div class="w-8 h-8 rounded bg-slate-800 flex items-center justify-center text-slate-400 text-[10px] shrink-0 font-bold">#${p.id}</div>`;
+
+                    const mrpVal = Number(p.mrp || p.old_price || p.new_price);
+                    const newPriceVal = Number(p.new_price);
+                    const hasDiscount = mrpVal > newPriceVal;
+                    const discountPct = hasDiscount ? Math.round(((mrpVal - newPriceVal) / mrpVal) * 100) : 0;
+
+                    html += `
+                        <tr class="hover:bg-slate-800/40 transition">
+                            <td class="py-3 px-2 flex items-center gap-2.5 max-w-xs">
+                                ${imgTag}
+                                <div class="min-w-0">
+                                    <div class="font-medium text-slate-200 truncate max-w-[200px]" title="${p.title}">${p.title}</div>
+                                    <div class="text-[10px] text-slate-500 font-mono">ID #${p.id} • SKU: ${p.platform_id}</div>
+                                </div>
+                            </td>
+                            <td class="py-3 px-2">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${sBadge}">${p.platform}</span>
+                            </td>
+                            <td class="py-3 px-2 font-mono text-xs">
+                                <span class="text-slate-300 font-bold font-mono">₹${mrpVal.toLocaleString('en-IN')}</span>
+                                ${hasDiscount ? `<div class="text-[10px] text-emerald-400 font-bold font-sans">${discountPct}% OFF</div>` : ''}
+                            </td>
+                            <td class="py-3 px-2 text-slate-400 line-through font-mono text-xs">₹${Number(p.old_price).toLocaleString('en-IN')}</td>
+                            <td class="py-3 px-2">
+                                <div class="text-white font-bold font-mono text-xs">₹${newPriceVal.toLocaleString('en-IN')}</div>
+                            </td>
+                            <td class="py-3 px-2">${movBadge}</td>
+                            <td class="py-3 px-2 text-emerald-400/80 font-mono text-xs">₹${Number(p.today_min_price || p.new_price).toLocaleString('en-IN')}</td>
+                            <td class="py-3 px-2 text-right">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button onclick="openProductTimeline(${p.id})" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-indigo-300 font-semibold rounded text-[11px] border border-slate-700 transition">📅 Timeline</button>
+                                    <a href="${p.affiliate_url}" target="_blank" class="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded text-[11px] transition">🛒 Buy</a>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+                tbody.innerHTML = html;
+
+            } catch (err) {
+                console.error("Error loading 24h movements:", err);
+                tbody.innerHTML = '<tr><td colspan="8" class="py-8 text-center text-rose-500">Error loading price movements.</td></tr>';
+            }
+        }
+
+        // Search debouncer & 15-Minute Continuous Auto-Refresh
+        document.addEventListener("DOMContentLoaded", () => {
+            const searchInp = document.getElementById('movementSearchInput');
+            if (searchInp) {
+                searchInp.addEventListener('input', () => {
+                    clearTimeout(movSearchTimeout);
+                    movSearchTimeout = setTimeout(() => {
+                        currentMovPage = 1;
+                        fetch24hMovements();
+                    }, 400);
+                });
+            }
+            fetch24hMovements();
+
+            // Continuous auto-refresh every 15 minutes (900,000 ms)
+            setInterval(() => {
+                fetch24hMovements();
+            }, 15 * 60 * 1000);
+        });
+
+        // ── Timeline Modal Functions ──────────────────────────────────
+        async function openProductTimeline(productId) {
+            const modal = document.getElementById('timelineModal');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            const tbody = document.getElementById('modalTimelineBody');
+            tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-slate-500">Loading daily prices...</td></tr>';
+
+            try {
+                const res = await fetch(`/api/db/product_history/${productId}`);
+                if (!res.ok) throw new Error("History fetch error");
+                const hist = await res.json();
+
+                const p = hist.product || {};
+                document.getElementById('modalProdTitle').innerText = p.title || `Product #${productId}`;
+                document.getElementById('modalStore').innerText = (p.platform || 'Store').toUpperCase();
+                document.getElementById('modalMin30').innerText = p.min_30d ? `₹${Number(p.min_30d).toLocaleString('en-IN')}` : '---';
+                document.getElementById('modalATL').innerText = p.all_time_low ? `₹${Number(p.all_time_low).toLocaleString('en-IN')}` : '---';
+
+                if (!hist.daily_prices || hist.daily_prices.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-slate-500">No daily price records found for this product yet.</td></tr>';
+                    return;
+                }
+
+                let timelineHtml = '';
+                let prevPrice = null;
+                hist.daily_prices.forEach((dp, idx) => {
+                    let badgeClass = "bg-slate-800 text-slate-300";
+                    if (dp.day_number === 1) {
+                        badgeClass = "bg-blue-500/20 text-blue-400 border border-blue-500/30";
+                    } else if (dp.is_today) {
+                        badgeClass = "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold";
+                    }
+
+                    let changeTag = '<span class="text-slate-600">-</span>';
+                    if (prevPrice !== null && dp.close_price !== null) {
+                        const diff = dp.close_price - prevPrice;
+                        if (diff < 0) {
+                            changeTag = `<span class="text-emerald-400 font-bold">↓ ₹${Math.abs(diff).toLocaleString('en-IN')} drop</span>`;
+                        } else if (diff > 0) {
+                            changeTag = `<span class="text-rose-400 font-bold">↑ ₹${diff.toLocaleString('en-IN')} up</span>`;
+                        } else {
+                            changeTag = `<span class="text-slate-500">Unchanged</span>`;
+                        }
+                    }
+                    prevPrice = dp.close_price;
+
+                    timelineHtml += `
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="py-2.5 px-3">
+                                <span class="px-2.5 py-1 rounded-lg text-xs font-semibold ${badgeClass}">${dp.day_label}</span>
+                            </td>
+                            <td class="py-2.5 px-3 text-slate-400 font-mono">${dp.date}</td>
+                            <td class="py-2.5 px-3 font-bold text-emerald-400 font-mono">₹${Number(dp.min_price).toLocaleString('en-IN')}</td>
+                            <td class="py-2.5 px-3 text-white font-mono font-semibold">₹${Number(dp.close_price).toLocaleString('en-IN')}</td>
+                            <td class="py-2.5 px-3 font-mono text-[11px]">${changeTag}</td>
+                        </tr>`;
+                });
+                tbody.innerHTML = timelineHtml;
+
+            } catch (err) {
+                console.error("Timeline modal error:", err);
+                tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-rose-500">Failed to load price history.</td></tr>';
+            }
+        }
+
+        function closeTimelineModal() {
+            const modal = document.getElementById('timelineModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+    <!-- Navbar -->
+    <header class="border-b border-slate-800 bg-slate-900/70 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <span class="text-2xl">⚡</span>
+                <span class="text-xl font-extrabold bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">BudgetBy DealPulse</span>
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> 100% LOCAL
+                </span>
+            </div>
+            <div class="flex items-center space-x-3">
+                <a href="/" class="px-3.5 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition shadow-sm flex items-center gap-1.5">🛍️ Deals Website ↗</a>
+                <a href="/pnther/db-explorer" target="_blank" class="px-3.5 py-1.5 text-xs font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg transition shadow-sm flex items-center gap-1.5">🗄️ Database Studio ↗</a>
+                <button onclick="triggerChannelScan()" class="px-3.5 py-1.5 text-xs font-medium bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition shadow-sm flex items-center gap-1">📡 Spy Scan</button>
+                <button onclick="triggerBackfill()" class="px-3.5 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition shadow-sm">🚀 Post Next Deal</button>
+                <button onclick="triggerBackup()" class="px-3.5 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg transition">💾 Backup DB</button>
+                <button onclick="fetchData()" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition" title="Refresh data">🔄</button>
+                <a href="/pnther/logout" class="px-3 py-1.5 text-xs font-semibold bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 hover:text-rose-200 border border-rose-800/60 rounded-lg transition flex items-center gap-1" title="Log out of admin session">🔒 Logout</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        <!-- Top Metrics Summary Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <!-- Lifetime -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 relative overflow-hidden">
+                <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">🌐 Lifetime Posts</div>
+                <div id="stat-deals-life" class="text-2xl lg:text-3xl font-extrabold mt-1 text-white">---</div>
+                <div class="text-[11px] text-slate-500 mt-1.5">All-time deals</div>
+            </div>
+
+            <!-- This Month -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 relative overflow-hidden">
+                <div class="text-[11px] font-semibold text-indigo-400 uppercase tracking-wider">📅 This Month</div>
+                <div id="stat-deals-month" class="text-2xl lg:text-3xl font-extrabold mt-1 text-indigo-400">---</div>
+                <div class="text-[11px] text-slate-500 mt-1.5">Current month</div>
+            </div>
+
+            <!-- Deals Posted Today -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 relative overflow-hidden">
+                <div class="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider">⚡ Posted Today</div>
+                <div id="stat-deals-today" class="text-2xl lg:text-3xl font-extrabold mt-1 text-emerald-400">---</div>
+                <div class="text-[11px] text-slate-400 mt-1.5"><span id="stat-deals-1h">-</span> last 60m</div>
+            </div>
+
+            <!-- NEW: New Products Added Today -->
+            <div class="bg-slate-900/60 border border-cyan-500/30 bg-gradient-to-b from-cyan-950/20 to-slate-900/60 rounded-2xl p-4 relative overflow-hidden">
+                <div class="text-[11px] font-semibold text-cyan-400 uppercase tracking-wider flex items-center justify-between">
+                    <span>🆕 Added Today</span>
+                    <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">New</span>
+                </div>
+                <div id="stat-products-today" class="text-2xl lg:text-3xl font-extrabold mt-1 text-cyan-300">---</div>
+                <div class="text-[11px] text-cyan-400/80 mt-1.5 flex items-center gap-1 font-medium">📈 New Products Added</div>
+            </div>
+
+            <!-- Total Products in Database -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 relative overflow-hidden">
+                <div class="text-[11px] font-semibold text-amber-400 uppercase tracking-wider flex items-center justify-between">
+                    <span>🛍️ Total Catalog</span>
+                    <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/20">DB</span>
+                </div>
+                <div id="stat-products" class="text-2xl lg:text-3xl font-extrabold mt-1 text-amber-400">--</div>
+                <div class="text-[11px] text-emerald-400 mt-1.5 flex items-center gap-1">🟢 100% Unique</div>
+            </div>
+
+            <!-- Last Month -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 relative overflow-hidden">
+                <div class="text-[11px] font-semibold text-purple-400 uppercase tracking-wider">📆 Last Month</div>
+                <div id="stat-deals-last-month" class="text-2xl lg:text-3xl font-extrabold mt-1 text-purple-400">---</div>
+                <div class="text-[11px] text-slate-500 mt-1.5">Previous month</div>
+            </div>
+        </div>
+
+        <!-- NEW: Monitored Telegram Channels & Deals Ingested Section -->
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6">
+            <div class="flex items-center justify-between mb-5">
+                <div>
+                    <h3 class="text-base font-bold text-white flex items-center gap-2">
+                        <span>📡</span> Monitored Telegram Deal Channels & Ingestion Stats
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Live deals automatically intercepted, affiliate tags replaced, and pricing verified locally</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="channelIngestedTotalBadge" class="text-xs font-semibold px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20">Ingestion Active</span>
+                    <a href="/pnther/db-explorer" target="_blank" class="px-3.5 py-1.5 text-xs font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg transition shadow-sm flex items-center gap-1.5">🗄️ Database Studio ↗</a>
+                <button onclick="triggerChannelScan()" class="text-xs px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition">Scan Now ⚡</button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="border-b border-slate-800 text-slate-400 uppercase tracking-wider">
+                            <th class="pb-3 font-semibold">📡 Channel</th>
+                            <th class="pb-3 font-semibold">📥 Intercepted</th>
+                            <th class="pb-3 font-semibold">💾 Saved to Catalog (DB)</th>
+                            <th class="pb-3 font-semibold">🎯 Verified Deals (Queued to Post)</th>
+                            <th class="pb-3 font-semibold">❌ Out of Stock / Expired</th>
+                            <th class="pb-3 font-semibold">⏱️ Last Scanned</th>
+                        </tr>
+                    </thead>
+                    <tbody id="channelsTableBody" class="divide-y divide-slate-800/60 text-slate-300">
+                        <tr><td colspan="6" class="py-6 text-center text-slate-500">Scanning monitored channels...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+                <!-- Live Posting Queue Section -->
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-sm">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+                <div>
+                    <h3 class="text-base font-bold text-white flex items-center gap-2">
+                        <span>📥</span> Live Posting Queue (Deals Waiting to Broadcast)
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Real-time pipeline of intercepted price drops & channel deals scheduled for Telegram</p>
+                </div>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span id="queueCountBadge" class="text-xs font-semibold px-3 py-1 bg-indigo-500/10 text-indigo-400 rounded-full border border-indigo-500/20">0 Deals in Queue</span>
+                    <span id="queueNextPlatformBadge" class="text-xs font-medium px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg border border-slate-700">Next Scheduled: Amazon</span>
+                    <button onclick="fetchQueueData()" class="text-xs px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition flex items-center gap-1">🔄 Refresh</button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="border-b border-slate-800 text-slate-400 uppercase tracking-wider">
+                            <th class="pb-3 font-semibold"># Pos</th>
+                            <th class="pb-3 font-semibold">🛍️ Product Deal</th>
+                            <th class="pb-3 font-semibold">🏪 Store</th>
+                            <th class="pb-3 font-semibold">💰 Live Price / MRP</th>
+                            <th class="pb-3 font-semibold">🔥 Discount</th>
+                            <th class="pb-3 font-semibold">🏷️ Badge & Score</th>
+                            <th class="pb-3 font-semibold">📡 Source Channel</th>
+                            <th class="pb-3 font-semibold text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="queueTableBody" class="divide-y divide-slate-800/60 text-slate-300">
+                        <tr><td colspan="8" class="py-6 text-center text-slate-500">Checking posting queue status...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+                <!-- NEW: Dedicated 24-Hour Price Movements Hub -->
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-sm">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-5">
+                <div>
+                    <h3 class="text-base font-bold text-white flex items-center gap-2">
+                        <span>⚡</span> 24-Hour Price Movements Hub
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Real-time stream of all products whose prices changed in the last 24 hours (auto-updates & auto-prunes)</p>
+                </div>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span id="movementsAutoRefreshBadge" class="text-xs font-semibold px-2.5 py-1 bg-indigo-500/10 text-indigo-400 rounded-full border border-indigo-500/20 flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping"></span> ⏱️ Auto-updates: 15m
+                    </span>
+                    <span id="movementsTotalBadge" class="text-xs font-semibold px-3 py-1 bg-cyan-500/10 text-cyan-400 rounded-full border border-cyan-500/20">0 Changes (24h)</span>
+                    <span id="movementsDropsBadge" class="text-xs font-semibold px-2.5 py-1 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20">🟢 0 Drops</span>
+                    <span id="movementsHikesBadge" class="text-xs font-semibold px-2.5 py-1 bg-rose-500/10 text-rose-400 rounded-full border border-rose-500/20">🔴 0 Hikes</span>
+                    <button onclick="fetch24hMovements()" class="text-xs px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition flex items-center gap-1">🔄 Refresh</button>
+                </div>
+            </div>
+
+            <!-- Direction Tabs & Search Filters -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
+                <!-- Direction Tabs -->
+                <div class="flex items-center gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800">
+                    <button onclick="setMovementDirection('all')" id="tab-mov-all" class="px-3 py-1 text-xs font-bold rounded-md bg-indigo-600 text-white transition">🔥 All</button>
+                    <button onclick="setMovementDirection('drops')" id="tab-mov-drops" class="px-3 py-1 text-xs font-semibold rounded-md text-slate-400 hover:text-white transition">🟢 Price Drops</button>
+                    <button onclick="setMovementDirection('hikes')" id="tab-mov-hikes" class="px-3 py-1 text-xs font-semibold rounded-md text-slate-400 hover:text-white transition">🔴 Price Hikes</button>
+                </div>
+
+                <!-- Filters: Store & Search & Sort -->
+                <div class="flex items-center gap-2 flex-wrap">
+                    <select id="movementPlatformSelect" onchange="onMovementFilterChange()" class="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition">
+                        <option value="">All Stores</option>
+                        <option value="amazon">Amazon</option>
+                        <option value="flipkart">Flipkart</option>
+                        <option value="myntra">Myntra</option>
+                        <option value="ajio">Ajio</option>
+                        <option value="nykaa">Nykaa</option>
+                    </select>
+
+                    <select id="movementSortSelect" onchange="onMovementFilterChange()" class="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition">
+                        <option value="latest" selected>⚡ Sort: Latest Movements First</option>
+                        <option value="diff_desc">Sort: Largest Change (₹)</option>
+                        <option value="pct_desc">Sort: Highest % Change</option>
+                        <option value="drop_largest">Sort: Lowest Drop First</option>
+                        <option value="price_asc">Sort: Price (Low to High)</option>
+                    </select>
+
+                    <input type="text" id="movementSearchInput" placeholder="🔍 Search ID or Title..." 
+                           class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition w-48">
+                </div>
+            </div>
+
+            <!-- Movements Table -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="border-b border-slate-800 text-slate-400 uppercase tracking-wider">
+                            <th class="pb-3 font-semibold">🛍️ Product</th>
+                            <th class="pb-3 font-semibold">🏪 Store</th>
+                            <th class="pb-3 font-semibold">🏷️ Without Discount (MRP)</th>
+                            <th class="pb-3 font-semibold">⏳ Prev Price</th>
+                            <th class="pb-3 font-semibold">💰 Live Deal Price</th>
+                            <th class="pb-3 font-semibold">📈 24h Movement</th>
+                            <th class="pb-3 font-semibold">📉 24h Min</th>
+                            <th class="pb-3 font-semibold text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="movementsTableBody" class="divide-y divide-slate-800/60 text-slate-300">
+                        <tr><td colspan="8" class="py-8 text-center text-slate-500">Loading 24-hour price movements...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination Bar -->
+            <div class="flex items-center justify-between mt-4 pt-3 border-t border-slate-800/60 text-xs text-slate-400">
+                <div id="movementPaginationInfo">Showing page 1 of 1</div>
+                <div class="flex items-center gap-2">
+                    <button id="movPrevBtn" onclick="changeMovementPage(-1)" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition">← Prev</button>
+                    <span id="movPageNum" class="font-mono text-slate-300 font-bold px-2">1</span>
+                    <button id="movNextBtn" onclick="changeMovementPage(1)" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition">Next →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Platform Posting Quotas & Detailed Breakdown Section -->
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6">
+            <div class="flex items-center justify-between mb-5">
+                <div>
+                    <h3 class="text-base font-bold text-white flex items-center gap-2">
+                        <span>📢</span> Platform Deals Breakdown (Today • This Month • Lifetime)
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Live platform performance against 2-minute rotation pacing</p>
+                </div>
+                <span class="text-xs font-semibold px-3 py-1 bg-slate-800 text-slate-300 rounded-full border border-slate-700">⚡ High Velocity: 1 post every 30 seconds (120 deals/hour • 2,880/day)</span>
+            </div>
+
+            <div id="platformPostCards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+                <!-- Populated via JS -->
+            </div>
+        </div>
+
+                <!-- Category & Platform Deal Matrix Section -->
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-sm">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+                <div>
+                    <h3 class="text-base font-bold text-white flex items-center gap-2">
+                        <span>🏷️</span> Category & Platform Deals Breakdown Matrix
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Posts published across every product category and e-commerce platform</p>
+                </div>
+                <div class="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800 self-start sm:self-auto">
+                    <button onclick="setCategoryTab('lifetime')" id="tab-cat-lifetime" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition bg-indigo-600 text-white">🌟 Lifetime Posts</button>
+                    <button onclick="setCategoryTab('today')" id="tab-cat-today" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition text-slate-400 hover:text-white">⚡ Today</button>
+                    <button onclick="setCategoryTab('this_month')" id="tab-cat-month" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition text-slate-400 hover:text-white">📅 This Month</button>
+                    <button onclick="setCategoryTab('catalog')" id="tab-cat-catalog" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition text-slate-400 hover:text-white">🛍️ Total Catalog</button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="border-b border-slate-800 text-slate-400 uppercase tracking-wider">
+                            <th class="pb-3 font-semibold">📁 Product Category</th>
+                            <th class="pb-3 font-semibold text-center">🟠 Amazon</th>
+                            <th class="pb-3 font-semibold text-center">🔵 Flipkart</th>
+                            <th class="pb-3 font-semibold text-center">🔴 Myntra</th>
+                            <th class="pb-3 font-semibold text-center">🟣 Ajio</th>
+                            <th class="pb-3 font-semibold text-center">🌸 Nykaa</th>
+                            <th class="pb-3 font-semibold text-right">📦 Total Posts</th>
+                            <th class="pb-3 font-semibold text-right">📊 Platform Share</th>
+                        </tr>
+                    </thead>
+                    <tbody id="categoryTableBody" class="divide-y divide-slate-800/60 text-slate-300">
+                        <tr><td colspan="8" class="py-6 text-center text-slate-500">Loading category matrix...</td></tr>
+                    </tbody>
+                    <tfoot id="categoryTableFoot" class="border-t-2 border-slate-800 font-bold text-slate-200">
+                        <!-- Populated via JS -->
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- Monthly History & Archives Section -->
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6">
+            <div class="flex items-center justify-between mb-5">
+                <div>
+                    <h3 class="text-base font-bold text-white flex items-center gap-2">
+                        <span>📜</span> Monthly Posting History & Archives
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Historical breakdown of deals broadcasted across all recorded months</p>
+                </div>
+                <span class="text-xs text-indigo-400 font-semibold bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">Monthly Archives</span>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="border-b border-slate-800 text-slate-400 uppercase tracking-wider">
+                            <th class="pb-3 font-semibold">🗓️ Month</th>
+                            <th class="pb-3 font-semibold">📦 Total Deals</th>
+                            <th class="pb-3 font-semibold">🟠 Amazon</th>
+                            <th class="pb-3 font-semibold">🔵 Flipkart</th>
+                            <th class="pb-3 font-semibold">🔴 Myntra</th>
+                            <th class="pb-3 font-semibold">🟣 Ajio</th>
+                            <th class="pb-3 font-semibold">🌸 Nykaa</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody" class="divide-y divide-slate-800/60 text-slate-300">
+                        <tr><td colspan="7" class="py-6 text-center text-slate-500">Loading posting history...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Middle Section: Chart & Quick Search -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Platform Distribution Chart -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 lg:col-span-1 flex flex-col justify-between">
+                <h3 class="text-base font-semibold text-white mb-4">🛍️ Catalog Storage Breakdown</h3>
+                <div class="h-56 relative flex items-center justify-center">
+                    <canvas id="platformChart"></canvas>
+                </div>
+                <div id="platformList" class="mt-4 grid grid-cols-2 gap-2 text-xs"></div>
+            </div>
+
+            <!-- Live Product Catalog Search -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 lg:col-span-2 flex flex-col">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-base font-semibold text-white">🔍 Live Catalog Search</h3>
+                    <span class="text-xs text-slate-400">Search 78,000+ local products</span>
+                </div>
+                <div class="relative mb-4 flex gap-2">
+                    <input type="text" id="searchInput" placeholder="Search iPhone, Nike, Kurta, T-shirt, Shoes..." 
+                           class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition text-white placeholder-slate-500">
+                    <button onclick="runSearch()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold rounded-xl transition text-white shrink-0">Search</button>
+                </div>
+                <div id="searchResults" class="flex-1 overflow-y-auto max-h-64 space-y-2 pr-1 text-xs text-slate-400">
+                    <div class="text-center py-8 text-slate-500">Type product name above and click Search</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Deals Feed -->
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <span>📢</span> Real-Time Deals Posted to Telegram
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> LIVE (10s AUTO-SYNC)
+                        </span>
+                    </h3>
+                    <div class="flex items-center gap-2 mt-0.5">
+                        <p class="text-xs text-slate-400">Live broadcasted stream sent to @deal_pulse_alerts</p>
+                        <span class="text-slate-600">•</span>
+                        <span id="dealsLastUpdated" class="text-xs text-emerald-400 font-mono">Syncing...</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2.5 flex-wrap">
+                    <!-- Store Filter -->
+                    <select id="dealsStoreFilter" onchange="onDealsFilterChange()" class="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition">
+                        <option value="">All Stores 🏪</option>
+                        <option value="amazon">🟠 Amazon</option>
+                        <option value="flipkart">🔵 Flipkart</option>
+                        <option value="myntra">🔴 Myntra</option>
+                        <option value="ajio">🟣 Ajio</option>
+                        <option value="nykaa">🌸 Nykaa</option>
+                    </select>
+
+                    <!-- Limit Window Selector -->
+                    <select id="dealsLimitSelect" onchange="onDealsFilterChange()" class="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition">
+                        <option value="12">Show 12 Deals</option>
+                        <option value="24">Show 24 Deals</option>
+                        <option value="36" selected>Show 36 Deals (Default)</option>
+                        <option value="50">Show 50 Deals</option>
+                        <option value="100">Show 100 Deals</option>
+                    </select>
+
+                    <button onclick="onDealsFilterChange()" class="text-xs px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition flex items-center gap-1">🔄 Refresh</button>
+                    <span class="px-3 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-xs font-semibold rounded-full hidden md:inline">@deal_pulse_alerts</span>
+                </div>
+            </div>
+            
+            <div id="dealsFeed" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="text-center py-12 text-slate-500 col-span-full">Loading live deals...</div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let chartInstance = null;
+
+        function formatINR(val) {
+            if (!val) return '₹0';
+            return '₹' + Number(val).toLocaleString('en-IN');
+        }
+
+        const platformMeta = {
+            'amazon':   { name: 'Amazon',   color: '#f59e0b', icon: '🟠', target: '30 / hr' },
+            'flipkart': { name: 'Flipkart', color: '#3b82f6', icon: '🔵', target: '30 / hr' },
+            'myntra':   { name: 'Myntra',   color: '#ec4899', icon: '🔴', target: '20 / hr' },
+            'ajio':     { name: 'Ajio',     color: '#8b5cf6', icon: '🟣', target: '20 / hr' },
+            'nykaa':    { name: 'Nykaa',    color: '#10b981', icon: '🌸', target: '10 / hr' }
+        };
+
+        async function fetchData() {
+            try {
+                const res = await fetch('/api/stats');
+                const data = await res.json();
+                
+                // Top overview cards
+                const lifeCount = data.deals_lifetime !== undefined ? data.deals_lifetime : (data.total_deals_lifetime || 0);
+                const monthCount = data.deals_this_month !== undefined ? data.deals_this_month : (data.total_deals_lifetime || 0);
+                const lastMonthCount = data.deals_last_month || 0;
+                const todayCount = data.deals_today || 0;
+                const hourCount = data.deals_last_hour || 0;
+                const prodCount = data.total_products || 0;
+
+                if (document.getElementById('stat-deals-life'))
+                    document.getElementById('stat-deals-life').innerText = Number(lifeCount).toLocaleString('en-IN');
+                if (document.getElementById('stat-deals-month'))
+                    document.getElementById('stat-deals-month').innerText = Number(monthCount).toLocaleString('en-IN');
+                if (document.getElementById('stat-deals-last-month'))
+                    document.getElementById('stat-deals-last-month').innerText = Number(lastMonthCount).toLocaleString('en-IN');
+                if (document.getElementById('stat-deals-today'))
+                    document.getElementById('stat-deals-today').innerText = Number(todayCount).toLocaleString('en-IN');
+                if (document.getElementById('stat-deals-1h'))
+                    document.getElementById('stat-deals-1h').innerText = Number(hourCount).toLocaleString('en-IN');
+                if (document.getElementById('stat-products'))
+                    document.getElementById('stat-products').innerText = Number(prodCount).toLocaleString('en-IN');
+                if (document.getElementById('stat-products-today'))
+                    document.getElementById('stat-products-today').innerText = '+' + Number(data.products_added_today || 0).toLocaleString('en-IN');
+
+                // Render Platform Detailed Cards (Today • This Month • Lifetime)
+                let postCardsHTML = '';
+                const todayPosts = data.posted_today_by_platform || {};
+                const monthPosts = data.posted_this_month_by_platform || {};
+                const lifePosts = data.posted_lifetime_by_platform || {};
+                const targets = data.hourly_targets || {};
+
+                Object.keys(platformMeta).forEach(p => {
+                    const meta = platformMeta[p];
+                    const tCount = todayPosts[p] || 0;
+                    const mCount = monthPosts[p] || 0;
+                    const lCount = lifePosts[p] || 0;
+                    const target = targets[p] ? `${targets[p]}/hr` : meta.target;
+
+                    postCardsHTML += `
+                    <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-4 flex flex-col justify-between hover:border-slate-700 transition">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="font-bold text-sm text-slate-200 flex items-center gap-1.5">
+                                    <span>${meta.icon}</span> ${meta.name}
+                                </span>
+                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-400">${target}</span>
+                            </div>
+                            <div class="flex items-baseline justify-between mt-2">
+                                <span class="text-2xl font-extrabold text-white">${tCount}</span>
+                                <span class="text-[11px] text-emerald-400 font-medium">posted today</span>
+                            </div>
+                        </div>
+                        <div class="text-[11px] text-slate-400 mt-3 pt-2.5 border-t border-slate-900 space-y-1">
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">This Month:</span>
+                                <span class="font-bold text-indigo-300">${Number(mCount).toLocaleString('en-IN')}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">All-Time:</span>
+                                <span class="font-bold text-slate-300">${Number(lCount).toLocaleString('en-IN')}</span>
+                            </div>
+                        </div>
+                    </div>`;
+                });
+                document.getElementById('platformPostCards').innerHTML = postCardsHTML;
+
+                // Render Monthly History Table
+                const history = data.monthly_history || [];
+                let historyHTML = '';
+                if (!history.length) {
+                    historyHTML = '<tr><td colspan="7" class="py-6 text-center text-slate-500">No monthly history recorded yet.</td></tr>';
+                } else {
+                    history.forEach(h => {
+                        historyHTML += `
+                        <tr class="hover:bg-slate-900/40 transition">
+                            <td class="py-3.5 font-bold text-white">${h.month_name || h.month_key}</td>
+                            <td class="py-3.5 font-extrabold text-indigo-400">${Number(h.total_deals).toLocaleString('en-IN')}</td>
+                            <td class="py-3.5 font-semibold text-amber-400">${h.amazon_deals || 0}</td>
+                            <td class="py-3.5 font-semibold text-blue-400">${h.flipkart_deals || 0}</td>
+                            <td class="py-3.5 font-semibold text-pink-400">${h.myntra_deals || 0}</td>
+                            <td class="py-3.5 font-semibold text-purple-400">${h.ajio_deals || 0}</td>
+                            <td class="py-3.5 font-semibold text-emerald-400">${h.nykaa_deals || 0}</td>
+                        </tr>`;
+                    });
+                }
+                document.getElementById('historyTableBody').innerHTML = historyHTML;
+
+                // Update Catalog Chart
+                const labels = Object.keys(data.by_platform).map(k => k.toUpperCase());
+                const counts = Object.values(data.by_platform);
+                const colors = ['#f59e0b', '#3b82f6', '#ec4899', '#8b5cf6', '#06b6d4', '#10b981'];
+                
+                if (chartInstance) chartInstance.destroy();
+                const ctx = document.getElementById('platformChart').getContext('2d');
+                chartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: counts,
+                            backgroundColor: colors,
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } }
+                    }
+                });
+
+                // Render platform list
+                let platHTML = '';
+                labels.forEach((l, i) => {
+                    platHTML += `<div class="flex items-center justify-between p-2 bg-slate-950/60 rounded-lg border border-slate-800/60">
+                        <span class="font-medium flex items-center gap-1.5"><span class="w-2 h-2 rounded-full" style="background:${colors[i]}"></span>${l}</span>
+                        <span class="font-bold text-slate-200">${Number(counts[i]).toLocaleString('en-IN')}</span>
+                    </div>`;
+                });
+                document.getElementById('platformList').innerHTML = platHTML;
+
+                // Fetch Channel Ingestion Stats & Deals Feed
+                fetchChannelStats();
+                fetchDeals();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function fetchChannelStats() {
+            try {
+                const res = await fetch('/api/channel_stats');
+                const channels = await res.json();
+                
+                if (!channels.length) {
+                    document.getElementById('channelsTableBody').innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-500">No channel deals ingested yet. Click "Scan Now" above to initiate spy monitor.</td></tr>';
+                    return;
+                }
+
+                let totalPicked = 0;
+                let html = '';
+                channels.forEach(ch => {
+                    totalPicked += Number(ch.total_picked_up || 0);
+                    const lastTime = ch.last_activity ? new Date(ch.last_activity).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : 'Just now';
+                    
+                    html += `
+                    <tr class="hover:bg-slate-900/40 transition">
+                        <td class="py-3.5 font-bold text-white flex items-center gap-1.5">
+                            <span class="text-indigo-400">📡</span> ${ch.source_channel}
+                        </td>
+                        <td class="py-3.5 font-extrabold text-white">${Number(ch.total_picked_up).toLocaleString('en-IN')}</td>
+                        <td class="py-3.5 font-bold text-indigo-300">${Number(ch.saved_to_catalog || 0).toLocaleString('en-IN')}</td>
+                        <td class="py-3.5 font-bold text-emerald-400">${Number(ch.verified_deals || 0).toLocaleString('en-IN')}</td>
+                        <td class="py-3.5 font-medium text-slate-500">${Number(ch.out_of_stock || 0).toLocaleString('en-IN')}</td>
+                        <td class="py-3.5 text-slate-400">${lastTime}</td>
+                    </tr>`;
+                });
+
+                document.getElementById('channelsTableBody').innerHTML = html;
+                document.getElementById('channelIngestedTotalBadge').innerText = `${totalPicked} Deals Intercepted`;
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function fetchQueueData() {
+            try {
+                const res = await fetch('/api/posting_queue');
+                if (!res.ok) return;
+                const data = await res.json();
+                
+                const qCount = data.queue_size || 0;
+                const badge = document.getElementById('queueCountBadge');
+                if (badge) {
+                    badge.innerText = `${qCount} Deals in Queue`;
+                    badge.className = qCount > 2 
+                        ? "text-xs font-semibold px-3 py-1 bg-amber-500/10 text-amber-400 rounded-full border border-amber-500/20 animate-pulse"
+                        : "text-xs font-semibold px-3 py-1 bg-indigo-500/10 text-indigo-400 rounded-full border border-indigo-500/20";
+                }
+                
+                const nextPlat = document.getElementById('queueNextPlatformBadge');
+                if (nextPlat) {
+                    const np = data.next_scheduled_platform || 'Auto';
+                    nextPlat.innerText = `Next Scheduled: ${np.charAt(0).toUpperCase() + np.slice(1)}`;
+                }
+                
+                const tbody = document.getElementById('queueTableBody');
+                if (!tbody) return;
+                
+                const items = data.items || [];
+                if (!items.length) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="py-6 text-center text-slate-500">Posting queue is clear (0 pending deals). Next deal will be fetched via live store hunt.</td></tr>';
+                    return;
+                }
+                
+                let html = '';
+                items.forEach(it => {
+                    const disc = it.discount_pct ? `${Math.round(it.discount_pct)}% OFF` : '-';
+                    const link = it.affiliate_url || '#';
+                    html += `
+                    <tr class="hover:bg-slate-900/40 transition">
+                        <td class="py-3 font-mono font-bold text-indigo-400">#${it.queue_position}</td>
+                        <td class="py-3 font-medium text-slate-200 max-w-xs truncate" title="${it.title}">${it.title}</td>
+                        <td class="py-3 uppercase font-semibold text-xs text-slate-300">${it.platform}</td>
+                        <td class="py-3 font-mono text-emerald-400 font-bold">${formatINR(it.price)} <span class="text-xs text-slate-500 line-through">${formatINR(it.mrp)}</span></td>
+                        <td class="py-3 font-mono text-amber-400 font-bold text-xs">${disc}</td>
+                        <td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">${it.badge}</span></td>
+                        <td class="py-3 text-xs text-slate-400 truncate max-w-[130px]">${it.source_channel}</td>
+                        <td class="py-3 text-right">
+                            <a href="${link}" target="_blank" class="text-xs text-indigo-400 hover:text-indigo-300 font-semibold">View ↗</a>
+                        </td>
+                    </tr>`;
+                });
+                tbody.innerHTML = html;
+            } catch (err) {
+                console.error("Error fetching queue data:", err);
+            }
+        }
+
+        function onDealsFilterChange() {
+            fetchDeals();
+        }
+
+        function dealTimeAgo(dateString) {
+            if (!dateString) return '';
+            const d = new Date(dateString);
+            const now = new Date();
+            const diffSec = Math.floor((now - d) / 1000);
+            if (diffSec < 15) return 'Just now';
+            if (diffSec < 60) return `${diffSec}s ago`;
+            const diffMin = Math.floor(diffSec / 60);
+            if (diffMin < 60) return `${diffMin}m ago`;
+            const diffHours = Math.floor(diffMin / 60);
+            if (diffHours < 24) return `${diffHours}h ago`;
+            const diffDays = Math.floor(diffHours / 24);
+            return `${diffDays}d ago`;
+        }
+
+        async function fetchDeals() {
+            try {
+                const limitEl = document.getElementById('dealsLimitSelect');
+                const storeEl = document.getElementById('dealsStoreFilter');
+                const limit = limitEl ? limitEl.value : 36;
+                const platform = storeEl ? storeEl.value : '';
+
+                let url = `/api/deals?limit=${limit}`;
+                if (platform) {
+                    url += `&platform=${encodeURIComponent(platform)}`;
+                }
+
+                const res = await fetch(url);
+                if (!res.ok) {
+                    console.error("Failed to fetch deals feed:", res.status);
+                    return;
+                }
+                const deals = await res.json();
+                
+                if (document.getElementById('dealsLastUpdated')) {
+                    document.getElementById('dealsLastUpdated').innerText = 'Synced ' + new Date().toLocaleTimeString('en-IN');
+                }
+
+                if (!Array.isArray(deals) || !deals.length) {
+                    document.getElementById('dealsFeed').innerHTML = `<div class="text-center py-12 text-slate-500 col-span-full">No ${platform ? platform.toUpperCase() : ''} deals found in last 30 days.</div>`;
+                    return;
+                }
+
+                let html = '';
+                deals.forEach(d => {
+                    const pct = d.savings_pct ? Math.round(d.savings_pct * 100) : 0;
+                    const url = d.affiliate_url || d.product_url || '#';
+                    const time = new Date(d.posted_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+                    const relTime = dealTimeAgo(d.posted_at);
+                    const sourceTag = d.source_channel ? `<span class="text-[10px] text-slate-500 ml-1 truncate max-w-[120px] inline-block">via ${d.source_channel}</span>` : '';
+                    const badgeText = d.badge || 'DEAL';
+                    
+                    html += `
+                    <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex flex-col justify-between hover:border-slate-700 transition relative overflow-hidden">
+                        <div>
+                            <div class="flex items-center justify-between text-xs mb-2">
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <span class="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 font-semibold uppercase tracking-wider text-[11px]">${d.platform}</span>
+                                    <span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-bold text-[10px]">${badgeText}</span>
+                                    ${sourceTag}
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-emerald-400 font-bold text-[11px]">${relTime}</span>
+                                    <span class="text-slate-500 text-[10px] ml-1">(${time})</span>
+                                </div>
+                            </div>
+                            <div class="font-semibold text-slate-200 line-clamp-2 text-xs leading-relaxed mb-3" title="${d.title}">${d.title}</div>
+                        </div>
+                        <div class="pt-3 border-t border-slate-800/80 flex items-center justify-between">
+                            <div>
+                                <span class="text-sm font-bold text-emerald-400">${formatINR(d.posted_price)}</span>
+                                ${d.posted_mrp > d.posted_price ? `<span class="text-xs line-through text-slate-500 ml-1">${formatINR(d.posted_mrp)}</span>` : ''}
+                                ${pct > 0 ? `<span class="text-xs font-bold text-amber-400 ml-1.5">${pct}% OFF</span>` : ''}
+                            </div>
+                            <a href="${url}" target="_blank" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-medium transition flex items-center gap-1 shadow-sm">
+                                <span>Deal</span> ↗
+                            </a>
+                        </div>
+                    </div>`;
+                });
+                document.getElementById('dealsFeed').innerHTML = html;
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function runSearch() {
+            const q = document.getElementById('searchInput').value.trim();
+            if (!q || q.length < 2) return;
+            
+            document.getElementById('searchResults').innerHTML = '<div class="text-center py-4 text-slate-400">Searching local database...</div>';
+            
+            try {
+                const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+                const items = await res.json();
+                
+                if (!items.length) {
+                    document.getElementById('searchResults').innerHTML = '<div class="text-center py-4 text-slate-500">No products found matching query.</div>';
+                    return;
+                }
+
+                let html = '';
+                items.forEach(it => {
+                    const url = it.affiliate_url || it.product_url || '#';
+                    html += `
+                    <div class="flex items-center justify-between p-2.5 bg-slate-950 rounded-lg border border-slate-800/80 hover:border-slate-700 transition">
+                        <div class="truncate mr-3">
+                            <span class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300 mr-1.5 uppercase">${it.platform}</span>
+                            <span class="font-medium text-slate-200">${it.title}</span>
+                        </div>
+                        <div class="flex items-center gap-3 shrink-0">
+                            <span class="font-bold text-emerald-400">${formatINR(it.current_price)}</span>
+                            <a href="${url}" target="_blank" class="text-indigo-400 hover:text-indigo-300 font-medium">Link ↗</a>
+                        </div>
+                    </div>`;
+                });
+                document.getElementById('searchResults').innerHTML = html;
+            } catch (err) {
+                document.getElementById('searchResults').innerHTML = `<div class="text-red-400 text-center py-2">Error: ${err.message}</div>`;
+            }
+        }
+
+        async function triggerChannelScan() {
+            const res = await fetch('/api/trigger/channel_scan', { method: 'POST' });
+            alert("Spy Channel Scan triggered! Monitoring channels and ingesting deals now.");
+            setTimeout(fetchData, 3000);
+        }
+
+        async function triggerBackup() {
+            if (confirm("Run local database backup now?")) {
+                const res = await fetch('/api/trigger/backup', { method: 'POST' });
+                alert("Backup job triggered in background!");
+            }
+        }
+
+        async function triggerBackfill() {
+            if (confirm("Post next paced deal immediately?")) {
+                const res = await fetch('/api/trigger/backfill', { method: 'POST' });
+                alert("Deal post triggered in background!");
+            }
+        }
+
+                let categoryStatsData = null;
+        let currentCategoryTab = 'lifetime';
+
+        const categoryIcons = {
+            'fashion': '👗 Fashion & Apparel',
+            'beauty': '💄 Beauty & Cosmetics',
+            'laptops': '💻 Laptops & Computers',
+            'smartphones': '📱 Smartphones & Mobiles',
+            'electronics': '🔌 Electronics & Gadgets',
+            'appliances': '🍳 Home Appliances',
+            'sports': '⚽ Sports & Fitness',
+            'toys': '🧸 Toys & Games',
+            'home': '🏠 Home & Kitchen',
+            'automotive': '🚗 Automotive & Accessories',
+            'baby': '👶 Baby Products',
+            'grocery': '🛒 Grocery & Essentials',
+            'books': '📚 Books & Stationery',
+            'health': '💊 Health & Wellness',
+            'pet': '🐶 Pet Supplies',
+            'deals': '🎯 Deal Hubs & Spies',
+            'general': '📦 General / Miscellaneous'
+        };
+
+        function setCategoryTab(tab) {
+            currentCategoryTab = tab;
+            ['lifetime', 'today', 'month', 'catalog'].forEach(t => {
+                const btn = document.getElementById(`tab-cat-${t}`);
+                if (btn) {
+                    if ((tab === 'this_month' && t === 'month') || tab === t) {
+                        btn.className = "px-3 py-1.5 text-xs font-semibold rounded-lg transition bg-indigo-600 text-white";
+                    } else {
+                        btn.className = "px-3 py-1.5 text-xs font-semibold rounded-lg transition text-slate-400 hover:text-white";
+                    }
+                }
+            });
+            renderCategoryMatrix();
+        }
+
+        async function fetchCategoryMatrix() {
+            try {
+                const res = await fetch('/api/category_platform_stats');
+                categoryStatsData = await res.json();
+                renderCategoryMatrix();
+            } catch (err) {
+                console.error("Error fetching category stats:", err);
+            }
+        }
+
+        function renderCategoryMatrix() {
+            if (!categoryStatsData) return;
+            const rows = categoryStatsData[currentCategoryTab] || [];
+            const tbody = document.getElementById('categoryTableBody');
+            const tfoot = document.getElementById('categoryTableFoot');
+            
+            if (!rows.length) {
+                tbody.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-slate-500">No deal records recorded for this time range yet.</td></tr>`;
+                tfoot.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+            let sumTotal = 0, sumAmz = 0, sumFkp = 0, sumMyn = 0, sumAji = 0, sumNyk = 0;
+
+            rows.forEach(r => {
+                const total = r.total_deals || r.total_prods || 0;
+                const amz = r.amazon_count || 0;
+                const fkp = r.flipkart_count || 0;
+                const myn = r.myntra_count || 0;
+                const aji = r.ajio_count || 0;
+                const nyk = r.nykaa_count || 0;
+
+                sumTotal += total;
+                sumAmz += amz;
+                sumFkp += fkp;
+                sumMyn += myn;
+                sumAji += aji;
+                sumNyk += nyk;
+
+                const catKey = (r.category || 'general').toLowerCase();
+                const catLabel = categoryIcons[catKey] || `🏷️ ${catKey.charAt(0).toUpperCase() + catKey.slice(1)}`;
+
+                // Calculate leading platform
+                const plats = [
+                    { name: 'Amazon', count: amz, color: 'text-amber-400' },
+                    { name: 'Flipkart', count: fkp, color: 'text-blue-400' },
+                    { name: 'Myntra', count: myn, color: 'text-pink-400' },
+                    { name: 'Ajio', count: aji, color: 'text-purple-400' },
+                    { name: 'Nykaa', count: nyk, color: 'text-rose-400' }
+                ];
+                plats.sort((a, b) => b.count - a.count);
+                const leader = plats[0].count > 0 ? `<span class="${plats[0].color} font-semibold">${plats[0].name} (${Math.round((plats[0].count / total) * 100)}%)</span>` : '<span class="text-slate-500">-</span>';
+
+                html += `
+                <tr class="hover:bg-slate-800/30 transition">
+                    <td class="py-3 font-medium text-slate-200">${catLabel}</td>
+                    <td class="py-3 text-center font-mono ${amz > 0 ? 'text-amber-400 font-semibold' : 'text-slate-600'}">${amz > 0 ? amz.toLocaleString() : '-'}</td>
+                    <td class="py-3 text-center font-mono ${fkp > 0 ? 'text-blue-400 font-semibold' : 'text-slate-600'}">${fkp > 0 ? fkp.toLocaleString() : '-'}</td>
+                    <td class="py-3 text-center font-mono ${myn > 0 ? 'text-pink-400 font-semibold' : 'text-slate-600'}">${myn > 0 ? myn.toLocaleString() : '-'}</td>
+                    <td class="py-3 text-center font-mono ${aji > 0 ? 'text-purple-400 font-semibold' : 'text-slate-600'}">${aji > 0 ? aji.toLocaleString() : '-'}</td>
+                    <td class="py-3 text-center font-mono ${nyk > 0 ? 'text-rose-400 font-semibold' : 'text-slate-600'}">${nyk > 0 ? nyk.toLocaleString() : '-'}</td>
+                    <td class="py-3 text-right font-bold text-white font-mono">${total.toLocaleString()}</td>
+                    <td class="py-3 text-right text-[11px]">${leader}</td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+
+            tfoot.innerHTML = `
+            <tr class="bg-slate-950/80">
+                <td class="py-3.5 text-white uppercase tracking-wider text-[11px]">🌟 TOTAL ALL CATEGORIES</td>
+                <td class="py-3.5 text-center text-amber-400 font-mono">${sumAmz.toLocaleString()}</td>
+                <td class="py-3.5 text-center text-blue-400 font-mono">${sumFkp.toLocaleString()}</td>
+                <td class="py-3.5 text-center text-pink-400 font-mono">${sumMyn.toLocaleString()}</td>
+                <td class="py-3.5 text-center text-purple-400 font-mono">${sumAji.toLocaleString()}</td>
+                <td class="py-3.5 text-center text-rose-400 font-mono">${sumNyk.toLocaleString()}</td>
+                <td class="py-3.5 text-right text-emerald-400 font-mono text-sm">${sumTotal.toLocaleString()}</td>
+                <td class="py-3.5 text-right text-slate-400 text-[11px]">100% Verified</td>
+            </tr>`;
+        }
+
+        fetchData();
+        fetchDeals();
+        fetchQueueData();
+        fetchCategoryMatrix();
+        setInterval(() => { if (!document.hidden) fetchCategoryMatrix(); }, 60000);
+        setInterval(() => { if (!document.hidden) fetchData(); }, 45000);
+        setInterval(() => { if (!document.hidden) fetchDeals(); }, 45000);
+        setInterval(() => { if (!document.hidden) fetchQueueData(); }, 15000);
+        
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') runSearch();
+        });
+    </script>
+
+    <!-- 30-Day Chronological Price History Modal -->
+    <div id="timelineModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col shadow-2xl">
+            <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+                <div>
+                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                        <span>📅</span> 30-Day Historical Price Journey
+                    </h3>
+                    <p id="modalProdTitle" class="text-xs text-slate-400 mt-0.5 truncate max-w-md">Product Title</p>
+                </div>
+                <button onclick="closeTimelineModal()" class="text-slate-400 hover:text-white text-lg p-1.5 rounded-lg hover:bg-slate-800 transition">✕</button>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-4">
+                <div class="grid grid-cols-3 gap-3 text-center bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs">
+                    <div>
+                        <div class="text-[10px] text-slate-500 uppercase font-semibold">Store Platform</div>
+                        <div id="modalStore" class="text-xs font-bold text-slate-200 mt-0.5">Amazon</div>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-slate-500 uppercase font-semibold">30-Day Lowest Price</div>
+                        <div id="modalMin30" class="text-xs font-bold text-emerald-400 mt-0.5">₹0</div>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-slate-500 uppercase font-semibold">All Time Low</div>
+                        <div id="modalATL" class="text-xs font-bold text-indigo-400 mt-0.5">₹0</div>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Day-by-Day Historical Price Records</h4>
+                    <div class="overflow-x-auto border border-slate-800 rounded-xl">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-950 text-slate-400 uppercase text-[10px] border-b border-slate-800">
+                                <tr>
+                                    <th class="py-2.5 px-3">Timeline Day</th>
+                                    <th class="py-2.5 px-3">Calendar Date</th>
+                                    <th class="py-2.5 px-3">📉 Day Min Price</th>
+                                    <th class="py-2.5 px-3">📊 Close Price</th>
+                                    <th class="py-2.5 px-3">📈 Price Trend</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modalTimelineBody" class="divide-y divide-slate-800/60 bg-slate-900/50">
+                                <tr><td colspan="5" class="py-4 text-center text-slate-500">Loading daily prices...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

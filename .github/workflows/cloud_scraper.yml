@@ -1,0 +1,48 @@
+name: BudgetBy 24/7 Cloud Scraper
+
+on:
+  schedule:
+    # Runs every 15 minutes, 24/7 in GitHub cloud (100% Free)
+    - cron: '*/15 * * * *'
+  workflow_dispatch: # Allows manual 1-click "Run workflow" from GitHub UI
+
+concurrency:
+  group: cloud-scraper
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Cloud Price Scraper & Deal Hunter
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          EARNKARO_API_KEY: ${{ secrets.EARNKARO_API_KEY }}
+          AMAZON_ASSOCIATE_TAG: ${{ secrets.AMAZON_ASSOCIATE_TAG }}
+          TELEGRAM_SESSION_STRING: ${{ secrets.TELEGRAM_SESSION_STRING }}
+          TG_API_ID: ${{ secrets.TG_API_ID }}
+          TG_API_HASH: ${{ secrets.TG_API_HASH }}
+        run: |
+          python -m budgetby.cloud_scraper --limit 60 --concurrency 6
+
+      - name: Keep-Alive Ping to Render Storefront
+        run: |
+          curl -s -f "https://budgetyby.onrender.com/healthz" || echo "Storefront ping finished."

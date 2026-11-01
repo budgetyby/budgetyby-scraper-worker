@@ -1,0 +1,1418 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth overflow-x-hidden">
+<head>
+    <meta charset="UTF-8">
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%2310b981'/><text x='16' y='23' font-size='20' font-family='Arial Black,sans-serif' font-weight='900' text-anchor='middle' fill='%23fff'>B</text></svg>">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}BudgetBy — Deals & Price Drops | Amazon, Flipkart & More{% endblock %}</title>
+    <meta name="description" content="{% block description %}Discover live deals, 24-hour price drops, and promotional discounts across Amazon, Flipkart, Myntra, Ajio, and Nykaa. Filtered against 30, 60 & 120-day median and minimum price baselines.{% endblock %}">
+    <meta property="og:title" content="BudgetBy — India's Independent Price Tracker & Deal Discovery">
+    <meta property="og:description" content="Real price drops & live deals across India's top online stores.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://budgetby.in{{ request.url.path if request else '/' }}">
+    <meta property="og:site_name" content="BudgetyBy">
+    <meta property="og:image" content="/static/og-banner.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@BudgetBy_in">
+    <meta name="twitter:title" content="BudgetBy — Deals & Price Drops">
+    <meta name="twitter:description" content="Real price drops & live deals across India's top online stores.">
+    <meta name="twitter:image" content="/static/og-banner.png">
+    <link rel="canonical" href="https://budgetby.in{{ request.url.path if request else '/' }}">
+
+    <!-- DNS Prefetch & Preconnect for High-Speed Asset Delivery -->
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://images.unsplash.com">
+    <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
+    <link rel="dns-prefetch" href="https://m.media-amazon.com">
+    <link rel="dns-prefetch" href="https://rukminim2.flixcart.com">
+
+    <!-- Google Fonts: Plus Jakarta Sans for clean e-commerce typography (non-blocking preload) -->
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript>
+        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    </noscript>
+
+    <!-- Tailwind CSS (Pre-compiled Production CSS - Instant zero-delay render) -->
+    <link rel="stylesheet" href="/static/tailwind.min.css">
+
+    <style>
+        /* Custom scrollbars */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+        /* Performance boost: Offscreen content rendering optimization */
+        .cv-auto {
+            content-visibility: auto;
+            contain-intrinsic-size: 0 420px;
+        }
+
+        /* Prevent Layout Shifts and FOUC */
+        body {
+            font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans min-h-screen flex flex-col selection:bg-indigo-600 selection:text-white antialiased overflow-x-hidden">
+
+    <!-- ── Top Loading Progress Bar ──────────────────────────────────────── -->
+    <div id="pageProgressBar" class="fixed top-0 left-0 h-1 bg-gradient-to-r from-indigo-500 via-rose-500 to-emerald-500 z-50 transition-all duration-300 pointer-events-none opacity-0 w-0"></div>
+
+    <!-- ── Top Global Alert & Transparency Ticker ────────────────────────── -->
+    <aside aria-label="Announcement" class="bg-slate-900 text-xs py-2 px-3 sm:px-4 text-center text-slate-200 flex items-center justify-center gap-2 flex-wrap sm:flex-nowrap">
+        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 font-bold text-[10px] tracking-wide border border-emerald-500/30 shrink-0">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Live Deal Sync
+        </span>
+        <span class="truncate text-[11px] sm:text-xs">Discounts tracked against 30, 60 & 120-day median & minimum price baselines on Amazon, Flipkart, Myntra, Ajio & Nykaa.</span>
+        <a href="https://t.me/DealPulse_Deals" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-emerald-400 hover:text-emerald-300 font-bold underline underline-offset-2 shrink-0 text-[11px] sm:text-xs">
+            Join Telegram ↗
+        </a>
+    </aside>
+
+    <!-- ── Main Navigation Bar ──────────────────────────────────────────── -->
+    <header class="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm transition-all duration-200">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2.5 sm:gap-4">
+            
+            <!-- Logo & Brand + Navigation Arrows -->
+            <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+                <!-- Back & Forward History Navigation Arrow Buttons -->
+                <div class="flex items-center gap-1 shrink-0">
+                    <button onclick="window.history.back()" 
+                            title="Go Back" 
+                            aria-label="Go Back"
+                            class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 active:scale-95 border border-slate-200 text-slate-700 flex items-center justify-center transition shadow-xs">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                    <button onclick="window.history.forward()" 
+                            title="Go Forward" 
+                            aria-label="Go Forward"
+                            class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 active:scale-95 border border-slate-200 text-slate-700 flex items-center justify-center transition shadow-xs">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                </div>
+
+                <a href="/" class="flex items-center gap-2 sm:gap-2.5 group">
+                    <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-extrabold text-lg sm:text-xl shadow-md shadow-indigo-600/20 group-hover:scale-105 transition shrink-0">
+                        ⚡
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-lg sm:text-xl font-black tracking-tight text-slate-900">BudgetBy</span>
+                        </div>
+                        <p class="hidden 2xl:block text-[10px] text-slate-500 font-medium -mt-0.5">India's Smartest Price Tracker</p>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Primary Navigation Links (Desktop) -->
+            <nav class="hidden lg:flex items-center gap-1 text-xs font-bold" aria-label="Main Navigation">
+                <a href="/deals" class="px-3 py-1.5 rounded-xl text-slate-700 hover:text-indigo-600 hover:bg-slate-100 transition flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>
+                    <span>All Deals</span>
+                </a>
+                <a href="/drops" class="px-3 py-1.5 rounded-xl text-slate-700 hover:text-rose-600 hover:bg-slate-100 transition flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>
+                    <span>Price Drops</span>
+                </a>
+                <a href="/all-time-lows" class="px-3 py-1.5 rounded-xl text-slate-700 hover:text-amber-600 hover:bg-slate-100 transition flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
+                    <span>All-Time Lows</span>
+                </a>
+                <a href="/stores" class="px-3 py-1.5 rounded-xl text-slate-700 hover:text-indigo-600 hover:bg-slate-100 transition flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></svg>
+                    <span>Stores</span>
+                </a>
+            </nav>
+
+            <!-- Global Search Form & Autocomplete Dropdown -->
+            <div id="globalSearchContainer" class="flex-1 min-w-[160px] sm:min-w-[240px] max-w-xl relative mx-1 sm:mx-2">
+                <form action="/deals" method="GET" id="globalSearchForm" class="relative w-full" autocomplete="off">
+                    <div class="relative flex items-center">
+                        <svg class="w-4 h-4 text-slate-400 absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        <input 
+                            type="text" 
+                            name="search"
+                            id="globalSearchInput"
+                            value="{{ current_search or '' }}"
+                            placeholder="Search 100,000+ products (e.g. 'smartwatch', 'boat earphone', 'shoes under 1000')..." 
+                            autocomplete="off"
+                            spellcheck="false"
+                            class="w-full pl-8 sm:pl-10 pr-12 sm:pr-16 py-2 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-300 focus:border-indigo-500 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition shadow-inner"
+                        />
+                        <!-- Right Controls inside input -->
+                        <div class="absolute right-2 sm:right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                            <button type="button" id="globalSearchClearBtn" class="hidden text-slate-400 hover:text-slate-700 p-1 rounded-md hover:bg-slate-200 transition" title="Clear search">
+                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+                            <kbd class="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono text-slate-500 bg-slate-200/80 border border-slate-300 rounded pointer-events-none">/</kbd>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Search Suggestions Autocomplete Panel -->
+                <div id="searchSuggestionsDropdown" class="hidden absolute top-full left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden text-xs">
+                    <div id="searchSuggestionsList" class="max-h-80 overflow-y-auto custom-scrollbar divide-y divide-slate-100">
+                        <!-- Populated by JS dynamically -->
+                    </div>
+                    <div class="p-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                        <span class="flex items-center gap-1">
+                            <span>Press</span> <kbd class="px-1 py-0.5 bg-slate-200 text-slate-700 rounded text-[10px] font-mono">Enter</kbd> <span>to search all deals</span>
+                        </span>
+                        <span class="text-[10px] text-indigo-600 font-bold">Direct Store Links</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Utilities: Watchlist, About & Support, Mobile Menu Toggle -->
+            <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                <!-- About & Methodology / Contact Link -->
+                <a 
+                    href="/about" 
+                    class="hidden sm:flex px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-bold items-center gap-1.5 transition" 
+                    title="About BudgetBy & Contact Support"
+                >
+                    <svg class="w-4 h-4 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+                    <span>About & Help</span>
+                </a>
+
+                <!-- Watchlist / Saved Deals Button -->
+                <button 
+                    id="watchlistOpenBtn" 
+                    onclick="openWatchlistDrawer()" 
+                    class="relative p-2 sm:px-3 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-bold flex items-center gap-1.5 transition" 
+                    title="Saved Deals Watchlist"
+                    aria-label="View Saved Deals Watchlist"
+                >
+                    <svg class="w-4 h-4 text-rose-500 fill-rose-500/20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                    <span class="hidden sm:inline">Saved</span>
+                    <span id="watchlistCountBadge" class="hidden px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-rose-500 text-white leading-tight">0</span>
+                </button>
+
+                <!-- Mobile Hamburger Toggle -->
+                <button 
+                    id="mobileMenuToggleBtn" 
+                    onclick="toggleMobileMenu()" 
+                    class="lg:hidden p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs transition" 
+                    aria-label="Toggle Navigation Menu"
+                >
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+                </button>
+            </div>
+
+        </div>
+
+        <!-- Mobile Navigation Drawer Accordion -->
+        <nav id="mobileNavDrawer" class="hidden lg:hidden border-t border-slate-200 bg-white px-4 py-3 space-y-1 shadow-lg" aria-label="Mobile Navigation">
+            <a href="/deals" class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-slate-700 hover:text-indigo-600 hover:bg-slate-50 text-xs font-bold transition">
+                <i data-lucide="tag" class="w-4 h-4 text-indigo-600"></i>
+                <span>All Deals & Filter Engine</span>
+            </a>
+            <a href="/drops" class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-slate-700 hover:text-rose-600 hover:bg-slate-50 text-xs font-bold transition">
+                <i data-lucide="trending-down" class="w-4 h-4 text-rose-600"></i>
+                <span>24h Price Drops Hub</span>
+            </a>
+            <a href="/all-time-lows" class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-slate-700 hover:text-amber-600 hover:bg-slate-50 text-xs font-bold transition">
+                <i data-lucide="award" class="w-4 h-4 text-amber-600"></i>
+                <span>All-Time Lows Showcase</span>
+            </a>
+            <a href="/stores" class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-slate-700 hover:text-indigo-600 hover:bg-slate-50 text-xs font-bold transition">
+                <i data-lucide="store" class="w-4 h-4 text-indigo-600"></i>
+                <span>Stores Directory (Amazon, Flipkart, Myntra, Ajio, Nykaa)</span>
+            </a>
+            <a href="/about" class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-slate-700 hover:text-indigo-600 hover:bg-slate-50 text-xs font-bold transition">
+                <i data-lucide="help-circle" class="w-4 h-4 text-indigo-600"></i>
+                <span>About BudgetBy & Contact Us</span>
+            </a>
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 px-2">
+                <span class="flex items-center gap-1 font-semibold text-emerald-600">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Continuous Channel Sync
+                </span>
+                <a href="https://t.me/DealPulse_Deals" target="_blank" rel="noopener noreferrer" class="text-indigo-600 font-bold">Telegram Alerts ↗</a>
+            </div>
+        </nav>
+    </header>
+
+    <!-- ── E-Commerce Category Aisle & Mega Shopping Bar ────────────────────────── -->
+    <nav class="bg-white border-b border-slate-200/90 shadow-[0_2px_4px_rgba(0,0,0,0.02)] z-30 sticky top-16 transition-all" aria-label="Product Category Aisles">
+        <div class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
+            <div id="categoryAisleRow" class="flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar py-2 text-xs font-bold whitespace-nowrap">
+                
+                <!-- Mobile All Categories Expand Button -->
+                <button onclick="openMobileCategoryDrawer()" class="lg:hidden px-2.5 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-black flex items-center gap-1.5 shrink-0 shadow-sm shadow-indigo-600/20 active:scale-95 transition">
+                    <i data-lucide="grid" class="w-3.5 h-3.5"></i>
+                    <span>All Categories</span>
+                </button>
+
+                {% for c_key, c_val in categories_taxonomy.items() %}
+                <div class="relative cat-dropdown-group">
+                    <a href="/deals?category={{ c_key }}" class="cat-trigger px-2.5 sm:px-3 py-1.5 rounded-xl hover:bg-slate-100 text-slate-800 hover:text-indigo-600 transition flex items-center gap-1.5 {% if current_category == c_key %}bg-indigo-50 text-indigo-700 border border-indigo-200{% endif %}">
+                        <span class="text-sm">{{ c_val.icon }}</span>
+                        <span>{{ c_val.name.split(' ')[0] }}</span>
+                        {% if c_val.subcategories %}
+                        <i data-lucide="chevron-down" class="w-3 h-3 text-slate-400 group-hover:rotate-180 transition-transform"></i>
+                        {% endif %}
+                    </a>
+                    {% if c_val.subcategories %}
+                    <div class="cat-dropdown-menu hidden pt-1 z-[99999] min-w-[210px]">
+                        <div class="bg-white border border-slate-200 rounded-2xl shadow-xl p-2 text-xs space-y-1">
+                            <a href="/deals?category={{ c_key }}" class="cat-trigger block px-3 py-2 rounded-xl font-extrabold text-indigo-700 bg-indigo-50 hover:bg-indigo-100">All {{ c_val.name }} ➔</a>
+                            {% for sub_k, sub_v in c_val.subcategories.items() %}
+                            <a href="/deals?category={{ c_key }}&sub={{ sub_k }}" class="cat-trigger block px-3 py-1.5 rounded-xl text-slate-700 hover:bg-slate-100">{{ sub_v.icon or '•' }} {{ sub_v.name }}</a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+
+                <!-- Shop by Store Link -->
+                <a href="/stores" class="px-2.5 sm:px-3 py-1.5 rounded-xl hover:bg-slate-100 text-slate-700 hover:text-slate-900 transition flex items-center gap-1.5">
+                    <span>🏪</span>
+                    <span>Stores</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ── Main Content Area ────────────────────────────────────────────── -->
+    <div class="flex-1 w-full">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- ── High-Trust Consumer Footer ───────────────────────────────────── -->
+    <footer class="mt-auto bg-slate-900 text-slate-300 border-t border-slate-800 text-xs">
+        
+        <!-- Trust Pillars Banner -->
+        <div class="border-b border-slate-800 bg-slate-950/60">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                
+                <!-- Pillar 1 -->
+                <div class="flex items-start gap-3.5">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 text-lg">
+                        <i data-lucide="shield-check" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-white text-sm">30, 60 & 120-Day Baseline Audit</h2>
+                        <p class="text-slate-400 text-xs mt-1 leading-relaxed">
+                            Every price drop is tracked against 30-day, 60-day, and 120-day rolling medians and historical minimum prices to eliminate fake marked-up discounts.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Pillar 2 -->
+                <div class="flex items-start gap-3.5">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 text-lg">
+                        <i data-lucide="external-link" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-white text-sm">Direct Store Checkout</h2>
+                        <p class="text-slate-400 text-xs mt-1 leading-relaxed">
+                            Zero intermediation. You checkout directly on official Amazon, Flipkart, Myntra, Ajio, and Nykaa platforms.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Pillar 3 -->
+                <div class="flex items-start gap-3.5">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 text-lg">
+                        <i data-lucide="database" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-white text-sm">100k+ Tracked Products</h2>
+                        <p class="text-slate-400 text-xs mt-1 leading-relaxed">
+                            Automated scraping engines continuously track prices across electronics, fashion, beauty, and home appliances.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Pillar 4 -->
+                <div class="flex items-start gap-3.5">
+                    <div class="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center shrink-0 text-lg">
+                        <i data-lucide="lock" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-white text-sm">100% Free & Privacy-First</h2>
+                        <p class="text-slate-400 text-xs mt-1 leading-relaxed">
+                            No account required, no login walls, no personal data collected. Save deals locally with 1-click.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Footer Main Navigation & Directory Links -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 md:grid-cols-4 gap-8">
+            
+            <!-- Column 1: Brand & Mission -->
+            <div class="md:col-span-1">
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-extrabold text-sm">
+                        ⚡
+                    </div>
+                    <span class="text-base font-black text-white">BudgetBy</span>
+                </div>
+                <p class="text-slate-400 text-xs leading-relaxed mb-4">
+                    India's independent price tracker and real-time deal discovery platform. Helping shoppers beat dynamic pricing and artificial discounts since 2024.
+                </p>
+                <div class="flex items-center gap-2">
+                    <a href="/about" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition border border-slate-700">
+                        <i data-lucide="help-circle" class="w-3.5 h-3.5 text-indigo-400"></i>
+                        <span>About & Help</span>
+                    </a>
+                    <a href="https://t.me/DealPulse_Deals" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition">
+                        <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                        <span>Telegram Alerts</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Column 2: Deal Discovery Hubs -->
+            <div>
+                <h3 class="font-bold text-white text-xs uppercase tracking-wider mb-3">Deal Hubs</h3>
+                <ul class="space-y-2 text-slate-400 text-xs">
+                    <li><a href="/deals" class="hover:text-white transition">All Live Deals & Offers</a></li>
+                    <li><a href="/drops" class="hover:text-white transition">24-Hour Price Drops</a></li>
+                    <li><a href="/all-time-lows" class="hover:text-white transition">All-Time Lows (ATL)</a></li>
+                    <li><a href="/deals?category=electronics" class="hover:text-white transition">Electronics & Gadgets</a></li>
+                    <li><a href="/deals?category=fashion" class="hover:text-white transition">Fashion & Apparel</a></li>
+                    <li><a href="/deals?category=home" class="hover:text-white transition">Home & Kitchen Deals</a></li>
+                </ul>
+            </div>
+
+            <!-- Column 3: Store Partners -->
+            <div>
+                <h3 class="font-bold text-white text-xs uppercase tracking-wider mb-3">Partner Stores</h3>
+                <ul class="space-y-2 text-slate-400 text-xs">
+                    <li><a href="/deals?platform=amazon" class="hover:text-amber-400 transition flex items-center gap-1"><span>Amazon India Deals</span></a></li>
+                    <li><a href="/deals?platform=flipkart" class="hover:text-blue-400 transition flex items-center gap-1"><span>Flipkart Price Tracker</span></a></li>
+                    <li><a href="/deals?platform=myntra" class="hover:text-pink-400 transition flex items-center gap-1"><span>Myntra Fashion Discounts</span></a></li>
+                    <li><a href="/deals?platform=ajio" class="hover:text-yellow-400 transition flex items-center gap-1"><span>Ajio Trends & Footwear</span></a></li>
+                    <li><a href="/deals?platform=nykaa" class="hover:text-rose-400 transition flex items-center gap-1"><span>Nykaa Cosmetics & Beauty</span></a></li>
+                    <li><a href="/stores" class="hover:text-white transition font-semibold">View All 5 Stores →</a></li>
+                </ul>
+            </div>
+
+            <!-- Column 4: Consumer Transparency & Methodology -->
+            <div>
+                <h3 class="font-bold text-white text-xs uppercase tracking-wider mb-3">Price Methodology</h3>
+                <p class="text-slate-400 text-xs leading-relaxed mb-3">
+                    BudgetBy calculates genuine savings against rolling 30, 60 & 120-day median prices and all-time minimum historical baselines, rather than manufacturer MRP which is often inflated by marketplace sellers.
+                </p>
+                <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400">
+                    <span class="text-emerald-400 font-bold block mb-0.5">● Real-Time Sync</span>
+                    Prices refreshed continuously. When an item goes out of stock or returns to normal price, it is automatically purged.
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Footer Copyright Bar -->
+        <div class="border-t border-slate-800 bg-slate-950 py-5">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 text-[11px] text-slate-400">
+                <p class="leading-relaxed text-center md:text-left max-w-4xl">
+                    Product prices, availability, and promotional discounts are updated in real time and subject to merchant changes.
+                </p>
+                <div class="text-center md:text-right shrink-0">
+                    <div>© 2026 BudgetBy. All rights reserved.</div>
+                    <div class="text-[10px] text-slate-500 mt-0.5">Built for smart Indian shoppers.</div>
+                </div>
+            </div>
+        </div>
+
+    </footer>
+
+    <!-- ── Mobile Categories Vertical Drawer ─────────────────────────────── -->
+    <div id="mobileCategoryDrawerOverlay" onclick="closeMobileCategoryDrawer()" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 transition-opacity duration-300 opacity-0 pointer-events-none"></div>
+    <aside id="mobileCategoryDrawer" class="fixed top-0 left-0 h-full w-full max-w-xs sm:max-w-sm bg-white border-r border-slate-200 z-50 transform -translate-x-full transition-transform duration-300 flex flex-col shadow-2xl">
+        <div class="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+            <div class="flex items-center gap-2">
+                <i data-lucide="layout-grid" class="w-5 h-5 text-indigo-600"></i>
+                <h2 class="font-extrabold text-slate-900 text-base">All Departments (17)</h2>
+            </div>
+            <button onclick="closeMobileCategoryDrawer()" class="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-200 transition" aria-label="Close Categories">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-3 space-y-1.5 custom-scrollbar text-xs font-bold">
+            {% for c_key, c_val in categories_taxonomy.items() %}
+            <a href="/deals?category={{ c_key }}" class="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-100 text-slate-800 hover:text-indigo-700 transition">
+                <span class="flex items-center gap-2"><span class="text-base">{{ c_val.icon }}</span> {{ c_val.name }}</span>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+            </a>
+            {% endfor %}
+        </div>
+
+        <div class="p-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-xs">
+            <a href="/deals" class="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-center transition">
+                View All Deals Feed ➔
+            </a>
+        </div>
+    </aside>
+
+    <!-- ── Watchlist / Saved Deals Slideout Drawer ──────────────────────── -->
+    <div id="watchlistDrawerOverlay" onclick="closeWatchlistDrawer()" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 transition-opacity duration-300 opacity-0 pointer-events-none"></div>
+    <aside id="watchlistDrawer" class="fixed top-0 right-0 h-full w-full max-w-md bg-white border-l border-slate-200 z-50 transform translate-x-full transition-transform duration-300 flex flex-col shadow-2xl">
+        <div class="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+            <div class="flex items-center gap-2">
+                <i data-lucide="heart" class="w-5 h-5 text-rose-500 fill-rose-500"></i>
+                <h2 class="font-extrabold text-slate-900 text-base">Saved Deals (<span id="watchlistCountHeader">0</span>)</h2>
+            </div>
+            <button onclick="closeWatchlistDrawer()" class="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-200 transition" aria-label="Close Watchlist">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <div id="watchlistItemsList" class="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+            <!-- Populated via localStorage JS -->
+        </div>
+
+        <div class="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-xs">
+            <button onclick="clearWatchlist()" class="text-rose-600 hover:text-rose-700 font-bold transition">Clear All</button>
+            <span class="text-slate-500 text-[11px]">Saved locally on device</span>
+        </div>
+    </aside>
+
+    <!-- ── WhatsApp & Direct Share Modal ────────────────────────────────── -->
+    <div id="shareModalOverlay" onclick="closeShareModal()" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity duration-200 opacity-0 pointer-events-none">
+        <div onclick="event.stopPropagation()" class="bg-white border border-slate-200 rounded-2xl max-w-sm w-full p-5 shadow-2xl text-slate-900">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                    <i data-lucide="share-2" class="w-4 h-4 text-indigo-600"></i>
+                    <span>Share This Deal</span>
+                </h3>
+                <button onclick="closeShareModal()" class="text-slate-400 hover:text-slate-700">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <div id="shareModalContent" class="mb-4 text-xs">
+                <!-- Deal preview populated dynamically -->
+            </div>
+
+            <div class="space-y-2">
+                <a id="shareWhatsAppBtn" href="#" target="_blank" rel="noopener noreferrer" class="w-full py-2.5 px-4 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-xs flex items-center justify-center gap-2 transition shadow-md shadow-emerald-500/20">
+                    <i data-lucide="message-circle" class="w-4 h-4"></i>
+                    <span>Share to WhatsApp</span>
+                </a>
+                <button id="shareCopyLinkBtn" onclick="copyShareDealLink()" class="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center gap-2 border border-slate-200 transition">
+                    <i data-lucide="copy" class="w-4 h-4"></i>
+                    <span id="shareCopyLinkText">Copy Deal Link</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    
+    <!-- ── Send Product for Review Modal ────────────────────────────────────── -->
+    <div id="reviewModalOverlay" onclick="closeReviewModal()" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity duration-200 opacity-0 pointer-events-none">
+        <div onclick="event.stopPropagation()" class="bg-white border border-slate-200 rounded-3xl max-w-lg w-full p-6 shadow-2xl text-slate-900 relative">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center shrink-0">
+                        <i data-lucide="clipboard-check" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-extrabold text-slate-900 text-base">Send Product for Review</h3>
+                        <p class="text-[11px] text-slate-500">Crowdsourced Algorithmic Price Audit</p>
+                    </div>
+                </div>
+                <button onclick="closeReviewModal()" class="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <p class="text-xs text-slate-600 mb-4 leading-relaxed">
+                Did our 30, 60 & 120-day baseline algorithm miss a price drop, or has the price changed on the platform? Submit the product and our automated scrapers will immediately prioritize an algorithmic re-scan.
+            </p>
+
+            <form id="reviewModalForm" onsubmit="submitReviewForm(event)" class="space-y-3">
+                <input type="hidden" id="reviewProductId" value="">
+                
+                <div>
+                    <label for="reviewProductTitle" class="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">Product Title</label>
+                    <input type="text" id="reviewProductTitle" placeholder="e.g. Sony WH-1000XM5 Wireless Headphones" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 transition font-medium" />
+                </div>
+
+                <div>
+                    <label for="reviewProductUrl" class="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">Product URL <span class="text-rose-500">*</span></label>
+                    <input type="url" id="reviewProductUrl" required placeholder="https://www.amazon.in/dp/... or Flipkart link" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 transition font-mono" />
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label for="reviewObservedPrice" class="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">Observed Price (₹)</label>
+                        <input type="number" id="reviewObservedPrice" placeholder="e.g. 19999" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 transition font-mono" />
+                    </div>
+                    <div>
+                        <label for="reviewNotes" class="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">Note (Optional)</label>
+                        <input type="text" id="reviewNotes" placeholder="e.g. Lightning deal / coupon" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 transition" />
+                    </div>
+                </div>
+
+                <div id="reviewModalFeedback" class="hidden text-xs rounded-xl p-3 font-medium"></div>
+
+                <div class="flex items-center gap-2 pt-2">
+                    <button type="button" onclick="closeReviewModal()" class="flex-1 py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-200 transition">
+                        Cancel
+                    </button>
+                    <button type="submit" id="reviewSubmitBtn" class="flex-1 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm shadow-indigo-600/20 transition">
+                        <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                        <span id="reviewSubmitBtnText">Submit for Review</span>
+                    </button>
+                </div>
+            </form>
+
+            <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                <span>Prefer Telegram?</span>
+                <a href="https://t.me/Deal_pulse_alert_bot" target="_blank" rel="noopener noreferrer" class="font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+                    <span>Send to @Deal_pulse_alert_bot</span>
+                    <i data-lucide="external-link" class="w-3 h-3"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Core Client Scripts ──────────────────────────────────────────── -->
+    <script>
+        // Global Store Registry for authentic badges and branding in light theme
+        const STORES = {
+            amazon: { name: 'Amazon', color: '#FF9900', badge: 'bg-amber-50 text-amber-900 border border-amber-300 font-bold' },
+            flipkart: { name: 'Flipkart', color: '#2874F0', badge: 'bg-blue-50 text-blue-700 border border-blue-300 font-bold' },
+            myntra: { name: 'Myntra', color: '#FF3F6C', badge: 'bg-pink-50 text-pink-700 border border-pink-300 font-bold' },
+            ajio: { name: 'Ajio', color: '#D99814', badge: 'bg-yellow-50 text-yellow-800 border border-yellow-300 font-bold' },
+            nykaa: { name: 'Nykaa', color: '#FC2779', badge: 'bg-rose-50 text-rose-700 border border-rose-300 font-bold' }
+        };
+
+        // Rupee formatting utility (Lakhs & Crores standard)
+        function formatINR(val) {
+            if (val === null || val === undefined || isNaN(val)) return '₹0';
+            const num = Math.round(Number(val));
+            return '₹' + num.toLocaleString('en-IN');
+        }
+
+        // Relative time helper
+        function formatTimeAgo(dateStr) {
+            if (!dateStr) return 'Recently';
+            try {
+                const dt = new Date(dateStr);
+                const now = new Date();
+                const diffSec = Math.floor((now - dt) / 1000);
+                if (diffSec < 60) return 'Just now';
+                if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+                if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+                return `${Math.floor(diffSec / 86400)}d ago`;
+            } catch (e) {
+                return 'Recently';
+            }
+        }
+
+        // Exact Date and Time Posted helper (e.g. "07 Sep, 02:45 PM")
+        function formatPostedDateTime(dateStr) {
+            if (!dateStr) return 'Recently posted';
+            try {
+                const dt = new Date(dateStr);
+                if (isNaN(dt.getTime())) return 'Recently posted';
+                return dt.toLocaleDateString('en-IN', {
+                    day: '2-digit',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                });
+            } catch (e) {
+                return 'Recently posted';
+            }
+        }
+
+        // Web Audio Synthesizer Chime
+        function playDealChime() {
+            try {
+                const settings = getUserSettings();
+                if (!settings.soundEnabled) return;
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+                osc.frequency.exponentialRampToValueAtTime(880.00, ctx.currentTime + 0.15); // A5
+                gain.gain.setValueAtTime(0.04, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.3);
+            } catch (e) {}
+        }
+
+        // User Settings Storage
+        function getUserSettings() {
+            try {
+                const saved = localStorage.getItem('budgetby_user_settings');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (parsed && typeof parsed.syncInterval === 'number' && parsed.syncInterval < 300 && parsed.syncInterval > 0) {
+                        parsed.syncInterval = 300;
+                        saveUserSettings(parsed);
+                    }
+                    return parsed;
+                }
+                return { syncInterval: 300, soundEnabled: true };
+            } catch(e) {
+                return { syncInterval: 300, soundEnabled: true };
+            }
+        }
+        function saveUserSettings(settings) {
+            try {
+                localStorage.setItem('budgetby_user_settings', JSON.stringify(settings));
+            } catch(e) {}
+        }
+
+        function updateSyncInterval(val) {
+            const settings = getUserSettings();
+            settings.syncInterval = parseInt(val, 10);
+            saveUserSettings(settings);
+            window.dispatchEvent(new CustomEvent('budgetby:syncRateChanged', { detail: settings.syncInterval }));
+        }
+
+        function toggleSoundPref(enabled) {
+            const settings = getUserSettings();
+            settings.soundEnabled = enabled;
+            saveUserSettings(settings);
+            if (enabled) playDealChime();
+        }
+
+        // ── Review Modal & Flag-for-Re-Check ─────────────────────────────────
+        let _activeReviewDeal = null;
+
+        function openReviewModal(deal) {
+            _activeReviewDeal = deal || null;
+            const idEl = document.getElementById('reviewProductId');
+            const titleEl = document.getElementById('reviewProductTitle');
+            const urlEl = document.getElementById('reviewProductUrl');
+            const priceEl = document.getElementById('reviewObservedPrice');
+            const feedbackEl = document.getElementById('reviewModalFeedback');
+            const submitBtn = document.getElementById('reviewSubmitBtn');
+            const submitBtnText = document.getElementById('reviewSubmitBtnText');
+
+            if (idEl) idEl.value = deal?.id || deal?.product_id || '';
+            if (titleEl) titleEl.value = deal?.title || '';
+            if (urlEl) urlEl.value = deal?.affiliate_url || deal?.product_url || deal?.url || '';
+            if (priceEl) priceEl.value = deal?.current_price || '';
+            if (feedbackEl) { feedbackEl.className = 'hidden text-xs rounded-xl p-3 font-medium'; feedbackEl.textContent = ''; }
+            if (submitBtn) submitBtn.disabled = false;
+            if (submitBtnText) submitBtnText.textContent = 'Submit for Re-Check';
+
+            const overlay = document.getElementById('reviewModalOverlay');
+            if (overlay) {
+                overlay.classList.remove('opacity-0', 'pointer-events-none');
+                if (window.lucide) lucide.createIcons();
+            }
+        }
+
+        function closeReviewModal() {
+            const overlay = document.getElementById('reviewModalOverlay');
+            if (overlay) overlay.classList.add('opacity-0', 'pointer-events-none');
+            _activeReviewDeal = null;
+        }
+
+        async function submitReviewForm(event) {
+            if (event) event.preventDefault();
+            const submitBtn = document.getElementById('reviewSubmitBtn');
+            const submitBtnText = document.getElementById('reviewSubmitBtnText');
+            const feedbackEl = document.getElementById('reviewModalFeedback');
+
+            const productId = document.getElementById('reviewProductId')?.value?.trim();
+            const url = document.getElementById('reviewProductUrl')?.value?.trim();
+            const title = document.getElementById('reviewProductTitle')?.value?.trim();
+            const price = document.getElementById('reviewObservedPrice')?.value?.trim();
+            const notes = document.getElementById('reviewNotes')?.value?.trim();
+
+            if (!productId && !url) {
+                if (feedbackEl) {
+                    feedbackEl.className = 'text-xs rounded-xl p-3 font-medium bg-rose-50 text-rose-700 border border-rose-200';
+                    feedbackEl.textContent = '⚠️ Please enter a product URL to continue.';
+                }
+                return;
+            }
+
+            if (submitBtn) { submitBtn.disabled = true; }
+            if (submitBtnText) submitBtnText.textContent = 'Submitting…';
+
+            try {
+                const payload = {};
+                if (productId) payload.product_id = productId;
+                if (url) payload.url = url;
+                if (title) payload.title = title;
+                if (price) payload.observed_price = parseFloat(price);
+                if (notes) payload.notes = notes;
+
+                const res = await fetch('/api/public/submit-review', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    cache: 'no-store',
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                if (res.ok && (data.status === 'success' || data.status === 'already_queued')) {
+                    if (feedbackEl) {
+                        feedbackEl.className = 'text-xs rounded-xl p-3 font-medium bg-emerald-50 text-emerald-800 border border-emerald-200';
+                        feedbackEl.textContent = '✅ Queued for price re-check! Our scrapers will re-check this product in the next scan cycle.';
+                    }
+                    if (submitBtnText) submitBtnText.textContent = '✓ Submitted!';
+                    setTimeout(() => closeReviewModal(), 2200);
+                } else {
+                    throw new Error(data.detail || 'Submission failed');
+                }
+            } catch (err) {
+                if (feedbackEl) {
+                    feedbackEl.className = 'text-xs rounded-xl p-3 font-medium bg-rose-50 text-rose-700 border border-rose-200';
+                    feedbackEl.textContent = '⚠️ Could not submit. Please try again or send via Telegram.';
+                }
+                if (submitBtn) submitBtn.disabled = false;
+                if (submitBtnText) submitBtnText.textContent = 'Submit for Re-Check';
+            }
+        }
+
+        // Called from deal cards — quick flag without modal
+        async function handleSendForReview(productId, title, url, currentPrice) {
+            let pid = productId, t = title, u = url, cp = currentPrice;
+            let btn = null;
+            if (productId && typeof productId === 'object' && productId.dataset) {
+                btn = productId;
+                pid = btn.dataset.pid;
+                t = btn.dataset.title;
+                u = btn.dataset.url;
+                cp = btn.dataset.price;
+            } else {
+                btn = (window.event?.target)?.closest?.('button') || null;
+            }
+            const originalHTML = btn ? btn.innerHTML : '';
+
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<svg class="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg><span>Checking…</span>';
+            }
+
+            try {
+                const payload = { url: u || '', title: t || '', observed_price: cp || 0 };
+                if (pid) payload.product_id = String(pid);
+
+                const res = await fetch('/api/public/submit-review', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    cache: 'no-store',
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                if (res.ok && (data.status === 'success' || data.status === 'already_queued')) {
+                    if (btn) {
+                        btn.innerHTML = '<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:#059669"><polyline points="20 6 9 17 4 12"/></svg><span style="color:#047857;font-weight:700">Re-check Queued!</span>';
+                        setTimeout(() => {
+                            btn.disabled = false;
+                            btn.innerHTML = originalHTML;
+                            if (window.lucide) lucide.createIcons();
+                        }, 3000);
+                    }
+                    showDealNotification('🔍 Price re-check queued! Scrapers will re-check this product shortly.', 'success');
+                } else {
+                    throw new Error('Failed');
+                }
+            } catch (e) {
+                if (btn) { btn.disabled = false; btn.innerHTML = originalHTML; if (window.lucide) lucide.createIcons(); }
+                showDealNotification('ℹ️ Please confirm details below to request a price re-check', 'info');
+                openReviewModal({ id: pid, title: t, url: u, current_price: cp, affiliate_url: u });
+            }
+        }
+
+        function handleHomeWatchlist(btn, productId) {
+            if (!productId) return;
+            const card = btn.closest('[data-deal-id]') || btn.closest('.group');
+            let title = card?.querySelector('a[title]')?.getAttribute('title') || 'Deal';
+            let img = card?.querySelector('img')?.getAttribute('src') || '';
+            let priceText = card?.querySelector('.font-black.text-slate-900.font-mono')?.textContent?.replace(/[^\d]/g, '') || '0';
+            let product = {
+                id: productId,
+                title: title,
+                current_price: parseInt(priceText) || 0,
+                image_url: img,
+                platform: 'store'
+            };
+            const added = toggleWatchlist(product);
+            const icon = btn.querySelector('svg') || btn.querySelector('i');
+            if (added) {
+                btn.classList.add('text-rose-500', 'fill-rose-500');
+                if (icon) icon.classList.add('fill-rose-500', 'text-rose-500');
+                showDealNotification('❤️ Saved to your Watchlist!', 'success');
+            } else {
+                btn.classList.remove('text-rose-500', 'fill-rose-500');
+                if (icon) icon.classList.remove('fill-rose-500', 'text-rose-500');
+                showDealNotification('Removed from Watchlist', 'info');
+            }
+        }
+
+        // ── Toast Notification ────────────────────────────────────────────────
+        function showDealNotification(message, type) {
+            const existing = document.getElementById('dealToastNotification');
+            if (existing) existing.remove();
+            const bg = type === 'success' ? 'background:#059669' : type === 'error' ? 'background:#dc2626' : (type === 'info' ? 'background:#4f46e5' : 'background:#334155');
+            const toast = document.createElement('div');
+            toast.id = 'dealToastNotification';
+            toast.style.cssText = `position:fixed;bottom:1.25rem;left:50%;transform:translateX(-50%);z-index:200;${bg};color:#fff;font-size:.75rem;font-weight:700;padding:.75rem 1.25rem;border-radius:1rem;box-shadow:0 4px 24px rgba(0,0,0,.18);display:flex;align-items:center;gap:.5rem;transition:opacity .3s`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            const settings = getUserSettings();
+            if (settings && settings.soundEnabled) {
+                playDealChime();
+            }
+            setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 3500);
+        }
+
+        // Watchlist System (localStorage)
+        function getWatchlist() {
+            try {
+                const items = localStorage.getItem('budgetby_watchlist');
+                return items ? JSON.parse(items) : [];
+            } catch (e) {
+                return [];
+            }
+        }
+        function saveWatchlist(items) {
+            try {
+                localStorage.setItem('budgetby_watchlist', JSON.stringify(items));
+                updateWatchlistBadge();
+            } catch (e) {}
+        }
+        function isInWatchlist(productId) {
+            if (!productId) return false;
+            const list = getWatchlist();
+            return list.some(item => String(item.id) === String(productId));
+        }
+        function toggleWatchlist(product) {
+            if (!product || !product.id) return false;
+            let list = getWatchlist();
+            const index = list.findIndex(item => String(item.id) === String(product.id));
+            let added = false;
+            if (index > -1) {
+                list.splice(index, 1);
+                added = false;
+            } else {
+                list.unshift({
+                    id: product.id,
+                    title: product.title,
+                    current_price: product.current_price,
+                    mrp: product.mrp,
+                    platform: product.platform,
+                    image_url: product.image_url,
+                    affiliate_url: product.affiliate_url || product.product_url,
+                    posted_at: product.posted_at || product.deal_time || product.last_checked,
+                    saved_at: new Date().toISOString()
+                });
+                added = true;
+            }
+            saveWatchlist(list);
+            renderWatchlistItems();
+            return added;
+        }
+
+        function updateWatchlistBadge() {
+            const list = getWatchlist();
+            const badge = document.getElementById('watchlistCountBadge');
+            const mobileBadge = document.getElementById('watchlistCountBadgeMobile');
+            const headerCount = document.getElementById('watchlistCountHeader');
+            if (badge) {
+                badge.innerText = list.length;
+                badge.classList.toggle('hidden', list.length === 0);
+            }
+            if (mobileBadge) {
+                mobileBadge.innerText = list.length;
+                mobileBadge.classList.toggle('hidden', list.length === 0);
+            }
+            if (headerCount) {
+                headerCount.innerText = list.length;
+            }
+        }
+
+        function renderWatchlistItems() {
+            const container = document.getElementById('watchlistItemsList');
+            if (!container) return;
+            const list = getWatchlist();
+            if (list.length === 0) {
+                container.innerHTML = `
+                    <div class="py-16 text-center text-slate-400">
+                        <i data-lucide="heart-off" class="w-10 h-10 mx-auto mb-2 text-slate-300"></i>
+                        <p class="font-bold text-slate-700 text-sm">Your watchlist is empty</p>
+                        <p class="text-xs text-slate-500 mt-1 max-w-xs mx-auto">Click the heart icon on any deal to save and monitor it here without creating an account.</p>
+                    </div>
+                `;
+                if (window.lucide) lucide.createIcons();
+                return;
+            }
+
+            container.innerHTML = list.map(item => {
+                const storeCfg = STORES[item.platform?.toLowerCase()] || STORES.amazon;
+                return `
+                    <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex gap-3 items-center justify-between group">
+                        <div class="w-14 h-14 rounded-lg bg-white p-1 flex items-center justify-center shrink-0 border border-slate-200 overflow-hidden">
+                            <img src="${item.image_url || '/static/placeholder.svg'}" alt="" class="w-full h-full object-contain" onerror="this.src='/static/placeholder.svg'"/>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-1.5 mb-1">
+                                <span class="px-1.5 py-0.2 rounded text-[9px] font-bold ${storeCfg.badge}">${storeCfg.name}</span>
+                            </div>
+                            <a href="${item.affiliate_url || '#'}" target="_blank" rel="noopener noreferrer" class="text-xs font-bold text-slate-900 hover:text-indigo-600 line-clamp-1 block">
+                                ${escapeHtml(item.title)}
+                            </a>
+                            <div class="flex items-baseline gap-2 mt-1">
+                                <span class="text-sm font-black text-slate-900 font-mono">${formatINR(item.current_price)}</span>
+                                ${item.mrp && item.mrp > item.current_price ? `<span class="text-[11px] text-slate-400 line-through font-mono">${formatINR(item.mrp)}</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-end gap-1.5">
+                            <button onclick="removeWatchlistItem('${item.id}')" class="text-slate-400 hover:text-rose-600 p-1 transition" title="Remove">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                            <a href="${item.affiliate_url || '#'}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] transition">
+                                View
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function removeWatchlistItem(id) {
+            let list = getWatchlist();
+            list = list.filter(item => String(item.id) !== String(id));
+            saveWatchlist(list);
+            renderWatchlistItems();
+            window.dispatchEvent(new CustomEvent('budgetby:watchlistUpdated'));
+        }
+
+        function clearWatchlist() {
+            if (confirm('Clear all saved deals from your device watchlist?')) {
+                saveWatchlist([]);
+                renderWatchlistItems();
+                window.dispatchEvent(new CustomEvent('budgetby:watchlistUpdated'));
+            }
+        }
+
+        function openWatchlistDrawer() {
+            renderWatchlistItems();
+            const overlay = document.getElementById('watchlistDrawerOverlay');
+            const drawer = document.getElementById('watchlistDrawer');
+            overlay.classList.remove('opacity-0', 'pointer-events-none');
+            drawer.classList.remove('translate-x-full');
+        }
+        function closeWatchlistDrawer() {
+            const overlay = document.getElementById('watchlistDrawerOverlay');
+            const drawer = document.getElementById('watchlistDrawer');
+            overlay.classList.add('opacity-0', 'pointer-events-none');
+            drawer.classList.add('translate-x-full');
+        }
+
+        // Mobile Categories Drawer Controller
+        function openMobileCategoryDrawer() {
+            const overlay = document.getElementById('mobileCategoryDrawerOverlay');
+            const drawer = document.getElementById('mobileCategoryDrawer');
+            if (overlay) overlay.classList.remove('opacity-0', 'pointer-events-none');
+            if (drawer) drawer.classList.remove('-translate-x-full');
+            if (window.lucide) lucide.createIcons();
+        }
+        function closeMobileCategoryDrawer() {
+            const overlay = document.getElementById('mobileCategoryDrawerOverlay');
+            const drawer = document.getElementById('mobileCategoryDrawer');
+            if (overlay) overlay.classList.add('opacity-0', 'pointer-events-none');
+            if (drawer) drawer.classList.add('-translate-x-full');
+        }
+
+        // WhatsApp & Direct Link Share Modal
+        let activeShareDeal = null;
+        function openShareModal(deal) {
+            if (!deal) return;
+            activeShareDeal = deal;
+            const container = document.getElementById('shareModalContent');
+            const storeCfg = STORES[deal.platform?.toLowerCase()] || STORES.amazon;
+            const dealUrl = deal.affiliate_url || deal.product_url || window.location.href;
+            
+            container.innerHTML = `
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex gap-3 items-center mb-3">
+                    <div class="w-12 h-12 rounded-lg bg-white p-1 flex items-center justify-center shrink-0 border border-slate-200">
+                        <img src="${deal.image_url || '/static/placeholder.svg'}" class="w-full h-full object-contain" onerror="this.src='/static/placeholder.svg'"/>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <span class="px-1.5 py-0.2 rounded text-[9px] font-bold ${storeCfg.badge}">${storeCfg.name}</span>
+                        <div class="font-bold text-slate-900 truncate mt-0.5">${escapeHtml(deal.title)}</div>
+                        <div class="font-black text-emerald-700 font-mono text-sm">${formatINR(deal.current_price)}</div>
+                    </div>
+                </div>
+            `;
+
+            // Setup WhatsApp link
+            const waText = encodeURIComponent(`🔥 Check out this deal on BudgetBy:
+${deal.title}
+💰 Deal Price: ${formatINR(deal.current_price)}
+🔗 Link: ${dealUrl}`);
+            const waBtn = document.getElementById('shareWhatsAppBtn');
+            if (waBtn) waBtn.href = `https://api.whatsapp.com/send?text=${waText}`;
+
+            const overlay = document.getElementById('shareModalOverlay');
+            overlay.classList.remove('opacity-0', 'pointer-events-none');
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function closeShareModal() {
+            const overlay = document.getElementById('shareModalOverlay');
+            overlay.classList.add('opacity-0', 'pointer-events-none');
+            const copyText = document.getElementById('shareCopyLinkText');
+            if (copyText) copyText.innerText = 'Copy Deal Link';
+        }
+
+        function copyShareDealLink() {
+            if (!activeShareDeal) return;
+            const url = activeShareDeal.affiliate_url || activeShareDeal.product_url || window.location.href;
+            navigator.clipboard.writeText(url).then(() => {
+                const copyText = document.getElementById('shareCopyLinkText');
+                if (copyText) copyText.innerText = '✓ Link Copied to Clipboard!';
+                setTimeout(() => {
+                    closeShareModal();
+                }, 1200);
+            }).catch(() => {
+                prompt('Copy this link:', url);
+            });
+        }
+
+        // Mobile Nav Toggle
+        function toggleMobileMenu() {
+            const drawer = document.getElementById('mobileNavDrawer');
+            if (drawer) {
+                drawer.classList.toggle('hidden');
+            }
+        }
+
+        // Search Autocomplete & Keyboard Hotkey
+        let searchDebounceTimer = null;
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.lucide) lucide.createIcons();
+            updateWatchlistBadge();
+
+            const searchInput = document.getElementById('globalSearchInput');
+            const suggestionsDropdown = document.getElementById('searchSuggestionsDropdown');
+            const clearBtn = document.getElementById('globalSearchClearBtn');
+
+            // '/' Hotkey to focus search
+            document.addEventListener('keydown', (e) => {
+                if (e.key === '/' && document.activeElement !== searchInput && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                    e.preventDefault();
+                    searchInput?.focus();
+                }
+                if (e.key === 'Escape') {
+                    suggestionsDropdown?.classList.add('hidden');
+                    closeWatchlistDrawer();
+                    closeShareModal();
+                    closeReviewModal();
+                }
+            });
+
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    const q = e.target.value.trim();
+                    if (clearBtn) clearBtn.classList.toggle('hidden', q.length === 0);
+                    
+                    if (q.length < 2) {
+                        suggestionsDropdown?.classList.add('hidden');
+                        return;
+                    }
+
+                    clearTimeout(searchDebounceTimer);
+                    searchDebounceTimer = setTimeout(async () => {
+                        try {
+                            const res = await fetch(`/api/public/search-suggestions?q=${encodeURIComponent(q)}`);
+                            const data = await res.json();
+                            const deals = data.suggestions || data.deals || data.items || [];
+                            renderSearchSuggestions(deals, q);
+                        } catch (err) {}
+                    }, 200);
+                });
+
+                searchInput.addEventListener('focus', () => {
+                    if (searchInput.value.trim().length >= 2) {
+                        suggestionsDropdown?.classList.remove('hidden');
+                    }
+                });
+
+                searchInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        const q = searchInput.value.trim();
+                        if (q.length > 0) {
+                            e.preventDefault();
+                            suggestionsDropdown?.classList.add('hidden');
+                            if (window.location.pathname === '/deals' && typeof loadDeals === 'function') {
+                                const searchForm = document.getElementById('globalSearchForm');
+                                if (searchForm) {
+                                    searchForm.dispatchEvent(new Event('submit', { cancelable: true }));
+                                }
+                            } else {
+                                window.location.href = `/deals?search=${encodeURIComponent(q)}`;
+                            }
+                        }
+                    }
+                });
+            }
+
+            if (clearBtn) {
+                clearBtn.addEventListener('click', () => {
+                    if (searchInput) {
+                        searchInput.value = '';
+                        searchInput.focus();
+                        clearBtn.classList.add('hidden');
+                        suggestionsDropdown?.classList.add('hidden');
+                    }
+                });
+            }
+
+            document.addEventListener('click', (e) => {
+                if (!document.getElementById('globalSearchContainer')?.contains(e.target)) {
+                    suggestionsDropdown?.classList.add('hidden');
+                }
+            });
+        });
+
+        function renderSearchSuggestions(deals, query) {
+            const dropdown = document.getElementById('searchSuggestionsDropdown');
+            const list = document.getElementById('searchSuggestionsList');
+            if (!dropdown || !list) return;
+
+            if (deals.length === 0) {
+                list.innerHTML = `
+                    <div class="p-4 text-center text-slate-500">
+                        No matches found for "<span class="text-slate-900 font-bold">${escapeHtml(query)}</span>"
+                    </div>
+                `;
+            } else {
+                list.innerHTML = deals.map(d => {
+                    const storeCfg = STORES[d.platform?.toLowerCase()] || STORES.amazon;
+                    const dealId = d.product_id || d.deal_id || d.id;
+                    const link = dealId ? `/deal/${dealId}` : `/deals?search=${encodeURIComponent(d.title || query)}`;
+                    return `
+                        <a href="${link}" class="p-2.5 flex items-center gap-3 hover:bg-slate-50 transition group">
+                            <div class="w-10 h-10 rounded-lg bg-white p-1 flex items-center justify-center border border-slate-200 shrink-0">
+                                <img src="${d.image_url || '/static/placeholder.svg'}" class="w-full h-full object-contain" onerror="this.src='/static/placeholder.svg'"/>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-1.5 mb-0.5">
+                                    <span class="px-1.5 py-0.2 rounded text-[9px] font-bold ${storeCfg.badge}">${storeCfg.name}</span>
+                                </div>
+                                <div class="font-bold text-slate-900 truncate group-hover:text-indigo-600 transition">${escapeHtml(d.title)}</div>
+                            </div>
+                            <div class="text-right shrink-0">
+                                <div class="font-black text-slate-900 font-mono">${formatINR(d.current_price || d.deal_price)}</div>
+                                ${d.discount_pct ? `<span class="text-[10px] text-emerald-700 font-bold font-mono">-${Math.round(d.discount_pct)}%</span>` : ''}
+                            </div>
+                        </a>
+                    `;
+                }).join('');
+            }
+            dropdown.classList.remove('hidden');
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        
+        // ── Smart Floating Category Dropdown Positioning (Escapes overflow-x-auto) ──
+        (function initCategoryDropdowns() {
+            let currentOpenMenu = null;
+            let hideTimer = null;
+
+            const groups = document.querySelectorAll('.cat-dropdown-group');
+            groups.forEach(group => {
+                const trigger = group.querySelector('.cat-trigger');
+                const menu = group.querySelector('.cat-dropdown-menu');
+                const chevron = trigger ? trigger.querySelector('[data-lucide="chevron-down"]') : null;
+                if (!trigger || !menu) return;
+
+                const showMenu = () => {
+                    if (hideTimer) clearTimeout(hideTimer);
+                    if (currentOpenMenu && currentOpenMenu !== menu) {
+                        currentOpenMenu.classList.add('hidden');
+                        const prevChevron = currentOpenMenu.closest('.cat-dropdown-group')?.querySelector('[data-lucide="chevron-down"]');
+                        if (prevChevron) prevChevron.style.transform = '';
+                    }
+
+                    const rect = trigger.getBoundingClientRect();
+                    menu.style.position = 'fixed';
+                    menu.style.top = (rect.bottom + 2) + 'px';
+                    
+                    const menuWidth = 230;
+                    let left = rect.left;
+                    if (left + menuWidth > window.innerWidth - 12) {
+                        left = Math.max(12, window.innerWidth - menuWidth - 12);
+                    }
+                    menu.style.left = left + 'px';
+                    menu.style.zIndex = '99999';
+                    menu.classList.remove('hidden');
+                    if (chevron) chevron.style.transform = 'rotate(180deg)';
+                    currentOpenMenu = menu;
+                };
+
+                const scheduleHide = () => {
+                    hideTimer = setTimeout(() => {
+                        menu.classList.add('hidden');
+                        if (chevron) chevron.style.transform = '';
+                        if (currentOpenMenu === menu) currentOpenMenu = null;
+                    }, 120);
+                };
+
+                trigger.addEventListener('mouseenter', showMenu);
+                trigger.addEventListener('mouseleave', scheduleHide);
+                menu.addEventListener('mouseenter', () => {
+                    if (hideTimer) clearTimeout(hideTimer);
+                });
+                menu.addEventListener('mouseleave', scheduleHide);
+            });
+
+            const categoryRow = document.getElementById('categoryAisleRow');
+            if (categoryRow) {
+                categoryRow.addEventListener('scroll', () => {
+                    if (currentOpenMenu) {
+                        currentOpenMenu.classList.add('hidden');
+                        currentOpenMenu = null;
+                    }
+                }, { passive: true });
+            }
+            window.addEventListener('scroll', () => {
+                if (currentOpenMenu) {
+                    currentOpenMenu.classList.add('hidden');
+                    currentOpenMenu = null;
+                }
+            }, { passive: true });
+        })();
+
+        // Loading bar helper
+        function showPageProgress() {
+            const bar = document.getElementById('pageProgressBar');
+            if (bar) {
+                bar.style.width = '70%';
+                bar.classList.remove('opacity-0');
+            }
+        }
+        function hidePageProgress() {
+            const bar = document.getElementById('pageProgressBar');
+            if (bar) {
+                bar.style.width = '100%';
+                setTimeout(() => {
+                    bar.classList.add('opacity-0');
+                    bar.style.width = '0%';
+                }, 300);
+            }
+        }
+
+        // Instant Hover Prefetcher: warms the browser/RAM cache on hover/touchstart
+        (function initInstantHoverPrefetch() {
+            const prefetchedUrls = new Set();
+            function prefetchLink(href) {
+                if (!href || href.startsWith('#') || href.startsWith('javascript:') || prefetchedUrls.has(href)) return;
+                try {
+                    const url = new URL(href, window.location.origin);
+                    if (url.origin !== window.location.origin) return; // Only internal links
+                    if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/pnther/')) return;
+                    prefetchedUrls.add(href);
+                    const link = document.createElement('link');
+                    link.rel = 'prefetch';
+                    link.href = href;
+                    link.as = 'document';
+                    document.head.appendChild(link);
+                } catch(e) {}
+            }
+
+            document.addEventListener('mouseover', function(e) {
+                const a = e.target.closest('a');
+                if (a && a.href) prefetchLink(a.getAttribute('href') || a.href);
+            }, { passive: true });
+
+            document.addEventListener('touchstart', function(e) {
+                const a = e.target.closest('a');
+                if (a && a.href) prefetchLink(a.getAttribute('href') || a.href);
+            }, { passive: true });
+        })();
+    </script>
+
+    {% block extra_scripts %}{% endblock %}
+
+    <!-- ── Mobile Sticky Bottom Navigation Bar ────────────────────────────── -->
+    <div class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 px-2 py-1.5 flex items-center justify-around text-center shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
+        <a href="/" class="flex flex-col items-center gap-0.5 py-1 px-3 rounded-xl {% if active_page == 'home' %}text-indigo-600 font-black{% else %}text-slate-500 font-medium hover:text-slate-900{% endif %} transition">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span class="text-[10px]">Home</span>
+        </a>
+        <a href="/deals" class="flex flex-col items-center gap-0.5 py-1 px-3 rounded-xl {% if active_page == 'deals' %}text-indigo-600 font-black{% else %}text-slate-500 font-medium hover:text-slate-900{% endif %} transition">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>
+            <span class="text-[10px]">Deals</span>
+        </a>
+        <a href="/drops" class="flex flex-col items-center gap-0.5 py-1 px-3 rounded-xl {% if active_page == 'drops' %}text-rose-600 font-black{% else %}text-slate-500 font-medium hover:text-rose-600{% endif %} transition">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>
+            <span class="text-[10px]">Drops</span>
+        </a>
+        <a href="/all-time-lows" class="flex flex-col items-center gap-0.5 py-1 px-3 rounded-xl {% if active_page == 'atl' %}text-amber-600 font-black{% else %}text-slate-500 font-medium hover:text-amber-600{% endif %} transition">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
+            <span class="text-[10px]">ATLs</span>
+        </a>
+        <button onclick="openWatchlistDrawer()" class="flex flex-col items-center gap-0.5 py-1 px-3 rounded-xl text-slate-500 font-medium hover:text-rose-600 transition relative">
+            <svg class="w-4 h-4 text-rose-500 fill-rose-500/20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+            <span class="text-[10px]">Saved</span>
+            <span id="watchlistCountBadgeMobile" class="hidden absolute top-0.5 right-2 px-1 rounded-full text-[8px] font-extrabold bg-rose-500 text-white">0</span>
+        </button>
+    </div>
+
+    <!-- Lucide Icons: Local bundle with defer (Cached in browser) -->
+    <script src="/static/lucide.min.js" defer></script>
+
+    <!-- Global Lucide Icon Initializer -->
+    <script>
+        function initializeLucideGlobal() {
+            if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                window.lucide.createIcons();
+            }
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeLucideGlobal);
+        } else {
+            initializeLucideGlobal();
+        }
+        window.addEventListener('load', initializeLucideGlobal);
+    </script>
+</body>
+</html>

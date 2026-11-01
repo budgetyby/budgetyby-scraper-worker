@@ -1,0 +1,32 @@
+{% extends "consumer/layout.html" %}
+
+{% block title %}Page Not Found (404) — BudgetBy{% endblock %}
+{% block description %}The deal or page you are looking for does not exist or has expired.{% endblock %}
+
+{% block content %}
+<main class="w-full max-w-4xl mx-auto px-4 sm:px-6 py-20 text-center flex flex-col items-center justify-center min-h-[60vh]">
+    <div class="w-20 h-20 rounded-3xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-4xl mb-6 shadow-inner">
+        🔍
+    </div>
+    <span class="px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-xs font-black uppercase tracking-wider mb-3 font-mono">
+        404 — Page Not Found
+    </span>
+    <h1 class="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight mb-3">
+        Looking for a Price Drop?
+    </h1>
+    <p class="text-slate-600 text-sm max-w-md mx-auto mb-8 leading-relaxed">
+        The product or link you are looking for might have been updated, expired, or moved. Explore the latest verified live deals below.
+    </p>
+
+    <div class="flex flex-wrap items-center justify-center gap-3 w-full max-w-sm">
+        <a href="/" class="flex-1 py-3 px-5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/25 transition active:scale-98">
+            <i data-lucide="home" class="w-4 h-4"></i>
+            <span>Back to Home</span>
+        </a>
+        <a href="/deals" class="flex-1 py-3 px-5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs flex items-center justify-center gap-2 border border-slate-300 transition active:scale-98">
+            <i data-lucide="tag" class="w-4 h-4 text-indigo-600"></i>
+            <span>Browse Deals</span>
+        </a>
+    </div>
+</main>
+{% endblock %}

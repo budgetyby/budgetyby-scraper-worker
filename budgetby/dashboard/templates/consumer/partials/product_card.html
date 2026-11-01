@@ -1,0 +1,129 @@
+{% set cp = deal.current_price or deal.deal_price or deal.posted_price or 0 %}
+{% set mrp = deal.mrp or deal.posted_mrp or 0 %}
+{% set has_discount = mrp > cp %}
+{% set discount_pct = ((((mrp - cp) / mrp) * 100)|round_int) if (has_discount and mrp > 0) else (deal.discount_pct or deal.discount_percent or deal.savings_pct or 0) %}
+{% set savings = (mrp - cp) if has_discount else (deal.savings_amount or 0) %}
+{% set platform = (deal.platform or 'store')|lower %}
+{% set pid = deal.product_id or deal.id or 0 %}
+{% set buy_url = deal.affiliate_url or (('/api/deal/redirect/' ~ pid) if (pid and pid > 0) else '') %}
+{% set rating = deal.rating or 0 %}
+{% set reviews = deal.review_count or 0 %}
+{% set is_atl = deal.is_atl or (deal.all_time_low and cp <= (deal.all_time_low * 1.02)) %}
+
+{% set deal_url = ('/deal/' ~ pid) if (pid and pid > 0) else (buy_url if buy_url else '#') %}
+
+<div data-deal-id="{{ pid }}" class="cv-auto bg-white border border-slate-200/90 hover:border-indigo-400 rounded-2xl p-3 sm:p-3.5 flex flex-col justify-between transition-all duration-200 shadow-sm hover:shadow-md group relative">
+    <div>
+        <!-- Store Badge & ATL/Status Tag -->
+        <div class="flex items-center justify-between gap-1.5 mb-2">
+            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider {{ platform|store_badge }}">
+                {{ platform|store_name }}
+            </span>
+            {% if is_atl %}
+            <span class="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-amber-50 text-amber-800 border border-amber-200 uppercase font-mono flex items-center gap-1">
+                <span>👑</span> ATL
+            </span>
+            {% elif discount_pct >= 60 %}
+            <span class="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-rose-50 text-rose-700 border border-rose-200 uppercase font-mono">
+                🔥 LOOT
+            </span>
+            {% endif %}
+        </div>
+
+        <!-- Product Image Area -->
+        <div class="relative w-full h-36 sm:h-44 rounded-xl bg-slate-50 p-2 flex items-center justify-center overflow-hidden border border-slate-100">
+            <a href="{{ deal_url }}" class="w-full h-full flex items-center justify-center">
+                <img src="{{ deal.image_url or '/static/placeholder.svg' }}" 
+                     alt="{{ deal.title or 'Product Deal' }}" 
+                     class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                     loading="lazy"
+                     decoding="async"
+                     onerror="this.onerror=null;this.src='/static/placeholder.svg'" />
+            </a>
+            
+            {% if is_atl %}
+            <span class="absolute top-2 left-2 px-1.5 py-0.5 rounded-md text-[9px] font-black bg-amber-500 text-slate-950 uppercase font-mono shadow-sm">
+                🏆 ATL
+            </span>
+            {% elif discount_pct >= 60 %}
+            <span class="absolute top-2 left-2 px-1.5 py-0.5 rounded-md text-[9px] font-black bg-rose-600 text-white uppercase font-mono shadow-sm">
+                🔥 LOOT
+            </span>
+            {% endif %}
+
+            <!-- Save to Watchlist -->
+            <button onclick="handleHomeWatchlist(this, {{ pid }})" 
+                    class="absolute top-2 right-2 p-1.5 rounded-xl bg-white/90 backdrop-blur-md border border-slate-200 text-slate-400 hover:text-rose-500 transition shadow-sm" 
+                    title="Save to Watchlist">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+            </button>
+        </div>
+
+        <!-- Ratings Row -->
+        <div class="mt-2 flex items-center justify-between text-[10px] text-slate-500">
+            {% if rating and rating > 0 %}
+            <span class="flex items-center gap-1 font-bold text-amber-600 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200/60">
+                <span>★</span> {{ "%.1f"|format(rating) }}{% if reviews and reviews > 0 %} <span class="text-slate-400 font-normal">({{ reviews }})</span>{% endif %}
+            </span>
+            {% else %}
+            <span class="text-slate-400 text-[10px] font-medium">Live Verified</span>
+            {% endif %}
+        </div>
+
+        <!-- Title -->
+        <div class="mt-1.5">
+            <a href="{{ deal_url }}" 
+               class="text-xs font-bold text-slate-900 hover:text-indigo-600 line-clamp-2 break-words transition leading-snug" 
+               title="{{ deal.title or '' }}">
+                {{ deal.title or '' }}
+            </a>
+        </div>
+    </div>
+
+    <!-- Price & Purchase Action -->
+    <div class="mt-3 pt-2.5 border-t border-slate-100">
+        <div class="flex items-baseline justify-between gap-1 mb-2">
+            <div class="flex items-baseline gap-1.5 flex-wrap">
+                <span class="text-base sm:text-lg font-black text-slate-900 font-mono">{{ cp|format_inr }}</span>
+                {% if has_discount and mrp > cp %}
+                <span class="text-xs text-slate-400 line-through font-mono">{{ mrp|format_inr }}</span>
+                {% endif %}
+                {% if discount_pct and discount_pct > 0 %}
+                <span class="text-xs font-black text-rose-600 font-mono">({{ discount_pct|round_int }}% OFF)</span>
+                {% endif %}
+            </div>
+            {% if savings > 0 %}
+            <div class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 font-mono shrink-0">
+                Save {{ savings|format_inr }}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Buy CTA Button -->
+        {% if buy_url %}
+        <a href="{{ buy_url }}" target="_blank" rel="noopener noreferrer" 
+           class="w-full py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 transition shadow-sm shadow-indigo-600/20 active:scale-98">
+            <span>Buy on {{ platform|store_name }}</span>
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+        {% else %}
+        <div class="w-full py-2 px-3 rounded-xl bg-slate-100 text-slate-400 font-bold text-xs flex items-center justify-center gap-1.5 cursor-not-allowed">
+            <span>Price Tracked on {{ platform|store_name }}</span>
+        </div>
+        {% endif %}
+
+        <!-- Price Change Reporting -->
+        <div class="mt-2 flex items-center justify-between text-[10px] text-slate-400 pt-1.5 border-t border-slate-50">
+            <span class="text-[10px] text-slate-400">Tracked Deal</span>
+            <button onclick="handleSendForReview(this)" 
+                    data-pid="{{ pid }}" 
+                    data-title="{{ (deal.title or '')|replace('"', '&quot;') }}" 
+                    data-url="{{ buy_url }}" 
+                    data-price="{{ cp }}"
+                    class="font-semibold text-indigo-600 hover:text-indigo-800 transition flex items-center gap-1">
+                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+                <span>Request Price Check</span>
+            </button>
+        </div>
+    </div>
+</div>
