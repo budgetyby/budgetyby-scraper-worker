@@ -100,10 +100,19 @@ async def run_paced_30s_broadcaster():
                 prod_dict = dict(deal_row)
                 prod_dict["id"] = pid
 
-                # Ensure affiliate tracking link is active
+                # 100% STRICT AFFILIATE CONVERSION ENFORCEMENT
+                # Never post raw merchant links. Only post official verified affiliate tracking shortlinks.
+                from budgetby.cloud_scraper import is_valid_affiliate_shortlink
                 aff_url = await get_or_create_affiliate_link(prod_dict)
-                if aff_url:
-                    prod_dict["affiliate_url"] = aff_url
+                if not aff_url or not is_valid_affiliate_shortlink(aff_url, prod_dict.get("platform")):
+                    logger.warning(
+                        f"⚠️ [AFFILIATE GUARD] Product {pid} ({prod_dict.get('platform')}) has unconverted link. "
+                        f"Skipping post to guarantee 100% affiliate compliance."
+                    )
+                    await asyncio.sleep(2)
+                    continue
+
+                prod_dict["affiliate_url"] = aff_url
 
                 # Format message
                 score = float(deal_row.get("deal_score") or 50.0)

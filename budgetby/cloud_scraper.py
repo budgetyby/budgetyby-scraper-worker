@@ -41,6 +41,25 @@ scrapers = {
     "nykaa": NykaaScraper(),
 }
 
+def is_valid_affiliate_shortlink(url: str, platform: str = "") -> bool:
+    """Strict verification that a URL is an official monetized affiliate shortlink."""
+    if not url:
+        return False
+    u = url.lower().strip()
+    plat = (platform or "").lower().strip()
+    if plat == "amazon":
+        return ("dealpulse21-21" in u) or ("amzn.to" in u)
+    elif plat == "flipkart":
+        return ("fktr.in" in u) or ("ekaro.in" in u)
+    elif plat == "myntra":
+        return ("myntr.it" in u) or ("ekaro.in" in u)
+    elif plat == "ajio":
+        return ("ajiio.in" in u) or ("ekaro.in" in u)
+    elif plat == "nykaa":
+        return ("clnk.in" in u)
+    return any(domain in u for domain in ("fktr.in", "myntr.it", "ajiio.in", "clnk.in", "amzn.to", "dealpulse21-21"))
+
+
 _telethon_client = None
 
 async def get_cloud_telethon_client():
@@ -49,15 +68,15 @@ async def get_cloud_telethon_client():
     if _telethon_client is not None and _telethon_client.is_connected():
         return _telethon_client
 
-    session_str = os.environ.get("TELEGRAM_SESSION_STRING", "").strip()
-    api_id = os.environ.get("TG_API_ID", "").strip() or "31137769"
-    api_hash = os.environ.get("TG_API_HASH", "").strip() or "950fe9035f62264b68f02b5ae31559c6"
+    session_str = (getattr(config, "TELEGRAM_SESSION_STRING", "") or os.environ.get("TELEGRAM_SESSION_STRING", "")).strip()
+    api_id = getattr(config, "TG_API_ID", 24803975)
+    api_hash = getattr(config, "TG_API_HASH", "551e18d6a36f5628543788220f8bb152")
 
     if not session_str:
         # Check if local session file exists
         if os.path.exists("telegram_user.session"):
             from telethon import TelegramClient
-            _telethon_client = TelegramClient("telegram_user", int(api_id), api_hash)
+            _telethon_client = TelegramClient("telegram_user", int(api_id), str(api_hash))
             await _telethon_client.connect()
             if await _telethon_client.is_user_authorized():
                 logger.info("Connected to Telethon MTProto via local session file.")
@@ -67,7 +86,7 @@ async def get_cloud_telethon_client():
         try:
             from telethon import TelegramClient
             from telethon.sessions import StringSession
-            _telethon_client = TelegramClient(StringSession(session_str), int(api_id), api_hash)
+            _telethon_client = TelegramClient(StringSession(session_str), int(api_id), str(api_hash))
             await _telethon_client.connect()
             if await _telethon_client.is_user_authorized():
                 logger.info("Connected to Telethon MTProto via cloud TELEGRAM_SESSION_STRING.")
@@ -99,7 +118,7 @@ async def convert_via_cloud_telegram_bots(url: str, platform: str) -> str | None
                     if any(d in short_link.lower() for d in ("fktr.in", "myntr.it", "ajiio.in", "ekaro.in")):
                         return short_link
         elif plat == "nykaa":
-            async with client.conversation("CuelinksBot", timeout=12) as conv:
+            async with client.conversation("cuelinks_bot", timeout=12) as conv:
                 await conv.send_message(url)
                 resp = await conv.get_response()
                 txt = (resp.text or "").strip()
@@ -113,20 +132,32 @@ async def convert_via_cloud_telegram_bots(url: str, platform: str) -> str | None
     return None
 
 
-async def get_or_create_affiliate_link(prod: dict) -> str:
-    """Ensure product has a valid, monetized tracking link for cloud posting and clickouts."""
+async def get_or_create_affiliate_link(prod: dict) -> str | None:
+    """
+    Ensure product has a valid, monetized tracking link for cloud posting and clickouts.
+    Strictly returns None if the link is not an official affiliate shortlink.
+    """
     platform = (prod.get("platform") or "").lower().strip()
     prod_url = prod.get("product_url") or ""
     aff_url = prod.get("affiliate_url") or ""
+    pid = prod.get("id") or prod.get("product_id")
 
     if platform == "amazon":
         asin = extract_asin(prod_url) or extract_asin(aff_url)
         if asin:
-            return build_affiliate_url(asin)
+            aff_link = build_affiliate_url(asin)
+            if aff_link and pid:
+                try:
+                    await database.execute("UPDATE products SET affiliate_url = $1 WHERE id = $2;", aff_link, pid)
+                except Exception:
+                    pass
+            return aff_link
         tag = getattr(config, "AMAZON_ASSOCIATE_TAG", "dealpulse21-21")
         target = prod_url or aff_url
-        sep = "&" if "?" in target else "?"
-        return f"{target}{sep}tag={tag}"
+        if target:
+            sep = "&" if "?" in target else "?"
+            return f"{target}{sep}tag={tag}"
+        return None
 
     elif platform in ("flipkart", "myntra", "ajio"):
         # If already a valid shortlink, reuse it
@@ -134,21 +165,30 @@ async def get_or_create_affiliate_link(prod: dict) -> str:
             return aff_url
         # Attempt conversion via real Telegram bot @ekconverter9bot
         bot_link = await convert_via_cloud_telegram_bots(prod_url or aff_url, platform)
-        if bot_link:
+        if bot_link and any(d in bot_link.lower() for d in ("fktr.in", "myntr.it", "ajiio.in", "ekaro.in")):
+            if pid:
+                try:
+                    await database.execute("UPDATE products SET affiliate_url = $1 WHERE id = $2;", bot_link, pid)
+                except Exception:
+                    pass
             return bot_link
-        # Direct fallback: official EarnKaro tracking parameters
-        return build_earnkaro_url_sync(prod_url or aff_url)
+        return None
 
     elif platform == "nykaa":
         if aff_url and "clnk.in" in aff_url.lower():
             return aff_url
-        # Attempt conversion via @CuelinksBot
+        # Attempt conversion via @cuelinks_bot
         bot_link = await convert_via_cloud_telegram_bots(prod_url or aff_url, platform)
-        if bot_link:
+        if bot_link and "clnk.in" in bot_link.lower():
+            if pid:
+                try:
+                    await database.execute("UPDATE products SET affiliate_url = $1 WHERE id = $2;", bot_link, pid)
+                except Exception:
+                    pass
             return bot_link
-        return await build_cuelinks_url(prod_url or aff_url)
+        return None
 
-    return aff_url or prod_url
+    return None
 
 
 async def post_deal_to_telegram(product: dict, deal_result: dict) -> bool:
