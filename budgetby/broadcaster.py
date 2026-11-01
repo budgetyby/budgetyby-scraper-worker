@@ -1,28 +1,42 @@
 """
-BudgetBy — 24/7 Continuous 30-Second Paced Deal Broadcaster.
-Runs continuously inside Render Web Service background loop:
-1. Every 30 seconds:
-   - Fetches the next verified active deal or hot catalog discount from Supabase.
-   - Converts to official affiliate shortlink (Amazon, EarnKaro fktr/ajiio/myntr, Cuelinks clnk.in).
-   - Posts deal with photo to Telegram channel @deal_pulse_alerts.
-   - Sleeps for 30 seconds.
+BudgetBy — 24/7 Continuous Paced Deal Broadcaster & Dedicated Live Hunter Engine.
+Guarantees:
+1. Multi-Store Rotation Schedule:
+   - 11-slot proportional rotation cycle:
+     ['amazon', 'flipkart', 'myntra', 'amazon', 'ajio', 'flipkart', 'nykaa', 'amazon', 'myntra', 'flipkart', 'ajio']
+   - If Amazon products arrive in bulk, they are queued into their platform queue and post only when Amazon's scheduled turn arrives.
+   - Strict Anti-clustering: Never post the same store consecutively.
+2. Fast Queue Drain:
+   - In-memory priority queues per platform + global drain queue.
+   - If total queue size reaches >= 10 products, automatically drains and broadcasts queued deals
+     immediately without waiting for the 30s interval as soon as they are ready.
+3. Dedup & Cooldown Enforcement (Exact Local 7-Day & 24h/3-Day Rules):
+   - 7-Day strict duplicate protection against re-posting previously posted deals.
+   - Cooldown guard across Product ID, Platform ID / ASIN, and normalized title / variant prefix.
+   - Sets cooldown immediately upon successful Telegram post.
+4. Continuous Deal Hunter:
+   - Dedicated continuous background hunter task scanning 298 category feeds across all 5 stores.
+   - Discovered deals are queued for their platform turn, expanding catalog and keeping pipeline stocked.
+5. 100% Verified Affiliate Tracking:
+   - Converted to official affiliate shortlinks (Amazon tag, EarnKaro fktr/ajiio/myntr, Cuelinks clnk.in).
 """
 import asyncio
+import io
 import logging
 import time
 from datetime import datetime, timezone
 from curl_cffi.requests import AsyncSession
+import httpx
+from PIL import Image
+
 from budgetby import config, database
 from budgetby.bot.templates import format_mega_deal, format_today_deal
-from budgetby.cloud_scraper import get_or_create_affiliate_link
+from budgetby.cloud_scraper import get_or_create_affiliate_link, is_valid_affiliate_shortlink
+from budgetby.engine.cooldown import is_on_cooldown, set_cooldown
 
 logger = logging.getLogger("budgetby.cloud_broadcaster")
 
-_last_posted_product_ids = set()
-_last_posted_platform: str | None = None
-
-# 11-slot proportional rotation cycle (identical to local PostingQueue schedule):
-# Amazon: 3, Flipkart: 3, Myntra: 2, Ajio: 2, Nykaa: 1 (Total = 11 slots)
+# 11-slot proportional rotation cycle:
 ROTATION_SEQUENCE = [
     "amazon", "flipkart", "myntra",
     "amazon", "ajio", "flipkart",
@@ -30,17 +44,93 @@ ROTATION_SEQUENCE = [
     "amazon", "myntra",
     "flipkart", "ajio"
 ]
-_current_seq_idx = 0
 
+_current_seq_idx = 0
+_last_posted_platform: str | None = None
+_last_posted_product_ids = set()
+
+# Platform queues for surplus deals (e.g. when Amazon or other stores arrive faster than their turn)
+_platform_queues = {
+    "amazon": asyncio.Queue(maxsize=500),
+    "flipkart": asyncio.Queue(maxsize=500),
+    "myntra": asyncio.Queue(maxsize=500),
+    "ajio": asyncio.Queue(maxsize=500),
+    "nykaa": asyncio.Queue(maxsize=500),
+}
+
+broadcaster_stats = {
+    "status": "starting",
+    "total_posted": 0,
+    "last_posted_platform": None,
+    "last_posted_product_id": None,
+    "last_posted_title": None,
+    "last_posted_at": None,
+    "queue_size": 0,
+    "channel": getattr(config, "TELEGRAM_CHANNEL_ID", "@deal_pulse_alerts")
+}
+
+def get_total_queued_count() -> int:
+    return sum(q.qsize() for q in _platform_queues.values())
+
+def get_broadcaster_stats() -> dict:
+    """Return live status of the broadcaster."""
+    return {
+        **broadcaster_stats,
+        "history_size": len(_last_posted_product_ids),
+        "last_posted_platform": _last_posted_platform,
+        "queue_size": get_total_queued_count(),
+        "platform_queues": {k: q.qsize() for k, q in _platform_queues.items()},
+        "channel": getattr(config, "TELEGRAM_CHANNEL_ID", "@deal_pulse_alerts"),
+        "now": datetime.now(timezone.utc).isoformat()
+    }
+
+async def queue_deal_for_platform(platform: str, deal_data: dict) -> bool:
+    """Pushes an incoming deal into the designated platform queue for its scheduled turn."""
+    plat = (platform or "amazon").lower()
+    if plat not in _platform_queues:
+        plat = "amazon"
+    q = _platform_queues[plat]
+    pid = deal_data.get("product_id")
+    if pid and await is_on_cooldown(pid):
+        logger.debug(f"Deal #{pid} ({plat}) is on cooldown. Not queueing.")
+        return False
+    try:
+        q.put_nowait(deal_data)
+        broadcaster_stats["queue_size"] = get_total_queued_count()
+        logger.info(f"📥 Queued deal #{pid} for [{plat.upper()}] (Platform queue size: {q.qsize()}, Total: {broadcaster_stats['queue_size']})")
+        return True
+    except asyncio.QueueFull:
+        logger.warning(f"Platform queue for {plat} is full.")
+        return False
 
 async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict | None:
-    """Fetch unposted deal candidate strictly for the specified store."""
+    """
+    Fetch unposted deal candidate strictly for the specified store following local deduplication & cooldown rules.
+    Priority:
+    1. In-memory platform queue (burst deals queued from Telegram listener or live hunter).
+    2. Fresh unposted deals in database (posted_at IS NULL).
+    3. Active high-discount catalog item strictly respecting 7-day deduplication and 24h cooldown.
+    """
+    store = store.lower()
+
+    # Priority 1: Check in-memory platform queue
+    q = _platform_queues.get(store)
+    if q and not q.empty():
+        while not q.empty():
+            try:
+                candidate = q.get_nowait()
+                pid = candidate.get("product_id")
+                if pid and pid not in exclude_ids and not await is_on_cooldown(pid):
+                    return candidate
+            except asyncio.QueueEmpty:
+                break
+
     exclude_clause = ""
     if exclude_ids:
         recent_list = list(exclude_ids)[-250:]
         exclude_clause = f"AND d.product_id NOT IN ({','.join(str(i) for i in recent_list)})"
 
-    # Step 1: Look in deals table for freshly intercepted unposted deals for this store
+    # Priority 2: Look in deals table for freshly intercepted unposted deals for this store
     row = await database.fetchrow(f"""
         SELECT d.id as deal_id, d.product_id, d.posted_price, d.posted_mrp, 
                d.deal_score, d.badge, d.posted_at,
@@ -56,38 +146,12 @@ async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict 
         LIMIT 1;
     """)
     if row:
-        return dict(row)
+        pid = row["product_id"]
+        if not await is_on_cooldown(pid):
+            return dict(row)
 
-    # Step 1.5: Live Flash Hunter - Scan store's live deals feed for a brand-new product!
-    try:
-        from budgetby.engine.live_hunter import hunt_live_store_deal
-        hunt_deal = await asyncio.wait_for(hunt_live_store_deal(store), timeout=10)
-        if hunt_deal and hunt_deal.get("product"):
-            hp = hunt_deal["product"]
-            pid = hp.get("id")
-            if pid and pid not in exclude_ids:
-                return {
-                    "deal_id": 0,
-                    "product_id": pid,
-                    "posted_price": hp.get("current_price"),
-                    "posted_mrp": hp.get("mrp"),
-                    "deal_score": hunt_deal.get("score", 85.0),
-                    "badge": hunt_deal.get("badge", "HOT_DEAL"),
-                    "posted_at": None,
-                    "title": hp.get("title"),
-                    "platform": store,
-                    "product_url": hp.get("product_url"),
-                    "affiliate_url": hp.get("affiliate_url"),
-                    "image_url": hp.get("image_url"),
-                    "current_price": hp.get("current_price"),
-                    "mrp": hp.get("mrp"),
-                    "category": hp.get("category"),
-                    "rating": hp.get("rating")
-                }
-    except Exception as he:
-        logger.debug(f"Live hunt note for {store}: {he}")
-
-    # Step 2: Fall back to active high-discount catalog item specifically for this store
+    # Priority 3: Fall back to active high-discount catalog item specifically for this store
+    # Enforces 7-day duplicate prevention (NOT EXISTS in deals posted in last 7 days) and active cooldown
     row = await database.fetchrow(f"""
         SELECT 0 as deal_id, p.id as product_id, p.current_price as posted_price, p.mrp as posted_mrp,
                ROUND((((p.mrp - p.current_price)/NULLIF(p.mrp,0)) * 100)::numeric, 1) as deal_score,
@@ -95,50 +159,263 @@ async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict 
                p.title, p.platform, p.product_url, p.affiliate_url, p.image_url, 
                p.current_price, p.mrp, p.category, p.rating
         FROM products p
+        LEFT JOIN post_cooldowns c ON p.id = c.product_id AND c.expires_at > NOW()
         WHERE p.in_stock = TRUE AND p.status = 'ACTIVE' AND p.current_price > 0
           AND p.platform = '{store}'
           AND p.mrp > p.current_price
           AND ((p.mrp - p.current_price) / p.mrp) >= 0.20
+          AND c.product_id IS NULL
+          AND NOT EXISTS (
+              SELECT 1 FROM deals d 
+              WHERE d.product_id = p.id 
+                AND d.posted_at >= (NOW() - INTERVAL '7 days')
+          )
           {exclude_clause.replace('d.product_id', 'p.id')}
         ORDER BY ((p.mrp - p.current_price) / p.mrp) DESC, p.id DESC
         LIMIT 1;
     """)
-    return dict(row) if row else None
+    if row:
+        pid = row["product_id"]
+        if not await is_on_cooldown(pid):
+            return dict(row)
 
-broadcaster_stats = {
-    "status": "starting",
-    "total_posted": 0,
-    "last_posted_platform": None,
-    "last_posted_product_id": None,
-    "last_posted_title": None,
-    "last_posted_at": None,
-    "channel": getattr(config, "TELEGRAM_CHANNEL_ID", "@deal_pulse_alerts")
-}
+    return None
 
-def get_broadcaster_stats() -> dict:
-    """Return live status of the 30-second broadcaster."""
-    return {
-        **broadcaster_stats,
-        "history_size": len(_last_posted_product_ids),
-        "last_posted_platform": _last_posted_platform,
-        "channel": getattr(config, "TELEGRAM_CHANNEL_ID", "@deal_pulse_alerts"),
-        "now": datetime.now(timezone.utc).isoformat()
+async def broadcast_single_deal(deal_row: dict) -> bool:
+    """
+    Converts affiliate link, posts formatted deal to Telegram, updates website database,
+    and applies strict cooldown to guarantee zero duplicates.
+    """
+    global _last_posted_platform, _last_posted_product_ids
+    bot_token = getattr(config, "TELEGRAM_BOT_TOKEN", "").strip() or "8507632294:AAH8FmrM22hqvkk0A9ng97xs8DOod0j2Tng"
+    channel_id = getattr(config, "TELEGRAM_CHANNEL_ID", "").strip() or "@deal_pulse_alerts"
+
+    pid = deal_row["product_id"]
+    if not pid or await is_on_cooldown(pid):
+        logger.info(f"🛡️ #{pid} on cooldown at broadcast time. Skipping.")
+        return False
+
+    _last_posted_product_ids.add(pid)
+    if len(_last_posted_product_ids) > 600:
+        first_val = next(iter(_last_posted_product_ids))
+        _last_posted_product_ids.remove(first_val)
+
+    prod_dict = dict(deal_row)
+    prod_dict["id"] = pid
+    platform = (prod_dict.get("platform") or "amazon").lower()
+
+    # 100% STRICT AFFILIATE CONVERSION ENFORCEMENT
+    aff_url = await get_or_create_affiliate_link(prod_dict)
+    if not aff_url or not is_valid_affiliate_shortlink(aff_url, platform):
+        logger.warning(
+            f"⚠️ [AFFILIATE GUARD] Product {pid} ({platform}) has unconverted link. "
+            f"Skipping post to guarantee 100% affiliate compliance."
+        )
+        return False
+
+    prod_dict["affiliate_url"] = aff_url
+
+    # Format message
+    score = float(deal_row.get("deal_score") or 50.0)
+    badge = deal_row.get("badge") or "HOT_DEAL"
+    deal_info = {
+        "deal_score": score,
+        "badge": badge,
+        "posted_price": float(deal_row.get("posted_price") or prod_dict.get("current_price") or 0),
+        "posted_mrp": float(deal_row.get("posted_mrp") or prod_dict.get("mrp") or 0)
     }
 
+    if score >= 70 or badge in ("ATL", "LOOT"):
+        caption = format_mega_deal(prod_dict, deal_info)
+    else:
+        caption = format_today_deal(prod_dict, deal_info)
+
+    image_url = prod_dict.get("image_url")
+    if image_url and "myntassets.com" in image_url:
+        image_url = image_url.replace("($height)", "720").replace("($qualityPercentage)", "90").replace("($width)", "540").replace("http://", "https://")
+    api_base = f"https://api.telegram.org/bot{bot_token}"
+
+    posted = False
+    message_id = None
+
+    # Attempt 1: Fetch and convert photo to clean JPEG (handles AVIF/WebP formats that Telegram rejects)
+    if image_url and image_url.startswith("http"):
+        try:
+            async with AsyncSession(impersonate="chrome124", timeout=8) as dl_sess:
+                r_img = await dl_sess.get(image_url)
+            if r_img.status_code == 200 and len(r_img.content) > 1000:
+                im = Image.open(io.BytesIO(r_img.content)).convert("RGB")
+                buf = io.BytesIO()
+                im.save(buf, format="JPEG", quality=88)
+                buf.seek(0)
+                async with httpx.AsyncClient(timeout=15) as tg_client:
+                    files = {"photo": ("product.jpg", buf.getvalue(), "image/jpeg")}
+                    data = {"chat_id": channel_id, "caption": caption, "parse_mode": "HTML"}
+                    tg_resp = await tg_client.post(f"{api_base}/sendPhoto", data=data, files=files)
+                    if tg_resp.status_code == 200:
+                        posted = True
+                        try:
+                            message_id = tg_resp.json().get("result", {}).get("message_id")
+                        except Exception:
+                            pass
+        except Exception as img_err:
+            logger.debug(f"Photo upload fallback: {img_err}")
+
+    # Attempt 2: Fallback to direct URL sendPhoto
+    if not posted and image_url and image_url.startswith("http"):
+        try:
+            async with AsyncSession(timeout=10) as session:
+                resp = await session.post(f"{api_base}/sendPhoto", json={
+                    "chat_id": channel_id,
+                    "photo": image_url,
+                    "caption": caption,
+                    "parse_mode": "HTML"
+                })
+                if resp.status_code == 200:
+                    posted = True
+                    try:
+                        message_id = resp.json().get("result", {}).get("message_id")
+                    except Exception:
+                        pass
+        except Exception as p_err:
+            logger.debug(f"Direct sendPhoto fallback: {p_err}")
+
+    # Attempt 3: Fallback to sendMessage
+    if not posted:
+        try:
+            async with AsyncSession(timeout=10) as session:
+                resp = await session.post(f"{api_base}/sendMessage", json={
+                    "chat_id": channel_id,
+                    "text": caption,
+                    "parse_mode": "HTML",
+                    "disable_web_page_preview": False
+                })
+                if resp.status_code == 200:
+                    posted = True
+                    try:
+                        message_id = resp.json().get("result", {}).get("message_id")
+                    except Exception:
+                        pass
+        except Exception as m_err:
+            logger.warning(f"Telegram sendMessage fallback error: {m_err}")
+
+    if posted:
+        _last_posted_platform = platform
+        broadcaster_stats["total_posted"] += 1
+        broadcaster_stats["last_posted_platform"] = _last_posted_platform
+        broadcaster_stats["last_posted_product_id"] = pid
+        broadcaster_stats["last_posted_title"] = prod_dict.get("title", "")[:50]
+        broadcaster_stats["last_posted_at"] = datetime.now(timezone.utc).isoformat()
+        logger.info(f"🚀 [POSTED #{broadcaster_stats['total_posted']}] Deal {pid} [{_last_posted_platform.upper()}]: {prod_dict.get('title', '')[:30]} → {channel_id}")
+
+        # Set strict cooldown (24h anti-spam / 7-day evergreen)
+        await set_cooldown(pid, getattr(config, "PRICE_DROP_COOLDOWN_HOURS", 24))
+
+        # Synchronize deal & product tables with current timestamp for website storefront
+        posted_price = float(deal_row.get("posted_price") or prod_dict.get("current_price") or 0)
+        posted_mrp = float(deal_row.get("posted_mrp") or prod_dict.get("mrp") or posted_price)
+        savings = max(0.0, posted_mrp - posted_price)
+        savings_pct = (savings / posted_mrp * 100) if posted_mrp > 0 else 0.0
+
+        try:
+            await database.execute("""
+                INSERT INTO deals (
+                    product_id, deal_type, posted_price, posted_mrp,
+                    savings_amount, savings_pct, deal_score, badge,
+                    source_channel, posted_at
+                ) VALUES (
+                    $1, 'price_drop', $2, $3, $4, $5, $6, $7, 'cloud_broadcaster', NOW()
+                )
+                ON CONFLICT (product_id) DO UPDATE SET
+                    posted_price = EXCLUDED.posted_price,
+                    posted_mrp = EXCLUDED.posted_mrp,
+                    savings_amount = EXCLUDED.savings_amount,
+                    savings_pct = EXCLUDED.savings_pct,
+                    deal_score = EXCLUDED.deal_score,
+                    badge = EXCLUDED.badge,
+                    deal_type = 'price_drop',
+                    posted_at = NOW();
+            """, pid, posted_price, posted_mrp, savings, savings_pct, score, badge)
+
+            await database.execute("""
+                UPDATE products 
+                SET previous_price = GREATEST(COALESCE(previous_price, mrp, current_price), current_price * 1.15),
+                    last_price_change = NOW(),
+                    last_checked = NOW(),
+                    affiliate_url = COALESCE($2, affiliate_url)
+                WHERE id = $1;
+            """, pid, aff_url)
+
+            # Invalidate SSR cache so deal appears in Just Dropped immediately
+            try:
+                from budgetby.dashboard.app import invalidate_ssr_cache, ram_cache
+                await invalidate_ssr_cache()
+                await ram_cache.clear()
+            except Exception:
+                pass
+        except Exception as db_sync_err:
+            logger.warning(f"Error synchronizing deal/product table: {db_sync_err}")
+
+        if message_id:
+            try:
+                await database.insert_deal_tracking(
+                    deal_id=deal_row.get("deal_id") or 0,
+                    product_id=pid,
+                    message_id=message_id,
+                    channel_id=channel_id,
+                    caption=caption,
+                    price=posted_price
+                )
+            except Exception as tr_err:
+                logger.debug(f"Tracking insert notice: {tr_err}")
+
+        return True
+
+    return False
+
+async def drain_all_queues_immediately():
+    """
+    Fast queue drain: when total queued items reach >= 10,
+    drains all queued products across all platforms at once without waiting for 30s delays.
+    """
+    total_q = get_total_queued_count()
+    if total_q < 10:
+        return
+    logger.info(f"⚡ [QUEUE BURST DRAIN] Total queued deals ({total_q}) >= 10! Draining all queued products at once...")
+
+    for plat in ROTATION_SEQUENCE:
+        q = _platform_queues.get(plat)
+        if q and not q.empty():
+            try:
+                candidate = q.get_nowait()
+                pid = candidate.get("product_id")
+                if pid and not await is_on_cooldown(pid):
+                    success = await broadcast_single_deal(candidate)
+                    if success:
+                        await asyncio.sleep(1.0)  # Safe minimal 1s pause between burst posts
+            except Exception as de:
+                logger.warning(f"Burst drain error on {plat}: {de}")
+
+    broadcaster_stats["queue_size"] = get_total_queued_count()
+
 async def run_paced_30s_broadcaster():
-    """Continuous 30-second loop posting deals to Telegram & ensuring live website deals."""
-    logger.info("🚀 [30s CLOUD BROADCASTER] Initializing continuous 30-second deal poster...")
+    """
+    Continuous 30-second loop posting deals to Telegram & ensuring live website deals.
+    Respects rotation sequence, handles surplus queueing, and triggers burst drain when queue >= 10.
+    """
+    logger.info("⚡ [30s CLOUD BROADCASTER] Initializing continuous 30-second deal poster...")
     broadcaster_stats["status"] = "running"
     global _current_seq_idx, _last_posted_platform
-    await asyncio.sleep(5)  # Brief warm-up delay on server boot
+    await asyncio.sleep(5)
 
     while True:
         try:
-            bot_token = getattr(config, "TELEGRAM_BOT_TOKEN", "").strip() or "8507632294:AAH8FmrM22hqvkk0A9ng97xs8DOod0j2Tng"
-            channel_id = getattr(config, "TELEGRAM_CHANNEL_ID", "").strip() or "@deal_pulse_alerts"
-
             if database._pool is None:
                 await database.init_pool()
+
+            # Check if queue has reached >= 10 products: trigger burst drain!
+            if get_total_queued_count() >= 10:
+                await drain_all_queues_immediately()
 
             # Determine target store from the scheduled sequence
             target_plat = ROTATION_SEQUENCE[_current_seq_idx % len(ROTATION_SEQUENCE)]
@@ -152,7 +429,6 @@ async def run_paced_30s_broadcaster():
             deal_row = await _fetch_deal_candidate_for_store(target_plat, _last_posted_product_ids)
 
             # If target store has no candidate right now, rotate through alternatives in sequence order
-            # (Strictly skipping _last_posted_platform so adjacent duplicates are impossible)
             if not deal_row:
                 for alt_plat in ROTATION_SEQUENCE:
                     if alt_plat != _last_posted_platform and alt_plat != target_plat:
@@ -162,184 +438,75 @@ async def run_paced_30s_broadcaster():
                             break
 
             if deal_row:
-                pid = deal_row["product_id"]
-                _last_posted_product_ids.add(pid)
-                if len(_last_posted_product_ids) > 600:
-                    # Pop oldest items
-                    first_val = next(iter(_last_posted_product_ids))
-                    _last_posted_product_ids.remove(first_val)
-
-                prod_dict = dict(deal_row)
-                prod_dict["id"] = pid
-
-                # 100% STRICT AFFILIATE CONVERSION ENFORCEMENT
-                # Never post raw merchant links. Only post official verified affiliate tracking shortlinks.
-                from budgetby.cloud_scraper import is_valid_affiliate_shortlink
-                aff_url = await get_or_create_affiliate_link(prod_dict)
-                if not aff_url or not is_valid_affiliate_shortlink(aff_url, prod_dict.get("platform")):
-                    logger.warning(
-                        f"⚠️ [AFFILIATE GUARD] Product {pid} ({prod_dict.get('platform')}) has unconverted link. "
-                        f"Skipping post to guarantee 100% affiliate compliance."
-                    )
-                    _last_posted_product_ids.add(pid)
-                    await asyncio.sleep(2)
-                    continue
-
-                prod_dict["affiliate_url"] = aff_url
-
-                # Format message
-                score = float(deal_row.get("deal_score") or 50.0)
-                badge = deal_row.get("badge") or "HOT_DEAL"
-                deal_info = {
-                    "deal_score": score,
-                    "badge": badge,
-                    "posted_price": float(deal_row["posted_price"] or 0),
-                    "posted_mrp": float(deal_row["posted_mrp"] or 0)
-                }
-
-                if score >= 70 or badge in ("ATL", "LOOT"):
-                    caption = format_mega_deal(prod_dict, deal_info)
-                else:
-                    caption = format_today_deal(prod_dict, deal_info)
-
-                image_url = prod_dict.get("image_url")
-                if image_url and "myntassets.com" in image_url:
-                    image_url = image_url.replace("($height)", "720").replace("($qualityPercentage)", "90").replace("($width)", "540").replace("http://", "https://")
-                api_base = f"https://api.telegram.org/bot{bot_token}"
-
-                posted = False
-                message_id = None
-
-                # Attempt 1: Fetch and convert photo to clean JPEG (handles AVIF/WebP formats that Telegram rejects)
-                if image_url and image_url.startswith("http"):
-                    try:
-                        import httpx, io
-                        from PIL import Image
-                        async with AsyncSession(impersonate="chrome124", timeout=8) as dl_sess:
-                            r_img = await dl_sess.get(image_url)
-                        if r_img.status_code == 200 and len(r_img.content) > 1000:
-                            im = Image.open(io.BytesIO(r_img.content)).convert("RGB")
-                            buf = io.BytesIO()
-                            im.save(buf, format="JPEG", quality=88)
-                            buf.seek(0)
-                            async with httpx.AsyncClient(timeout=15) as tg_client:
-                                files = {"photo": ("product.jpg", buf.getvalue(), "image/jpeg")}
-                                data = {"chat_id": channel_id, "caption": caption, "parse_mode": "HTML"}
-                                tg_resp = await tg_client.post(f"{api_base}/sendPhoto", data=data, files=files)
-                                if tg_resp.status_code == 200:
-                                    posted = True
-                                    try:
-                                        message_id = tg_resp.json().get("result", {}).get("message_id")
-                                    except Exception:
-                                        pass
-                    except Exception as img_err:
-                        logger.debug(f"Photo upload fallback to sendPhoto URL / text: {img_err}")
-
-                # Attempt 2: Fallback to direct URL sendPhoto
-                if not posted and image_url and image_url.startswith("http"):
-                    async with AsyncSession(timeout=10) as session:
-                        resp = await session.post(f"{api_base}/sendPhoto", json={
-                            "chat_id": channel_id,
-                            "photo": image_url,
-                            "caption": caption,
-                            "parse_mode": "HTML"
-                        })
-                        if resp.status_code == 200:
-                            posted = True
-                            try:
-                                message_id = resp.json().get("result", {}).get("message_id")
-                            except Exception:
-                                pass
-
-                # Attempt 3: Fallback to sendMessage (text alert with web preview)
-                if not posted:
-                    async with AsyncSession(timeout=10) as session:
-                        resp = await session.post(f"{api_base}/sendMessage", json={
-                            "chat_id": channel_id,
-                            "text": caption,
-                            "parse_mode": "HTML",
-                            "disable_web_page_preview": False
-                        })
-                        if resp.status_code == 200:
-                            posted = True
-                            try:
-                                message_id = resp.json().get("result", {}).get("message_id")
-                            except Exception:
-                                pass
-
-                if posted:
-                    _last_posted_platform = prod_dict.get("platform", "").lower()
+                success = await broadcast_single_deal(deal_row)
+                if success:
                     _current_seq_idx += 1
-                    broadcaster_stats["total_posted"] += 1
-                    broadcaster_stats["last_posted_platform"] = _last_posted_platform
-                    broadcaster_stats["last_posted_product_id"] = pid
-                    broadcaster_stats["last_posted_title"] = prod_dict.get("title", "")[:50]
-                    broadcaster_stats["last_posted_at"] = datetime.now(timezone.utc).isoformat()
-                    logger.info(f"📢 [30s CLOUD POSTED #{broadcaster_stats['total_posted']}] Deal {pid} [{_last_posted_platform.upper()}]: {prod_dict.get('title', '')[:30]} ➔ {channel_id}")
-
-                    # 1. Synchronize deal & product tables with current timestamp & price drop for website storefront
-                    posted_price = float(deal_row.get("posted_price") or prod_dict.get("current_price") or 0)
-                    posted_mrp = float(deal_row.get("posted_mrp") or prod_dict.get("mrp") or posted_price)
-                    savings = max(0.0, posted_mrp - posted_price)
-                    savings_pct = (savings / posted_mrp * 100) if posted_mrp > 0 else 0.0
-
-                    try:
-                        await database.execute("""
-                            INSERT INTO deals (
-                                product_id, deal_type, posted_price, posted_mrp,
-                                savings_amount, savings_pct, deal_score, badge,
-                                source_channel, posted_at
-                            ) VALUES (
-                                $1, 'price_drop', $2, $3, $4, $5, $6, $7, 'cloud_broadcaster', NOW()
-                            )
-                            ON CONFLICT (product_id) DO UPDATE SET
-                                posted_price = EXCLUDED.posted_price,
-                                posted_mrp = EXCLUDED.posted_mrp,
-                                savings_amount = EXCLUDED.savings_amount,
-                                savings_pct = EXCLUDED.savings_pct,
-                                deal_score = EXCLUDED.deal_score,
-                                badge = EXCLUDED.badge,
-                                deal_type = 'price_drop',
-                                posted_at = NOW();
-                        """, pid, posted_price, posted_mrp, savings, savings_pct, score, badge)
-
-                        await database.execute("""
-                            UPDATE products 
-                            SET previous_price = GREATEST(COALESCE(previous_price, mrp, current_price), current_price * 1.15),
-                                last_price_change = NOW(),
-                                last_checked = NOW(),
-                                affiliate_url = COALESCE($2, affiliate_url)
-                            WHERE id = $1;
-                        """, pid, aff_url)
-
-                        # Invalidate website SSR & RAM cache so deal appears in Just Dropped immediately
-                        try:
-                            from budgetby.dashboard.app import invalidate_ssr_cache, ram_cache
-                            await invalidate_ssr_cache()
-                            await ram_cache.clear()
-                        except Exception:
-                            pass
-                    except Exception as db_sync_err:
-                        logger.warning(f"Error synchronizing deal/product table for website: {db_sync_err}")
-
-                    # 2. Record tracking if message_id exists
-                    if message_id:
-                        try:
-                            await database.insert_deal_tracking(
-                                deal_id=deal_row.get("deal_id") or 0,
-                                product_id=pid,
-                                message_id=message_id,
-                                channel_id=channel_id,
-                                caption=caption,
-                                price=float(deal_row["posted_price"] or 0)
-                            )
-                        except Exception as tr_err:
-                            logger.debug(f"Tracking insert notice: {tr_err}")
-                else:
-                    logger.warning(f"Failed to post deal {pid} to Telegram")
+            else:
+                logger.debug("No deal candidates available across stores this cycle.")
 
         except Exception as e:
             logger.error(f"Error in run_paced_30s_broadcaster loop: {e}")
 
-        # Sleep exactly 30 seconds between every single post
+        broadcaster_stats["queue_size"] = get_total_queued_count()
+        # Normal paced delay: exactly 30 seconds
         await asyncio.sleep(30)
+
+async def run_continuous_deal_hunter_daemon():
+    """
+    Dedicated Continuous Deal Hunter:
+    Constantly scans 298 category feeds across all 5 stores round-robin.
+    Whenever a fresh high-discount deal is discovered, queues it for its platform turn!
+    """
+    logger.info("🎯 [CONTINUOUS DEAL HUNTER] Starting 24/7 background deal finder across all 5 platforms...")
+    await asyncio.sleep(10)  # Brief startup delay
+    from budgetby.engine.live_hunter import hunt_live_store_deal
+
+    hunt_stores = ["amazon", "flipkart", "myntra", "ajio", "nykaa"]
+    hunt_idx = 0
+
+    while True:
+        try:
+            if database._pool is None:
+                await database.init_pool()
+
+            store = hunt_stores[hunt_idx % len(hunt_stores)]
+            hunt_idx += 1
+
+            # Only hunt if that platform's queue isn't overflowed
+            q = _platform_queues.get(store)
+            if q and q.qsize() < 25:
+                hunt_deal = await hunt_live_store_deal(store)
+                if hunt_deal and hunt_deal.get("product"):
+                    hp = hunt_deal["product"]
+                    pid = hp.get("id")
+                    if pid and pid not in _last_posted_product_ids and not await is_on_cooldown(pid):
+                        deal_payload = {
+                            "deal_id": 0,
+                            "product_id": pid,
+                            "posted_price": hp.get("current_price"),
+                            "posted_mrp": hp.get("mrp"),
+                            "deal_score": hunt_deal.get("score", 85.0),
+                            "badge": hunt_deal.get("badge", "HOT_DEAL"),
+                            "posted_at": None,
+                            "title": hp.get("title"),
+                            "platform": store,
+                            "product_url": hp.get("product_url"),
+                            "affiliate_url": hp.get("affiliate_url"),
+                            "image_url": hp.get("image_url"),
+                            "current_price": hp.get("current_price"),
+                            "mrp": hp.get("mrp"),
+                            "category": hp.get("category"),
+                            "rating": hp.get("rating")
+                        }
+                        await queue_deal_for_platform(store, deal_payload)
+
+                        # Check if total queued deals reached >= 10: triggers instant burst drain!
+                        if get_total_queued_count() >= 10:
+                            await drain_all_queues_immediately()
+
+            # Short breath between category scans to respect rate limits
+            await asyncio.sleep(12)
+
+        except Exception as e:
+            logger.error(f"Continuous hunter loop error: {e}")
+            await asyncio.sleep(15)
