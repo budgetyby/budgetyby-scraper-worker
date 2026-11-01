@@ -377,17 +377,29 @@ async def run_cloud_scrape_batch(limit: int = 30, concurrency: int = 5) -> Dict[
                                 stats["atls"] += 1
                             logger.info(f"🎯 [DEAL DETECTED] Product {pid}: {prod.get('title', '')[:35]} | ₹{new_p} (was ₹{current_p}) | {badge} | Score: {score}")
 
-                            # Post to Telegram channel if high quality deal (score >= 50 or ATL/LOOT)
-                            if score >= 50 or badge in ("ATL", "LOOT", "PRICE_DROP"):
-                                deal_info = {
+                            # Forward price drop to broadcaster platform queue to preserve exact rotation sequence
+                            try:
+                                from budgetby.broadcaster import queue_deal_for_platform
+                                await queue_deal_for_platform(platform, {
+                                    "deal_id": deal_id or 0,
+                                    "product_id": pid,
+                                    "posted_price": new_p,
+                                    "posted_mrp": mrp_val,
                                     "deal_score": score,
                                     "badge": badge,
-                                    "posted_price": new_p,
-                                    "posted_mrp": mrp_val
-                                }
-                                posted = await post_deal_to_telegram(temp_prod, deal_info)
-                                if posted:
-                                    stats["telegram_posted"] = stats.get("telegram_posted", 0) + 1
+                                    "posted_at": None,
+                                    "title": prod.get("title", ""),
+                                    "platform": platform,
+                                    "product_url": prod.get("product_url", ""),
+                                    "affiliate_url": temp_prod.get("affiliate_url", ""),
+                                    "image_url": prod.get("image_url", ""),
+                                    "current_price": new_p,
+                                    "mrp": mrp_val,
+                                    "category": prod.get("category", ""),
+                                    "rating": prod.get("rating", 4.2)
+                                })
+                            except Exception as q_err:
+                                logger.debug(f"Queue price drop note: {q_err}")
 
                 stats["checked"] += 1
                 logger.info(f"✓ Checked {platform.title()} product {pid}: ₹{new_p} (priority P{new_priority})")

@@ -106,10 +106,12 @@ async def queue_deal_for_platform(platform: str, deal_data: dict) -> bool:
 async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict | None:
     """
     Fetch unposted deal candidate strictly for the specified store following local deduplication & cooldown rules.
+    Guarantees strict platform quota per rotation cycle.
     Priority:
-    1. In-memory platform queue (burst deals queued from Telegram listener or live hunter).
+    1. In-memory platform queue (burst deals queued from Telegram listener, live hunter, or price checks).
     2. Fresh unposted deals in database (posted_at IS NULL).
-    3. Active high-discount catalog item strictly respecting 7-day deduplication and 24h cooldown.
+    3. Live Store Flash Hunter on-the-fly scan for fresh loot.
+    4. Active high-discount catalog item strictly respecting 7-day deduplication and 24h cooldown.
     """
     store = store.lower()
 
@@ -150,7 +152,36 @@ async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict 
         if not await is_on_cooldown(pid):
             return dict(row)
 
-    # Priority 3: Fall back to active high-discount catalog items specifically for this store
+    # Priority 3: Live Store Flash Hunter - Discover fresh high-discount loot on the fly!
+    try:
+        from budgetby.engine.live_hunter import hunt_live_store_deal
+        hunt_deal = await asyncio.wait_for(hunt_live_store_deal(store), timeout=10)
+        if hunt_deal and hunt_deal.get("product"):
+            hp = hunt_deal["product"]
+            pid = hp.get("id")
+            if pid and pid not in exclude_ids and not await is_on_cooldown(pid):
+                return {
+                    "deal_id": 0,
+                    "product_id": pid,
+                    "posted_price": hp.get("current_price"),
+                    "posted_mrp": hp.get("mrp"),
+                    "deal_score": hunt_deal.get("score", 85.0),
+                    "badge": hunt_deal.get("badge", "HOT_DEAL"),
+                    "posted_at": None,
+                    "title": hp.get("title"),
+                    "platform": store,
+                    "product_url": hp.get("product_url"),
+                    "affiliate_url": hp.get("affiliate_url"),
+                    "image_url": hp.get("image_url"),
+                    "current_price": hp.get("current_price"),
+                    "mrp": hp.get("mrp"),
+                    "category": hp.get("category"),
+                    "rating": hp.get("rating")
+                }
+    except Exception as he:
+        logger.debug(f"Live hunt candidate note for {store}: {he}")
+
+    # Priority 4: Fall back to active high-discount catalog items specifically for this store
     # Enforces 7-day duplicate prevention (NOT EXISTS in deals posted in last 7 days) and 24h 3-tier cooldown
     candidates = await database.fetch(f"""
         SELECT 0 as deal_id, p.id as product_id, p.current_price as posted_price, p.mrp as posted_mrp,
@@ -376,14 +407,23 @@ async def broadcast_single_deal(deal_row: dict) -> bool:
 async def drain_all_queues_immediately():
     """
     Fast queue drain: when total queued items reach >= 10,
-    drains all queued products across all platforms at once without waiting for 30s delays.
+    drains queued products strictly preserving the exact 11-slot rotation cycle:
+    Amazon: 3, Flipkart: 3, Ajio: 2, Myntra: 2, Nykaa: 1.
+    Strictly forbids consecutive posts from the same platform.
     """
     total_q = get_total_queued_count()
     if total_q < 10:
         return
-    logger.info(f"⚡ [QUEUE BURST DRAIN] Total queued deals ({total_q}) >= 10! Draining all queued products at once...")
+    logger.info(f"⚡ [QUEUE BURST DRAIN] Total queued deals ({total_q}) >= 10! Draining queued products in exact rotation order...")
 
-    for plat in ROTATION_SEQUENCE:
+    global _current_seq_idx, _last_posted_platform
+    # Iterate through the rotation cycle to maintain balanced quotas
+    for _ in range(len(ROTATION_SEQUENCE)):
+        plat = ROTATION_SEQUENCE[_current_seq_idx % len(ROTATION_SEQUENCE)]
+        if plat == _last_posted_platform:
+            _current_seq_idx += 1
+            plat = ROTATION_SEQUENCE[_current_seq_idx % len(ROTATION_SEQUENCE)]
+
         q = _platform_queues.get(plat)
         if q and not q.empty():
             try:
@@ -392,7 +432,8 @@ async def drain_all_queues_immediately():
                 if pid and not await is_on_cooldown(pid):
                     success = await broadcast_single_deal(candidate)
                     if success:
-                        await asyncio.sleep(1.0)  # Safe minimal 1s pause between burst posts
+                        _current_seq_idx += 1
+                        await asyncio.sleep(2.0)  # Paced 2s delay between burst posts
             except Exception as de:
                 logger.warning(f"Burst drain error on {plat}: {de}")
 
