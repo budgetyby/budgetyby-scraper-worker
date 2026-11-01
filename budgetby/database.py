@@ -344,17 +344,46 @@ async def upsert_daily_price(product_id: int, price: float):
 
 async def get_products_due_for_check(limit: int = 40) -> list[asyncpg.Record]:
     """
-    Get products due for checking using high-performance primary index traversal.
-    Executes in < 0.8 seconds (avoiding full-table window-function timeouts).
+    Get products due for checking using a balanced multi-store distribution.
+    Prevents single-store flooding (e.g. all Ajio or all Flipkart) by fetching balanced
+    slices across all 5 platforms ('amazon', 'flipkart', 'myntra', 'ajio', 'nykaa').
     """
-    return await fetch("""
-        SELECT p.id, p.platform, p.product_url, p.priority_tier, p.title, 
-               p.current_price, p.mrp, p.category, p.next_check
-        FROM products p
-        WHERE p.status = 'ACTIVE' 
-          AND p.in_stock = TRUE 
-          AND (p.next_check IS NULL OR p.next_check <= NOW())
-        ORDER BY p.id DESC
+    per_store = max(4, limit // 5)
+    return await fetch(f"""
+        (SELECT p.id, p.platform, p.product_url, p.priority_tier, p.title, 
+                p.current_price, p.mrp, p.category, p.next_check
+         FROM products p
+         WHERE p.status = 'ACTIVE' AND p.in_stock = TRUE AND p.platform = 'amazon'
+           AND (p.next_check IS NULL OR p.next_check <= NOW())
+         ORDER BY p.id DESC LIMIT {per_store})
+        UNION ALL
+        (SELECT p.id, p.platform, p.product_url, p.priority_tier, p.title, 
+                p.current_price, p.mrp, p.category, p.next_check
+         FROM products p
+         WHERE p.status = 'ACTIVE' AND p.in_stock = TRUE AND p.platform = 'flipkart'
+           AND (p.next_check IS NULL OR p.next_check <= NOW())
+         ORDER BY p.id DESC LIMIT {per_store})
+        UNION ALL
+        (SELECT p.id, p.platform, p.product_url, p.priority_tier, p.title, 
+                p.current_price, p.mrp, p.category, p.next_check
+         FROM products p
+         WHERE p.status = 'ACTIVE' AND p.in_stock = TRUE AND p.platform = 'myntra'
+           AND (p.next_check IS NULL OR p.next_check <= NOW())
+         ORDER BY p.id DESC LIMIT {per_store})
+        UNION ALL
+        (SELECT p.id, p.platform, p.product_url, p.priority_tier, p.title, 
+                p.current_price, p.mrp, p.category, p.next_check
+         FROM products p
+         WHERE p.status = 'ACTIVE' AND p.in_stock = TRUE AND p.platform = 'ajio'
+           AND (p.next_check IS NULL OR p.next_check <= NOW())
+         ORDER BY p.id DESC LIMIT {per_store})
+        UNION ALL
+        (SELECT p.id, p.platform, p.product_url, p.priority_tier, p.title, 
+                p.current_price, p.mrp, p.category, p.next_check
+         FROM products p
+         WHERE p.status = 'ACTIVE' AND p.in_stock = TRUE AND p.platform = 'nykaa'
+           AND (p.next_check IS NULL OR p.next_check <= NOW())
+         ORDER BY p.id DESC LIMIT {per_store})
         LIMIT $1;
     """, limit)
 

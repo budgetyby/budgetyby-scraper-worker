@@ -140,7 +140,7 @@ async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict 
         # Step A: Live Flash Hunter - Discover fresh high-discount loot on the fly!
         try:
             from budgetby.engine.live_hunter import hunt_live_store_deal
-            hunt_deal = await asyncio.wait_for(hunt_live_store_deal(store), timeout=10)
+            hunt_deal = await asyncio.wait_for(hunt_live_store_deal(store), timeout=18)
             if hunt_deal and hunt_deal.get("product"):
                 hp = hunt_deal["product"]
                 pid = hp.get("id")
@@ -190,7 +190,7 @@ async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict 
     if not prefer_hunter:
         try:
             from budgetby.engine.live_hunter import hunt_live_store_deal
-            hunt_deal = await asyncio.wait_for(hunt_live_store_deal(store), timeout=10)
+            hunt_deal = await asyncio.wait_for(hunt_live_store_deal(store), timeout=18)
             if hunt_deal and hunt_deal.get("product"):
                 hp = hunt_deal["product"]
                 pid = hp.get("id")
