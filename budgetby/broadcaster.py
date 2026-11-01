@@ -150,9 +150,9 @@ async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict 
         if not await is_on_cooldown(pid):
             return dict(row)
 
-    # Priority 3: Fall back to active high-discount catalog item specifically for this store
-    # Enforces 7-day duplicate prevention (NOT EXISTS in deals posted in last 7 days) and active cooldown
-    row = await database.fetchrow(f"""
+    # Priority 3: Fall back to active high-discount catalog items specifically for this store
+    # Enforces 7-day duplicate prevention (NOT EXISTS in deals posted in last 7 days) and 24h 3-tier cooldown
+    candidates = await database.fetch(f"""
         SELECT 0 as deal_id, p.id as product_id, p.current_price as posted_price, p.mrp as posted_mrp,
                ROUND((((p.mrp - p.current_price)/NULLIF(p.mrp,0)) * 100)::numeric, 1) as deal_score,
                'HOT_DEAL' as badge, NOW() as posted_at,
@@ -172,12 +172,12 @@ async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict 
           )
           {exclude_clause.replace('d.product_id', 'p.id')}
         ORDER BY ((p.mrp - p.current_price) / p.mrp) DESC, p.id DESC
-        LIMIT 1;
+        LIMIT 25;
     """)
-    if row:
-        pid = row["product_id"]
+    for r in candidates:
+        pid = r["product_id"]
         if not await is_on_cooldown(pid):
-            return dict(row)
+            return dict(r)
 
     return None
 
@@ -205,7 +205,7 @@ async def broadcast_single_deal(deal_row: dict) -> bool:
     platform = (prod_dict.get("platform") or "amazon").lower()
 
     # 100% STRICT AFFILIATE CONVERSION ENFORCEMENT
-    aff_url = await get_or_create_affiliate_link(prod_dict)
+    aff_url = await get_or_create_affiliate_link(prod_dict, force_fresh=True)
     if not aff_url or not is_valid_affiliate_shortlink(aff_url, platform):
         logger.warning(
             f"⚠️ [AFFILIATE GUARD] Product {pid} ({platform}) has unconverted link. "

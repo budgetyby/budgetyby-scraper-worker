@@ -132,9 +132,11 @@ async def convert_via_cloud_telegram_bots(url: str, platform: str) -> str | None
     return None
 
 
-async def get_or_create_affiliate_link(prod: dict) -> str | None:
+async def get_or_create_affiliate_link(prod: dict, force_fresh: bool = False) -> str | None:
     """
     Ensure product has a valid, monetized tracking link for cloud posting and clickouts.
+    When force_fresh is True, bypasses database cached shortlinks and requests a live conversion
+    from @ekconverter9bot (Flipkart/Myntra/Ajio) or @cuelinks_bot (Nykaa).
     Strictly returns None if the link is not an official affiliate shortlink.
     """
     platform = (prod.get("platform") or "").lower().strip()
@@ -160,10 +162,10 @@ async def get_or_create_affiliate_link(prod: dict) -> str | None:
         return None
 
     elif platform in ("flipkart", "myntra", "ajio"):
-        # If already a valid shortlink, reuse it
-        if aff_url and any(d in aff_url.lower() for d in ("fktr.in", "myntr.it", "ajiio.in", "ekaro.in")):
+        # If already a valid shortlink and not force_fresh, reuse it
+        if not force_fresh and aff_url and any(d in aff_url.lower() for d in ("fktr.in", "myntr.it", "ajiio.in", "ekaro.in")):
             return aff_url
-        # Attempt conversion via real Telegram bot @ekconverter9bot
+        # Convert live via real Telegram bot @ekconverter9bot
         bot_link = await convert_via_cloud_telegram_bots(prod_url or aff_url, platform)
         if bot_link and any(d in bot_link.lower() for d in ("fktr.in", "myntr.it", "ajiio.in", "ekaro.in")):
             if pid:
@@ -172,12 +174,16 @@ async def get_or_create_affiliate_link(prod: dict) -> str | None:
                 except Exception:
                     pass
             return bot_link
+        # Fallback to existing shortlink if live conversion timed out
+        if aff_url and any(d in aff_url.lower() for d in ("fktr.in", "myntr.it", "ajiio.in", "ekaro.in")):
+            return aff_url
         return None
 
     elif platform == "nykaa":
-        if aff_url and "clnk.in" in aff_url.lower():
+        # If already a valid shortlink and not force_fresh, reuse it
+        if not force_fresh and aff_url and "clnk.in" in aff_url.lower():
             return aff_url
-        # Attempt conversion via @cuelinks_bot
+        # Convert live via @cuelinks_bot
         bot_link = await convert_via_cloud_telegram_bots(prod_url or aff_url, platform)
         if bot_link and "clnk.in" in bot_link.lower():
             if pid:
@@ -186,6 +192,9 @@ async def get_or_create_affiliate_link(prod: dict) -> str | None:
                 except Exception:
                     pass
             return bot_link
+        # Fallback to existing shortlink if live conversion timed out
+        if aff_url and "clnk.in" in aff_url.lower():
+            return aff_url
         return None
 
     return None
