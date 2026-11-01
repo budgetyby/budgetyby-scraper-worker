@@ -53,6 +53,20 @@ async def periodic_scraper_loop(duration_secs: int):
             logger.info("🔍 [SCRAPER LOOP] Starting cloud price verification batch (40 products)...")
             stats = await run_cloud_scrape_batch(limit=40, concurrency=5)
             logger.info(f"✅ [SCRAPER BATCH DONE] Scraped={stats.get('scraped')}, PriceDrops={stats.get('price_drops')}, Deals={stats.get('deals_found')}")
+
+            # 2. Live Store Flash Hunter - Discover brand-new deals across all 5 stores
+            try:
+                logger.info("🏹 [FLASH HUNTER] Scanning live store deals feeds across stores...")
+                from budgetby.engine.live_hunter import hunt_live_store_deal
+                for s in ["myntra", "flipkart", "amazon", "ajio", "nykaa"]:
+                    try:
+                        h_res = await asyncio.wait_for(hunt_live_store_deal(s), timeout=15)
+                        if h_res and h_res.get("product"):
+                            logger.info(f"✨ [NEW DEAL DISCOVERED] {s.upper()}: {h_res['product'].get('title', '')[:35]}")
+                    except Exception as he:
+                        logger.debug(f"Hunter note for {s}: {he}")
+            except Exception as e:
+                logger.debug(f"Flash hunter loop note: {e}")
         except Exception as e:
             logger.error(f"❌ [SCRAPER BATCH ERROR] {e}")
 

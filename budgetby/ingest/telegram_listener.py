@@ -128,7 +128,7 @@ async def convert_url_via_cuelinks_bot(raw_url: str, platform: str = "nykaa", ti
     try:
         async with _cl_lock:
             # Serialized conversion: Strictly 1 URL at a time eliminates any possibility of link mismatch!
-            async with _client.conversation("CuelinksBot", timeout=timeout) as conv:
+            async with _client.conversation("cuelinks_bot", timeout=timeout) as conv:
                 # 1. Send clean product target URL
                 sent_msg = await conv.send_message(clean_target)
 
@@ -170,18 +170,19 @@ async def convert_url_via_cuelinks_bot(raw_url: str, platform: str = "nykaa", ti
 
 # Target Private & Web Channel IDs / Links provided by user:
 TARGET_CHAT_IDS = [
-    -1002273009558,  # Discounts & Offers and More ✨ (+0GTLjgGo-DQ5YjE9)
-    -1002442523223,  # CHIRAG DEALS (-1002442523223)
-    -1001404064358,  # QUICK DEALS 2.0 (+SHMJO014m9MxNDFl)
+    -1002273009558,  # Discounts and Offers and More
+    -1002442523223,  # CHIRAG DEALS
+    -1001404064358,  # QUICK DEALS 2.0
+    -1001480964161,  # EarnKaro (Loot Deals and Offers)
 ]
 
 PRIVATE_CHANNEL_NAMES = {
-    -1002273009558: "🔒 Discounts & Offers and More ✨",
-    -1002442523223: "🔒 CHIRAG DEALS",
-    -1001404064358: "🔒 QUICK DEALS 2.0"
+    -1002273009558: "Discounts and Offers and More",
+    -1002442523223: "CHIRAG DEALS",
+    -1001404064358: "QUICK DEALS 2.0",
+    -1001480964161: "EarnKaro Loot Deals"
 }
 
-# Telethon Session path in local storage
 SESSION_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "telegram_user.session")
 
 async def _heartbeat_loop():
@@ -203,48 +204,50 @@ async def _heartbeat_loop():
 async def start_telegram_listener(api_id: int = None, api_hash: str = None):
     """
     Connects to Telegram user session and starts listening to live incoming messages.
+    Supports in-memory StringSession (for cloud containers like Render) and file-based session.
     """
     env_api_id = os.getenv("TG_API_ID")
     env_api_hash = os.getenv("TG_API_HASH")
     
-    api_id = api_id or (int(env_api_id) if env_api_id else None)
-    api_hash = api_hash or env_api_hash
+    api_id = api_id or (int(env_api_id) if env_api_id else getattr(config, "TG_API_ID", 24803975))
+    api_hash = api_hash or env_api_hash or getattr(config, "TG_API_HASH", "551e18d6a36f5628543788220f8bb152")
+    session_str = (getattr(config, "TELEGRAM_SESSION_STRING", "") or os.environ.get("TELEGRAM_SESSION_STRING", "")).strip()
 
-    if not api_id or not api_hash or not os.path.exists(SESSION_PATH):
-        logger.info("TG_API_ID, TG_API_HASH or session file missing. Private listener skipped (public DoH monitor active).")
+    if not session_str and not os.path.exists(SESSION_PATH):
+        logger.info("TG session missing. Private listener skipped.")
         return
 
     try:
-        logger.info("🚀 Connecting Real-Time Telegram MTProto Channel Listener...")
+        logger.info("Connecting Real-Time Telegram MTProto Channel Listener...")
         global _client
-        client = TelegramClient(SESSION_PATH, api_id, api_hash)
+        if session_str:
+            from telethon.sessions import StringSession
+            client = TelegramClient(StringSession(session_str), int(api_id), str(api_hash))
+            await client.connect()
+        else:
+            client = TelegramClient(SESSION_PATH, int(api_id), str(api_hash))
+            for attempt in range(1, 7):
+                try:
+                    await client.start()
+                    break
+                except Exception as e:
+                    if "database is locked" in str(e).lower():
+                        wait = attempt * 3
+                        logger.warning(f"Telethon session locked. Retrying in {wait}s...")
+                        await asyncio.sleep(wait)
+                    else:
+                        raise
+            else:
+                logger.error("Telethon session still locked after 6 retries. Listener skipped this boot.")
+                return
+
         _client = client
 
-        # Retry connecting in case the previous process still holds the SQLite
-        # session file lock (common during auto-restart within the first 10s)
-        for attempt in range(1, 7):
-            try:
-                await client.start()
-                break
-            except Exception as e:
-                if "database is locked" in str(e).lower():
-                    wait = attempt * 3
-                    logger.warning(
-                        f"Telethon session locked by previous process "
-                        f"(attempt {attempt}/6). Retrying in {wait}s..."
-                    )
-                    await asyncio.sleep(wait)
-                else:
-                    raise
-        else:
-            logger.error("Telethon session still locked after 6 retries. Listener skipped this boot.")
-            return
-
         if not await client.is_user_authorized():
-            logger.warning("Telegram user session is not authorized. Please run python login_telegram_listener.py once.")
+            logger.warning("Telegram user session is not authorized.")
             return
 
-        logger.info("🟢 Telethon Connected! Listening to incoming deals in real-time (0-second push latency)...")
+        logger.info("Telethon Connected! Listening to incoming deals in real-time...")
 
         # Start continuous UI heartbeat
         asyncio.create_task(_heartbeat_loop())

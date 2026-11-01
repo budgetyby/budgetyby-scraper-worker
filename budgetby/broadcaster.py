@@ -57,6 +57,35 @@ async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict 
     if row:
         return dict(row)
 
+    # Step 1.5: Live Flash Hunter - Scan store's live deals feed for a brand-new product!
+    try:
+        from budgetby.engine.live_hunter import hunt_live_store_deal
+        hunt_deal = await asyncio.wait_for(hunt_live_store_deal(store), timeout=10)
+        if hunt_deal and hunt_deal.get("product"):
+            hp = hunt_deal["product"]
+            pid = hp.get("id")
+            if pid and pid not in exclude_ids:
+                return {
+                    "deal_id": 0,
+                    "product_id": pid,
+                    "posted_price": hp.get("current_price"),
+                    "posted_mrp": hp.get("mrp"),
+                    "deal_score": hunt_deal.get("score", 85.0),
+                    "badge": hunt_deal.get("badge", "HOT_DEAL"),
+                    "posted_at": None,
+                    "title": hp.get("title"),
+                    "platform": store,
+                    "product_url": hp.get("product_url"),
+                    "affiliate_url": hp.get("affiliate_url"),
+                    "image_url": hp.get("image_url"),
+                    "current_price": hp.get("current_price"),
+                    "mrp": hp.get("mrp"),
+                    "category": hp.get("category"),
+                    "rating": hp.get("rating")
+                }
+    except Exception as he:
+        logger.debug(f"Live hunt note for {store}: {he}")
+
     # Step 2: Fall back to active high-discount catalog item specifically for this store
     row = await database.fetchrow(f"""
         SELECT 0 as deal_id, p.id as product_id, p.current_price as posted_price, p.mrp as posted_mrp,

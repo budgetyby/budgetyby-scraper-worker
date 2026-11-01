@@ -320,6 +320,30 @@ async def verify_and_ingest_single_deal(channel: str, post_id: int, raw_url: str
                 "source_channel": channel
             }
             await pq.queue_deal(deal_data)
+
+            # Also persist to deals table with posted_at = NULL so cloud broadcaster broadcasts it in real-time
+            try:
+                savings = max(0.0, mrp - price)
+                savings_pct = (savings / mrp * 100) if mrp > 0 else 0.0
+                await database.execute("""
+                    INSERT INTO deals (
+                        product_id, deal_type, posted_price, posted_mrp,
+                        savings_amount, savings_pct, deal_score, badge,
+                        source_channel, posted_at
+                    ) VALUES (
+                        $1, 'channel_deal', $2, $3, $4, $5, $6, $7, $8, NULL
+                    )
+                    ON CONFLICT (product_id) DO UPDATE SET
+                        posted_price = EXCLUDED.posted_price,
+                        posted_mrp = EXCLUDED.posted_mrp,
+                        savings_amount = EXCLUDED.savings_amount,
+                        savings_pct = EXCLUDED.savings_pct,
+                        deal_score = EXCLUDED.deal_score,
+                        badge = EXCLUDED.badge,
+                        source_channel = EXCLUDED.source_channel;
+                """, pid, price, mrp, savings, savings_pct, round(min(95, 50 + discount_pct)), badge, channel)
+            except Exception as d_err:
+                logger.debug(f"Deals table insert notice: {d_err}")
             logger.info(f"🎯 Intercepted & Verified DEAL from {channel} [{platform.upper()}]: {title[:40]} ({discount_pct}% OFF)")
 
         return pid
