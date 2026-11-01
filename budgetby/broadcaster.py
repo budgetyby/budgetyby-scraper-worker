@@ -40,7 +40,7 @@ async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict 
         recent_list = list(exclude_ids)[-250:]
         exclude_clause = f"AND d.product_id NOT IN ({','.join(str(i) for i in recent_list)})"
 
-    # Step 1: Look in deals table for this specific store
+    # Step 1: Look in deals table for freshly intercepted unposted deals for this store
     row = await database.fetchrow(f"""
         SELECT d.id as deal_id, d.product_id, d.posted_price, d.posted_mrp, 
                d.deal_score, d.badge, d.posted_at,
@@ -49,6 +49,7 @@ async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict 
         FROM deals d
         JOIN products p ON d.product_id = p.id
         WHERE p.in_stock = TRUE AND p.status = 'ACTIVE'
+          AND d.posted_at IS NULL
           AND p.platform = '{store}'
           {exclude_clause}
         ORDER BY d.id DESC
