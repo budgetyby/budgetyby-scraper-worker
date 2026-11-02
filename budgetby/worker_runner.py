@@ -97,6 +97,56 @@ async def periodic_scraper_loop(duration_secs: int):
         # Re-check database every 180 seconds (3 minutes)
         await asyncio.sleep(180)
 
+async def cloud_maintenance_loop(duration_secs: int):
+    """
+    Periodic Cloud Database Maintenance Loop:
+    Guarantees perpetual 100% free-tier database compliance (<300 MB):
+    1. Prunes price history older than 5 days.
+    2. Deletes expired post cooldown records.
+    3. Deletes ingested telegram channel records older than 14 days.
+    4. Cleans expired deal tracking records.
+    5. Runs VACUUM ANALYZE to compact disk blocks and update query planner stats.
+    """
+    from budgetby import database, config
+    end_time = time.time() + duration_secs
+    # Run first maintenance cycle 30 seconds after worker start
+    await asyncio.sleep(30)
+
+    while time.time() < end_time:
+        try:
+            logger.info("🧹 [DB MAINTENANCE] Starting autonomous cloud database cleanup...")
+            pool = database.get_pool()
+            if pool:
+                async with pool.acquire() as conn:
+                    # 1. Clean expired cooldowns
+                    del_cd = await conn.execute("DELETE FROM post_cooldowns WHERE expires_at < NOW();")
+                    logger.info(f"🧹 [DB MAINTENANCE] Expired cooldowns purged: {del_cd}")
+
+                    # 2. Prune old daily prices (> 5 days)
+                    del_dp = await conn.execute("""
+                        DELETE FROM daily_prices
+                        WHERE date < (NOW() AT TIME ZONE 'Asia/Kolkata')::DATE - ($1 * INTERVAL '1 day')
+                    """, config.DAILY_PRICE_RETENTION_DAYS)
+                    logger.info(f"🧹 [DB MAINTENANCE] Old daily prices purged: {del_dp}")
+
+                    # 3. Prune old ingested channel deals (> 14 days)
+                    del_icd = await conn.execute("DELETE FROM ingested_channel_deals WHERE created_at < NOW() - INTERVAL '14 days';")
+                    logger.info(f"🧹 [DB MAINTENANCE] Old ingested channel deals purged: {del_icd}")
+
+                    # 4. Finalize expired deal tracking
+                    await database.finalize_expired_tracking()
+
+                    # 5. VACUUM ANALYZE to reclaim disk space
+                    await conn.execute("VACUUM ANALYZE daily_prices;")
+                    await conn.execute("VACUUM ANALYZE post_cooldowns;")
+                    await conn.execute("VACUUM ANALYZE ingested_channel_deals;")
+                    logger.info("✅ [DB MAINTENANCE] Autonomous cloud database compaction complete!")
+        except Exception as e:
+            logger.warning(f"[DB MAINTENANCE] Notice: {e}")
+
+        # Run maintenance every 4 hours (14400s)
+        await asyncio.sleep(14400)
+
 async def self_relay_trigger():
     """Triggers the next GitHub Action workflow run before the current one terminates."""
     gh_token = os.getenv("GITHUB_TOKEN") or os.getenv("GH_PAT")
@@ -147,6 +197,9 @@ async def main():
 
     # Start Scraper Loop
     scraper_task = asyncio.create_task(periodic_scraper_loop(duration_secs))
+
+    # Start Autonomous Cloud Database Maintenance loop (perpetual free-tier protection)
+    maintenance_task = asyncio.create_task(cloud_maintenance_loop(duration_secs))
 
     # Wait until duration is almost reached (reserve 10 mins for clean relay)
     sleep_time = max(10, duration_secs - 600)
