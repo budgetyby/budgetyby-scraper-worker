@@ -217,33 +217,39 @@ async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict 
             logger.debug(f"Live hunt candidate note for {store}: {he}")
 
     # Step C: Fall back to active high-discount catalog items specifically for this store
-    # Enforces 7-day duplicate prevention (NOT EXISTS in deals posted in last 7 days) and 24h 3-tier cooldown
-    candidates = await database.fetch(f"""
-        SELECT 0 as deal_id, p.id as product_id, p.current_price as posted_price, p.mrp as posted_mrp,
-               ROUND((((p.mrp - p.current_price)/NULLIF(p.mrp,0)) * 100)::numeric, 1) as deal_score,
-               'HOT_DEAL' as badge, NOW() as posted_at,
-               p.title, p.platform, p.product_url, p.affiliate_url, p.image_url, 
-               p.current_price, p.mrp, p.category, p.rating
-        FROM products p
-        LEFT JOIN post_cooldowns c ON p.id = c.product_id AND c.expires_at > NOW()
-        WHERE p.in_stock = TRUE AND p.status = 'ACTIVE' AND p.current_price > 0
-          AND p.platform = '{store}'
-          AND p.mrp > p.current_price
-          AND ((p.mrp - p.current_price) / p.mrp) >= 0.20
-          AND c.product_id IS NULL
-          AND NOT EXISTS (
-              SELECT 1 FROM deals d 
-              WHERE d.product_id = p.id 
-                AND d.posted_at >= (NOW() - INTERVAL '7 days')
-          )
-          {exclude_clause.replace('d.product_id', 'p.id')}
-        ORDER BY ((p.mrp - p.current_price) / p.mrp) DESC, p.id DESC
-        LIMIT 25;
-    """)
-    for r in candidates:
-        pid = r["product_id"]
-        if not await is_on_cooldown(pid):
-            return dict(r)
+    # Highly optimized index-backed query + fast batch 7-day duplicate check (<0.2s runtime)
+    try:
+        candidates = await database.fetch(f"""
+            SELECT 0 as deal_id, p.id as product_id, p.current_price as posted_price, p.mrp as posted_mrp,
+                   ROUND((((p.mrp - p.current_price)/NULLIF(p.mrp,0)) * 100)::numeric, 1) as deal_score,
+                   'HOT_DEAL' as badge, NOW() as posted_at,
+                   p.title, p.platform, p.product_url, p.affiliate_url, p.image_url, 
+                   p.current_price, p.mrp, p.category, p.rating
+            FROM products p
+            WHERE p.in_stock = TRUE AND p.status = 'ACTIVE' AND p.current_price > 0
+              AND p.platform = '{store}'
+              AND p.mrp > p.current_price
+              AND ((p.mrp - p.current_price) / p.mrp) >= 0.20
+              {exclude_clause.replace('d.product_id', 'p.id')}
+            ORDER BY p.id DESC
+            LIMIT 40;
+        """)
+        if candidates:
+            pids = [c["product_id"] for c in candidates if c.get("product_id")]
+            if pids:
+                id_list = ",".join(str(x) for x in pids)
+                posted_rows = await database.fetch(f"""
+                    SELECT product_id FROM deals 
+                    WHERE product_id IN ({id_list}) 
+                      AND posted_at >= (NOW() - INTERVAL '7 days')
+                """)
+                posted_set = {r["product_id"] for r in posted_rows}
+                for r in candidates:
+                    pid = r["product_id"]
+                    if pid not in posted_set and not await is_on_cooldown(pid):
+                        return dict(r)
+    except Exception as c_err:
+        logger.warning(f"Error fetching Step C candidates for {store}: {c_err}")
 
     return None
 

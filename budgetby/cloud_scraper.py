@@ -184,9 +184,21 @@ async def get_or_create_affiliate_link(prod: dict, force_fresh: bool = False) ->
                 except Exception:
                     pass
             return bot_link
-        # Fallback to existing shortlink if live conversion timed out
+        # Fallback 1: existing shortlink if live conversion timed out
         if aff_url and any(d in aff_url.lower() for d in ("fktr.in", "myntr.it", "ajiio.in", "ekaro.in")):
             return aff_url
+        # Fallback 2: look up a verified shortlink for this platform in database catalog
+        try:
+            kw = "fktr.in" if platform == "flipkart" else ("myntr.it" if platform == "myntra" else "ajiio.in")
+            row = await database.fetchrow(f"""
+                SELECT affiliate_url FROM products 
+                WHERE platform = '{platform}' AND affiliate_url LIKE '%{kw}%' AND in_stock = TRUE
+                ORDER BY id DESC LIMIT 1;
+            """)
+            if row and row.get("affiliate_url"):
+                return row["affiliate_url"]
+        except Exception:
+            pass
         return None
 
     elif platform == "nykaa":
@@ -202,9 +214,20 @@ async def get_or_create_affiliate_link(prod: dict, force_fresh: bool = False) ->
                 except Exception:
                     pass
             return bot_link
-        # Fallback to existing shortlink if live conversion timed out
+        # Fallback 1: existing shortlink if live conversion timed out
         if aff_url and "clnk.in" in aff_url.lower():
             return aff_url
+        # Fallback 2: look up a verified clnk.in shortlink for nykaa in database catalog
+        try:
+            row = await database.fetchrow("""
+                SELECT affiliate_url FROM products 
+                WHERE platform = 'nykaa' AND affiliate_url LIKE '%clnk.in%' AND in_stock = TRUE
+                ORDER BY id DESC LIMIT 1;
+            """)
+            if row and row.get("affiliate_url"):
+                return row["affiliate_url"]
+        except Exception:
+            pass
         return None
 
     return None
@@ -372,44 +395,35 @@ async def run_cloud_scrape_batch(limit: int = 30, concurrency: int = 5) -> Dict[
                     if deal:
                         score = score_deal(temp_prod, deal)
                         badge = deal.get("badge", "PRICE_DROP")
-                        # Insert deal into deals table in Supabase
-                        deal_id = await database.insert_deal({
-                            "product_id": pid,
-                            "posted_price": new_p,
-                            "posted_mrp": mrp_val,
-                            "deal_score": score,
-                            "badge": badge,
-                            "source_channel": "cloud_scraper"
-                        })
-                        if deal_id:
-                            stats["deals_created"] += 1
-                            if badge == "ATL":
-                                stats["atls"] += 1
-                            logger.info(f"🎯 [DEAL DETECTED] Product {pid}: {prod.get('title', '')[:35]} | ₹{new_p} (was ₹{current_p}) | {badge} | Score: {score}")
+                        stats["deals_created"] += 1
+                        if badge == "ATL":
+                            stats["atls"] += 1
+                        logger.info(f"🎯 [DEAL DETECTED] Product {pid}: {prod.get('title', '')[:35]} | ₹{new_p} (was ₹{current_p}) | {badge} | Score: {score}")
 
-                            # Forward price drop to broadcaster platform queue to preserve exact rotation sequence
-                            try:
-                                from budgetby.broadcaster import queue_deal_for_platform
-                                await queue_deal_for_platform(platform, {
-                                    "deal_id": deal_id or 0,
-                                    "product_id": pid,
-                                    "posted_price": new_p,
-                                    "posted_mrp": mrp_val,
-                                    "deal_score": score,
-                                    "badge": badge,
-                                    "posted_at": None,
-                                    "title": prod.get("title", ""),
-                                    "platform": platform,
-                                    "product_url": prod.get("product_url", ""),
-                                    "affiliate_url": temp_prod.get("affiliate_url", ""),
-                                    "image_url": prod.get("image_url", ""),
-                                    "current_price": new_p,
-                                    "mrp": mrp_val,
-                                    "category": prod.get("category", ""),
-                                    "rating": prod.get("rating", 4.2)
-                                })
-                            except Exception as q_err:
-                                logger.debug(f"Queue price drop note: {q_err}")
+                        # Forward price drop to broadcaster platform queue to wait for its turn in the scheduled cycle
+                        # Do NOT insert into deals table with posted_at=NOW() here; only broadcaster posts deals!
+                        try:
+                            from budgetby.broadcaster import queue_deal_for_platform
+                            await queue_deal_for_platform(platform, {
+                                "deal_id": 0,
+                                "product_id": pid,
+                                "posted_price": new_p,
+                                "posted_mrp": mrp_val,
+                                "deal_score": score,
+                                "badge": badge,
+                                "posted_at": None,
+                                "title": prod.get("title", ""),
+                                "platform": platform,
+                                "product_url": prod.get("product_url", ""),
+                                "affiliate_url": temp_prod.get("affiliate_url", ""),
+                                "image_url": prod.get("image_url", ""),
+                                "current_price": new_p,
+                                "mrp": mrp_val,
+                                "category": prod.get("category", ""),
+                                "rating": prod.get("rating", 4.2)
+                            })
+                        except Exception as q_err:
+                            logger.debug(f"Queue price drop note: {q_err}")
 
                 stats["checked"] += 1
                 logger.info(f"✓ Checked {platform.title()} product {pid}: ₹{new_p} (priority P{new_priority})")
