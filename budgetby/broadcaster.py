@@ -231,7 +231,6 @@ async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict 
               AND p.mrp > p.current_price
               AND ((p.mrp - p.current_price) / p.mrp) >= 0.20
               {exclude_clause.replace('d.product_id', 'p.id')}
-            ORDER BY p.id DESC
             LIMIT 40;
         """)
         if candidates:
