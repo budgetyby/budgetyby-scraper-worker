@@ -61,12 +61,21 @@ def is_valid_affiliate_shortlink(url: str, platform: str = "") -> bool:
 
 
 _telethon_client = None
+_bot_conversation_lock = asyncio.Lock()
 
 async def get_cloud_telethon_client():
     """Initializes a Telethon MTProto client in cloud environments using TELEGRAM_SESSION_STRING."""
     global _telethon_client
-    if _telethon_client is not None and _telethon_client.is_connected():
-        return _telethon_client
+    if _telethon_client is not None:
+        if _telethon_client.is_connected():
+            return _telethon_client
+        try:
+            await _telethon_client.connect()
+            if await _telethon_client.is_user_authorized():
+                return _telethon_client
+        except Exception as e:
+            logger.debug(f"Telethon reconnect attempt note: {e}")
+            _telethon_client = None
 
     session_str = (getattr(config, "TELEGRAM_SESSION_STRING", "") or os.environ.get("TELEGRAM_SESSION_STRING", "")).strip()
     api_id = getattr(config, "TG_API_ID", 24803975)
@@ -106,39 +115,40 @@ async def convert_via_cloud_telegram_bots(url: str, platform: str) -> str | None
         return None
 
     plat = (platform or "").lower().strip()
-    try:
-        if plat in ("flipkart", "myntra", "ajio"):
-            async with client.conversation("ekconverter9bot", timeout=12) as conv:
-                await conv.send_message(url)
-                resp = await conv.get_response()
-                txt = (resp.text or "").strip()
-                m = re.search(r'https?://[^\s]+', txt)
-                if m:
-                    short_link = m.group(0)
-                    if any(d in short_link.lower() for d in ("fktr.in", "myntr.it", "ajiio.in", "ekaro.in")):
-                        return short_link
-        elif plat == "nykaa":
-            # Strip query parameters so CuelinksBot converts cleanly
-            clean_nykaa = url.split("?")[0]
-            async with client.conversation("cuelinks_bot", timeout=12) as conv:
-                sent_msg = await conv.send_message(clean_nykaa)
-                loop_start = asyncio.get_event_loop().time()
-                while (asyncio.get_event_loop().time() - loop_start) < 12:
-                    rem_time = max(0.5, 12 - (asyncio.get_event_loop().time() - loop_start))
-                    try:
-                        resp = await conv.get_response(timeout=rem_time)
-                    except (asyncio.TimeoutError, TimeoutError):
-                        break
-                    if not resp or not resp.text:
-                        continue
-                    if getattr(resp, "id", 0) < getattr(sent_msg, "id", 0):
-                        continue
-                    urls = re.findall(r'https?://[^\s\)\>]+', resp.text)
-                    valid_links = [u.strip() for u in urls if "clnk.in" in u.lower()]
-                    if valid_links:
-                        return valid_links[0].rstrip(".,;!?")
-    except Exception as e:
-        logger.debug(f"Cloud Telegram bot link conversion error: {e}")
+    async with _bot_conversation_lock:
+        try:
+            if plat in ("flipkart", "myntra", "ajio"):
+                async with client.conversation("ekconverter9bot", timeout=12) as conv:
+                    await conv.send_message(url)
+                    resp = await conv.get_response()
+                    txt = (resp.text or "").strip()
+                    m = re.search(r'https?://[^\s]+', txt)
+                    if m:
+                        short_link = m.group(0)
+                        if any(d in short_link.lower() for d in ("fktr.in", "myntr.it", "ajiio.in", "ekaro.in")):
+                            return short_link
+            elif plat == "nykaa":
+                # Strip query parameters so CuelinksBot converts cleanly
+                clean_nykaa = url.split("?")[0]
+                async with client.conversation("cuelinks_bot", timeout=12) as conv:
+                    sent_msg = await conv.send_message(clean_nykaa)
+                    loop_start = asyncio.get_event_loop().time()
+                    while (asyncio.get_event_loop().time() - loop_start) < 12:
+                        rem_time = max(0.5, 12 - (asyncio.get_event_loop().time() - loop_start))
+                        try:
+                            resp = await conv.get_response(timeout=rem_time)
+                        except (asyncio.TimeoutError, TimeoutError):
+                            break
+                        if not resp or not resp.text:
+                            continue
+                        if getattr(resp, "id", 0) < getattr(sent_msg, "id", 0):
+                            continue
+                        urls = re.findall(r'https?://[^\s\)\>]+', resp.text)
+                        valid_links = [u.strip() for u in urls if "clnk.in" in u.lower()]
+                        if valid_links:
+                            return valid_links[0].rstrip(".,;!?")
+        except Exception as e:
+            logger.debug(f"Cloud Telegram bot link conversion error: {e}")
     return None
 
 

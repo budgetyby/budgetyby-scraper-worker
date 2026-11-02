@@ -217,7 +217,7 @@ async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict 
             logger.debug(f"Live hunt candidate note for {store}: {he}")
 
     # Step C: Fall back to active high-discount catalog items specifically for this store
-    # Highly optimized index-backed query + fast batch 7-day duplicate check (<0.2s runtime)
+    # Index-backed query skipping deals posted in last 7 days and active cooldowns
     try:
         candidates = await database.fetch(f"""
             SELECT 0 as deal_id, p.id as product_id, p.current_price as posted_price, p.mrp as posted_mrp,
@@ -230,23 +230,20 @@ async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict 
               AND p.platform = '{store}'
               AND p.mrp > p.current_price
               AND ((p.mrp - p.current_price) / p.mrp) >= 0.20
+              AND NOT EXISTS (
+                  SELECT 1 FROM deals d WHERE d.product_id = p.id AND d.posted_at >= (NOW() - INTERVAL '7 days')
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM post_cooldowns c WHERE c.product_id = p.id AND c.expires_at > NOW()
+              )
               {exclude_clause.replace('d.product_id', 'p.id')}
-            LIMIT 40;
+            LIMIT 30;
         """)
         if candidates:
-            pids = [c["product_id"] for c in candidates if c.get("product_id")]
-            if pids:
-                id_list = ",".join(str(x) for x in pids)
-                posted_rows = await database.fetch(f"""
-                    SELECT product_id FROM deals 
-                    WHERE product_id IN ({id_list}) 
-                      AND posted_at >= (NOW() - INTERVAL '7 days')
-                """)
-                posted_set = {r["product_id"] for r in posted_rows}
-                for r in candidates:
-                    pid = r["product_id"]
-                    if pid not in posted_set and not await is_on_cooldown(pid):
-                        return dict(r)
+            for r in candidates:
+                pid = r["product_id"]
+                if pid and pid not in exclude_ids and not await is_on_cooldown(pid):
+                    return dict(r)
     except Exception as c_err:
         logger.warning(f"Error fetching Step C candidates for {store}: {c_err}")
 
@@ -496,10 +493,6 @@ async def run_paced_30s_broadcaster():
             if database._pool is None:
                 await database.init_pool()
 
-            # Check if queue has reached >= 10 products: trigger burst drain!
-            if get_total_queued_count() >= 10:
-                await drain_all_queues_immediately()
-
             # Determine target store from the scheduled sequence
             target_plat = ROTATION_SEQUENCE[_current_seq_idx % len(ROTATION_SEQUENCE)]
 
@@ -508,29 +501,24 @@ async def run_paced_30s_broadcaster():
                 _current_seq_idx += 1
                 target_plat = ROTATION_SEQUENCE[_current_seq_idx % len(ROTATION_SEQUENCE)]
 
-            # 1. Fetch next candidate deal prioritizing target store
+            # 1. Fetch next candidate deal strictly prioritizing target store
             deal_row = await _fetch_deal_candidate_for_store(target_plat, _last_posted_product_ids)
-
-            # If target store has no candidate right now, rotate through alternatives in sequence order
-            if not deal_row:
-                for alt_plat in ROTATION_SEQUENCE:
-                    if alt_plat != _last_posted_platform and alt_plat != target_plat:
-                        deal_row = await _fetch_deal_candidate_for_store(alt_plat, _last_posted_product_ids)
-                        if deal_row:
-                            target_plat = alt_plat
-                            break
+            posted_ok = False
 
             if deal_row:
-                success = await broadcast_single_deal(deal_row)
-                if success:
-                    _current_seq_idx += 1
-                else:
-                    # If this deal failed or was on cooldown, advance index so we do not freeze the scheduled rotation!
-                    _current_seq_idx += 1
-            else:
-                # Target store had no deals; advance index so the schedule advances to the next platform!
-                _current_seq_idx += 1
-                logger.debug("No deal candidates available across stores this cycle. Advanced sequence index.")
+                posted_ok = await broadcast_single_deal(deal_row)
+                if not posted_ok:
+                    # If first candidate failed affiliate conversion or post, retry with alternate candidate for the SAME store
+                    logger.info(f"Target platform [{target_plat.upper()}] first candidate failed; retrying alternate candidate...")
+                    deal_row_retry = await _fetch_deal_candidate_for_store(target_plat, _last_posted_product_ids)
+                    if deal_row_retry:
+                        posted_ok = await broadcast_single_deal(deal_row_retry)
+
+            if not posted_ok and not deal_row:
+                logger.warning(f"No candidates currently available for target platform [{target_plat.upper()}] this cycle.")
+
+            # Always advance sequence index so scheduled rotation progresses strictly in ratio
+            _current_seq_idx += 1
 
         except Exception as e:
             logger.error(f"Error in run_paced_30s_broadcaster loop: {e}")
@@ -587,10 +575,6 @@ async def run_continuous_deal_hunter_daemon():
                             "rating": hp.get("rating")
                         }
                         await queue_deal_for_platform(store, deal_payload)
-
-                        # Check if total queued deals reached >= 10: triggers instant burst drain!
-                        if get_total_queued_count() >= 10:
-                            await drain_all_queues_immediately()
 
             # Short breath between category scans to respect rate limits
             await asyncio.sleep(12)

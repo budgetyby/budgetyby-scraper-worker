@@ -54,15 +54,39 @@ async def periodic_scraper_loop(duration_secs: int):
             stats = await run_cloud_scrape_batch(limit=40, concurrency=5)
             logger.info(f"✅ [SCRAPER BATCH DONE] Scraped={stats.get('scraped')}, PriceDrops={stats.get('price_drops')}, Deals={stats.get('deals_found')}")
 
-            # 2. Live Store Flash Hunter - Discover brand-new deals across all 5 stores
+            # 2. Live Store Flash Hunter - Discover brand-new deals across all 5 stores and queue for broadcast
             try:
                 logger.info("🏹 [FLASH HUNTER] Scanning live store deals feeds across stores...")
                 from budgetby.engine.live_hunter import hunt_live_store_deal
+                from budgetby.broadcaster import queue_deal_for_platform, _last_posted_product_ids
+                from budgetby.engine.cooldown import is_on_cooldown
                 for s in ["myntra", "flipkart", "amazon", "ajio", "nykaa"]:
                     try:
                         h_res = await asyncio.wait_for(hunt_live_store_deal(s), timeout=15)
                         if h_res and h_res.get("product"):
-                            logger.info(f"✨ [NEW DEAL DISCOVERED] {s.upper()}: {h_res['product'].get('title', '')[:35]}")
+                            hp = h_res["product"]
+                            pid = hp.get("id")
+                            if pid and pid not in _last_posted_product_ids and not await is_on_cooldown(pid):
+                                deal_payload = {
+                                    "deal_id": 0,
+                                    "product_id": pid,
+                                    "posted_price": hp.get("current_price"),
+                                    "posted_mrp": hp.get("mrp"),
+                                    "deal_score": h_res.get("score", 85.0),
+                                    "badge": h_res.get("badge", "HOT_DEAL"),
+                                    "posted_at": None,
+                                    "title": hp.get("title"),
+                                    "platform": s,
+                                    "product_url": hp.get("product_url"),
+                                    "affiliate_url": hp.get("affiliate_url"),
+                                    "image_url": hp.get("image_url"),
+                                    "current_price": hp.get("current_price"),
+                                    "mrp": hp.get("mrp"),
+                                    "category": hp.get("category"),
+                                    "rating": hp.get("rating")
+                                }
+                                await queue_deal_for_platform(s, deal_payload)
+                                logger.info(f"✨ [NEW DEAL QUEUED] {s.upper()}: #{pid} {hp.get('title', '')[:35]}")
                     except Exception as he:
                         logger.debug(f"Hunter note for {s}: {he}")
             except Exception as e:
@@ -112,8 +136,11 @@ async def main():
     await database.init_pool()
 
     # Start the 30-second broadcaster
-    from budgetby.broadcaster import run_paced_30s_broadcaster
+    from budgetby.broadcaster import run_paced_30s_broadcaster, run_continuous_deal_hunter_daemon
     broadcaster_task = asyncio.create_task(run_paced_30s_broadcaster())
+
+    # Start the continuous deal hunter daemon across all 298 category feeds
+    hunter_task = asyncio.create_task(run_continuous_deal_hunter_daemon())
 
     # Start Render keep-alive
     keepalive_task = asyncio.create_task(keep_alive_loop(duration_secs))
