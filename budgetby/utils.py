@@ -38,7 +38,9 @@ AFFILIATE_MONETIZED_DOMAINS = (
     "myntr.it",
     "ajiio.in",
     "ekaro.in",
-    "clnk.in"
+    "clnk.in",
+    "linksredirect.com",
+    "affgrowth"
 )
 
 def is_monetized_affiliate_url(url: Optional[str]) -> bool:
@@ -60,5 +62,7 @@ SQL_AFFILIATE_PRIORITY_ORDER = (
     "OR p.affiliate_url ILIKE '%myntr.it%' "
     "OR p.affiliate_url ILIKE '%ajiio.in%' "
     "OR p.affiliate_url ILIKE '%clnk.in%' "
+    "OR p.affiliate_url ILIKE '%linksredirect.com%' "
+    "OR p.affiliate_url ILIKE '%affgrowth%' "
     "OR LOWER(p.platform) = 'amazon' THEN 1 ELSE 0 END) DESC"
 )

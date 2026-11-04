@@ -178,8 +178,8 @@ async def upsert_product(data: dict) -> int:
                 review_count = COALESCE($5, review_count),
                 image_url = COALESCE(NULLIF(TRIM($6), ''), image_url),
                 affiliate_url = CASE
-                    WHEN $7 ILIKE '%fktr.in%' OR $7 ILIKE '%myntr.it%' OR $7 ILIKE '%ajiio.in%' OR $7 ILIKE '%ekaro.in%' OR $7 ILIKE '%clnk.in%' OR ($7 ILIKE '%amazon.in%' AND $7 ILIKE '%tag=%') THEN $7
-                    WHEN products.affiliate_url ILIKE '%fktr.in%' OR products.affiliate_url ILIKE '%myntr.it%' OR products.affiliate_url ILIKE '%ajiio.in%' OR products.affiliate_url ILIKE '%ekaro.in%' OR products.affiliate_url ILIKE '%clnk.in%' OR (products.affiliate_url ILIKE '%amazon.in%' AND products.affiliate_url ILIKE '%tag=%') THEN products.affiliate_url
+                    WHEN $7 ILIKE '%fktr.in%' OR $7 ILIKE '%myntr.it%' OR $7 ILIKE '%ajiio.in%' OR $7 ILIKE '%ekaro.in%' OR $7 ILIKE '%clnk.in%' OR $7 ILIKE '%linksredirect.com%' OR $7 ILIKE '%affgrowth%' OR ($7 ILIKE '%amazon.in%' AND $7 ILIKE '%tag=%') THEN $7
+                    WHEN products.affiliate_url ILIKE '%fktr.in%' OR products.affiliate_url ILIKE '%myntr.it%' OR products.affiliate_url ILIKE '%ajiio.in%' OR products.affiliate_url ILIKE '%ekaro.in%' OR products.affiliate_url ILIKE '%clnk.in%' OR products.affiliate_url ILIKE '%linksredirect.com%' OR products.affiliate_url ILIKE '%affgrowth%' OR (products.affiliate_url ILIKE '%amazon.in%' AND products.affiliate_url ILIKE '%tag=%') THEN products.affiliate_url
                     ELSE COALESCE($7, products.affiliate_url)
                 END,
                 in_stock = COALESCE($8, in_stock),
@@ -219,8 +219,8 @@ async def upsert_product(data: dict) -> int:
             category = COALESCE(EXCLUDED.category, products.category),
             image_url = COALESCE(NULLIF(TRIM(EXCLUDED.image_url), ''), products.image_url),
             affiliate_url = CASE
-                WHEN EXCLUDED.affiliate_url ILIKE '%fktr.in%' OR EXCLUDED.affiliate_url ILIKE '%myntr.it%' OR EXCLUDED.affiliate_url ILIKE '%ajiio.in%' OR EXCLUDED.affiliate_url ILIKE '%ekaro.in%' OR EXCLUDED.affiliate_url ILIKE '%clnk.in%' OR (EXCLUDED.affiliate_url ILIKE '%amazon.in%' AND EXCLUDED.affiliate_url ILIKE '%tag=%') THEN EXCLUDED.affiliate_url
-                WHEN products.affiliate_url ILIKE '%fktr.in%' OR products.affiliate_url ILIKE '%myntr.it%' OR products.affiliate_url ILIKE '%ajiio.in%' OR products.affiliate_url ILIKE '%ekaro.in%' OR products.affiliate_url ILIKE '%clnk.in%' OR (products.affiliate_url ILIKE '%amazon.in%' AND products.affiliate_url ILIKE '%tag=%') THEN products.affiliate_url
+                WHEN EXCLUDED.affiliate_url ILIKE '%fktr.in%' OR EXCLUDED.affiliate_url ILIKE '%myntr.it%' OR EXCLUDED.affiliate_url ILIKE '%ajiio.in%' OR EXCLUDED.affiliate_url ILIKE '%ekaro.in%' OR EXCLUDED.affiliate_url ILIKE '%clnk.in%' OR EXCLUDED.affiliate_url ILIKE '%linksredirect.com%' OR EXCLUDED.affiliate_url ILIKE '%affgrowth%' OR (EXCLUDED.affiliate_url ILIKE '%amazon.in%' AND EXCLUDED.affiliate_url ILIKE '%tag=%') THEN EXCLUDED.affiliate_url
+                WHEN products.affiliate_url ILIKE '%fktr.in%' OR products.affiliate_url ILIKE '%myntr.it%' OR products.affiliate_url ILIKE '%ajiio.in%' OR products.affiliate_url ILIKE '%ekaro.in%' OR products.affiliate_url ILIKE '%clnk.in%' OR products.affiliate_url ILIKE '%linksredirect.com%' OR products.affiliate_url ILIKE '%affgrowth%' OR (products.affiliate_url ILIKE '%amazon.in%' AND products.affiliate_url ILIKE '%tag=%') THEN products.affiliate_url
                 ELSE COALESCE(EXCLUDED.affiliate_url, products.affiliate_url)
             END,
             last_checked = NOW()

@@ -30,18 +30,22 @@ def clean_product_url(url: str) -> str:
     except Exception:
         return url
 
-def build_cuelinks_url_sync(url: str) -> str:
+def build_cuelinks_url_sync(url: str, channel_id: str = None) -> str:
     """
-    Synchronous builder: returns the clean URL stripped of EarnKaro/tracking params.
+    Synchronous builder: returns the official Cuelinks redirect URL for direct tracking.
+    Works 100% cloud-native without requiring Telegram MTProto bots or session strings.
     """
     clean_url = clean_product_url(url)
-    return clean_url or url
+    if not clean_url:
+        return ""
+    cid = channel_id or getattr(config, "CUELINKS_CHANNEL_ID", "314807")
+    return f"https://linksredirect.com/?cid={cid}&url={urllib.parse.quote(clean_url)}"
 
 async def build_cuelinks_url(url: str) -> str:
     """
     Asynchronously converts a raw product URL into a Cuelinks affiliate link.
     If CUELINKS_API_KEY is configured, it calls the Cuelinks API to fetch the short clnk.in link.
-    Otherwise, returns the clean URL for the channel bot to convert.
+    Otherwise, returns official direct Cuelinks redirect URL.
     """
     clean_url = clean_product_url(url)
     if not clean_url:
@@ -71,4 +75,4 @@ async def build_cuelinks_url(url: str) -> str:
         except Exception as e:
             logger.warning(f"Cuelinks API link generation failed: {e}")
 
-    return clean_url
+    return build_cuelinks_url_sync(clean_url, channel_id=channel_id)

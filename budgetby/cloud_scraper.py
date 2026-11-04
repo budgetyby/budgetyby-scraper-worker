@@ -42,7 +42,7 @@ scrapers = {
 }
 
 def is_valid_affiliate_shortlink(url: str, platform: str = "") -> bool:
-    """Strict verification that a URL is an official monetized affiliate shortlink."""
+    """Strict verification that a URL is an official monetized affiliate link."""
     if not url:
         return False
     u = url.lower().strip()
@@ -50,14 +50,14 @@ def is_valid_affiliate_shortlink(url: str, platform: str = "") -> bool:
     if plat == "amazon":
         return ("dealpulse21-21" in u) or ("amzn.to" in u)
     elif plat == "flipkart":
-        return ("fktr.in" in u) or ("ekaro.in" in u)
+        return ("fktr.in" in u) or ("ekaro.in" in u) or ("affgrowth" in u and "5549565" in u)
     elif plat == "myntra":
-        return ("myntr.it" in u) or ("ekaro.in" in u)
+        return ("myntr.it" in u) or ("ekaro.in" in u) or ("affgrowth" in u and "5549565" in u)
     elif plat == "ajio":
-        return ("ajiio.in" in u)
+        return ("ajiio.in" in u) or ("ekaro.in" in u) or ("affgrowth" in u and "5549565" in u)
     elif plat == "nykaa":
-        return ("clnk.in" in u)
-    return any(domain in u for domain in ("fktr.in", "myntr.it", "ajiio.in", "clnk.in", "amzn.to", "dealpulse21-21"))
+        return ("clnk.in" in u) or ("linksredirect.com" in u and "314807" in u)
+    return any(domain in u for domain in ("fktr.in", "myntr.it", "ajiio.in", "clnk.in", "amzn.to", "dealpulse21-21", "linksredirect.com", "affgrowth"))
 
 
 _telethon_client = None
@@ -185,8 +185,11 @@ async def get_or_create_affiliate_link(prod: dict, force_fresh: bool = False) ->
         # If already a valid shortlink and not force_fresh, reuse it
         if not force_fresh and aff_url and any(d in aff_url.lower() for d in ("fktr.in", "myntr.it", "ajiio.in", "ekaro.in")):
             return aff_url
-        # Convert live via real Telegram bot @ekconverter9bot
-        bot_link = await convert_via_cloud_telegram_bots(prod_url or aff_url, platform)
+        target_url = prod_url or aff_url
+        if not target_url:
+            return None
+        # Convert live via real Telegram bot @ekconverter9bot if available
+        bot_link = await convert_via_cloud_telegram_bots(target_url, platform)
         if bot_link and any(d in bot_link.lower() for d in ("fktr.in", "myntr.it", "ajiio.in", "ekaro.in")):
             if pid:
                 try:
@@ -194,29 +197,33 @@ async def get_or_create_affiliate_link(prod: dict, force_fresh: bool = False) ->
                 except Exception:
                     pass
             return bot_link
-        # Fallback 1: existing shortlink if live conversion timed out
+        # Fallback 1: existing unique shortlink if on THIS product and live conversion timed out
         if aff_url and any(d in aff_url.lower() for d in ("fktr.in", "myntr.it", "ajiio.in", "ekaro.in")):
             return aff_url
-        # Fallback 2: look up a verified shortlink for this platform in database catalog
+        # Fallback 2: Direct EarnKaro cloud-native tracking link (100% individual attribution, zero bot required)
         try:
-            kw = "fktr.in" if platform == "flipkart" else ("myntr.it" if platform == "myntra" else "ajiio.in")
-            row = await database.fetchrow(f"""
-                SELECT affiliate_url FROM products 
-                WHERE platform = '{platform}' AND affiliate_url LIKE '%{kw}%' AND in_stock = TRUE
-                ORDER BY id DESC LIMIT 1;
-            """)
-            if row and row.get("affiliate_url"):
-                return row["affiliate_url"]
-        except Exception:
-            pass
+            from budgetby.affiliate.earnkaro_links import build_earnkaro_url_sync
+            direct_link = build_earnkaro_url_sync(target_url)
+            if direct_link:
+                if pid:
+                    try:
+                        await database.execute("UPDATE products SET affiliate_url = $1 WHERE id = $2;", direct_link, pid)
+                    except Exception:
+                        pass
+                return direct_link
+        except Exception as ee:
+            logger.debug(f"Direct EarnKaro build note: {ee}")
         return None
 
     elif platform == "nykaa":
         # If already a valid shortlink and not force_fresh, reuse it
         if not force_fresh and aff_url and "clnk.in" in aff_url.lower():
             return aff_url
-        # Convert live via @cuelinks_bot
-        bot_link = await convert_via_cloud_telegram_bots(prod_url or aff_url, platform)
+        target_url = prod_url or aff_url
+        if not target_url:
+            return None
+        # Convert live via @cuelinks_bot if available
+        bot_link = await convert_via_cloud_telegram_bots(target_url, platform)
         if bot_link and "clnk.in" in bot_link.lower():
             if pid:
                 try:
@@ -224,20 +231,25 @@ async def get_or_create_affiliate_link(prod: dict, force_fresh: bool = False) ->
                 except Exception:
                     pass
             return bot_link
-        # Fallback 1: existing shortlink if live conversion timed out
+        # Fallback 1: existing unique shortlink on THIS product
         if aff_url and "clnk.in" in aff_url.lower():
             return aff_url
-        # Fallback 2: look up a verified clnk.in shortlink for nykaa in database catalog
+        # Fallback 2: Direct official Cuelinks redirect URL (100% individual attribution, zero bot required)
         try:
-            row = await database.fetchrow("""
-                SELECT affiliate_url FROM products 
-                WHERE platform = 'nykaa' AND affiliate_url LIKE '%clnk.in%' AND in_stock = TRUE
-                ORDER BY id DESC LIMIT 1;
-            """)
-            if row and row.get("affiliate_url"):
-                return row["affiliate_url"]
-        except Exception:
-            pass
+            import urllib.parse
+            from budgetby.affiliate.cuelinks_links import clean_product_url
+            clean_target = clean_product_url(target_url)
+            cid = getattr(config, "CUELINKS_CHANNEL_ID", "314807")
+            direct_cuelinks = f"https://linksredirect.com/?cid={cid}&url={urllib.parse.quote(clean_target)}"
+            if direct_cuelinks:
+                if pid:
+                    try:
+                        await database.execute("UPDATE products SET affiliate_url = $1 WHERE id = $2;", direct_cuelinks, pid)
+                    except Exception:
+                        pass
+                return direct_cuelinks
+        except Exception as ce:
+            logger.debug(f"Direct Cuelinks build note: {ce}")
         return None
 
     return None
