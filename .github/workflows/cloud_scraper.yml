@@ -1,6 +1,8 @@
 name: BudgetBy 24/7 Cloud Worker & Broadcaster
 
 on:
+  push:
+    branches: [main]
   schedule:
     # Periodic fail-safe trigger every 30 minutes in case runner stops
     - cron: '*/30 * * * *'
