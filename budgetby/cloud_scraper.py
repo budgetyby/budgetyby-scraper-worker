@@ -78,8 +78,16 @@ async def get_cloud_telethon_client():
             _telethon_client = None
 
     session_str = (getattr(config, "TELEGRAM_SESSION_STRING", "") or os.environ.get("TELEGRAM_SESSION_STRING", "")).strip()
-    api_id = getattr(config, "TG_API_ID", 24803975)
-    api_hash = getattr(config, "TG_API_HASH", "551e18d6a36f5628543788220f8bb152")
+    api_id = getattr(config, "TG_API_ID", 31137769)
+    api_hash = getattr(config, "TG_API_HASH", "950fe9035f62264b68f02b5ae31559c6")
+
+    # Dynamic check: fetch latest valid session string from PostgreSQL system_settings if available
+    try:
+        row = await database.fetchrow("SELECT value FROM system_settings WHERE key = 'telegram_session_string';")
+        if row and row.get("value") and row["value"].strip():
+            session_str = row["value"].strip()
+    except Exception:
+        pass
 
     if not session_str:
         # Check if local session file exists
@@ -197,8 +205,8 @@ async def get_or_create_affiliate_link(prod: dict, force_fresh: bool = False) ->
                 except Exception:
                     pass
             return bot_link
-        # Fallback 1: existing unique shortlink if on THIS product and live conversion timed out
-        if aff_url and any(d in aff_url.lower() for d in ("fktr.in", "myntr.it", "ajiio.in", "ekaro.in")):
+        # Fallback 1: existing unique shortlink if on THIS product and not force_fresh
+        if not force_fresh and aff_url and any(d in aff_url.lower() for d in ("fktr.in", "myntr.it", "ajiio.in", "ekaro.in")):
             return aff_url
         # Fallback 2: Direct EarnKaro cloud-native tracking link (100% individual attribution, zero bot required)
         try:
@@ -231,8 +239,8 @@ async def get_or_create_affiliate_link(prod: dict, force_fresh: bool = False) ->
                 except Exception:
                     pass
             return bot_link
-        # Fallback 1: existing unique shortlink on THIS product
-        if aff_url and "clnk.in" in aff_url.lower():
+        # Fallback 1: existing unique shortlink on THIS product and not force_fresh
+        if not force_fresh and aff_url and "clnk.in" in aff_url.lower():
             return aff_url
         # Fallback 2: Direct official Cuelinks redirect URL (100% individual attribution, zero bot required)
         try:

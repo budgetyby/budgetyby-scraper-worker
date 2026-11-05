@@ -140,7 +140,7 @@ async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict 
         # Step A: Live Flash Hunter - Discover fresh high-discount loot on the fly!
         try:
             from budgetby.engine.live_hunter import hunt_live_store_deal
-            hunt_deal = await asyncio.wait_for(hunt_live_store_deal(store), timeout=18)
+            hunt_deal = await asyncio.wait_for(hunt_live_store_deal(store), timeout=30)
             if hunt_deal and hunt_deal.get("product"):
                 hp = hunt_deal["product"]
                 pid = hp.get("id")
@@ -190,7 +190,7 @@ async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict 
     if not prefer_hunter:
         try:
             from budgetby.engine.live_hunter import hunt_live_store_deal
-            hunt_deal = await asyncio.wait_for(hunt_live_store_deal(store), timeout=18)
+            hunt_deal = await asyncio.wait_for(hunt_live_store_deal(store), timeout=30)
             if hunt_deal and hunt_deal.get("product"):
                 hp = hunt_deal["product"]
                 pid = hp.get("id")
@@ -217,7 +217,7 @@ async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict 
             logger.debug(f"Live hunt candidate note for {store}: {he}")
 
     # Step C: Fall back to active high-discount catalog items specifically for this store
-    # Index-backed query skipping deals posted in last 7 days and active cooldowns
+    # Index-backed query skipping deals posted in last 7 days and active cooldowns, prioritizing recent price changes
     try:
         candidates = await database.fetch(f"""
             SELECT 0 as deal_id, p.id as product_id, p.current_price as posted_price, p.mrp as posted_mrp,
@@ -237,6 +237,7 @@ async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict 
                   SELECT 1 FROM post_cooldowns c WHERE c.product_id = p.id AND c.expires_at > NOW()
               )
               {exclude_clause.replace('d.product_id', 'p.id')}
+            ORDER BY p.last_price_change DESC NULLS LAST, p.created_at DESC
             LIMIT 30;
         """)
         if candidates:
