@@ -238,7 +238,7 @@ async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict 
               )
               {exclude_clause.replace('d.product_id', 'p.id')}
             ORDER BY p.last_price_change DESC NULLS LAST, p.created_at DESC
-            LIMIT 30;
+            LIMIT 5;
         """)
         if candidates:
             for r in candidates:
@@ -417,11 +417,10 @@ async def broadcast_single_deal(deal_row: dict) -> bool:
                 WHERE id = $1;
             """, pid, aff_url)
 
-            # Invalidate SSR cache so deal appears in Just Dropped immediately
+            # Invalidate home SSR cache so deal appears in Just Dropped immediately without wiping query caches
             try:
-                from budgetby.dashboard.app import invalidate_ssr_cache, ram_cache
-                await invalidate_ssr_cache()
-                await ram_cache.clear()
+                from budgetby.dashboard.app import ram_cache
+                await ram_cache.delete("ssr_html:home")
             except Exception:
                 pass
         except Exception as db_sync_err:
@@ -549,9 +548,9 @@ async def run_continuous_deal_hunter_daemon():
             store = hunt_stores[hunt_idx % len(hunt_stores)]
             hunt_idx += 1
 
-            # Only hunt if that platform's queue isn't overflowed
+            # Only hunt if that platform's queue has < 5 deals (avoids unnecessary database round-trips)
             q = _platform_queues.get(store)
-            if q and q.qsize() < 25:
+            if q and q.qsize() < 5:
                 hunt_deal = await hunt_live_store_deal(store)
                 if hunt_deal and hunt_deal.get("product"):
                     hp = hunt_deal["product"]
@@ -577,8 +576,8 @@ async def run_continuous_deal_hunter_daemon():
                         }
                         await queue_deal_for_platform(store, deal_payload)
 
-            # Short breath between category scans to respect rate limits
-            await asyncio.sleep(12)
+            # Paced sleep between category scans (45s reduces DB roundtrips by 73% while keeping queues stocked)
+            await asyncio.sleep(45)
 
         except Exception as e:
             logger.error(f"Continuous hunter loop error: {e}")
