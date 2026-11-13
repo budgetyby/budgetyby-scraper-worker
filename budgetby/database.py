@@ -204,6 +204,26 @@ async def upsert_product(data: dict) -> int:
         return existing_id
 
     aff_url = data.get("affiliate_url") or p_url
+    from budgetby.utils import is_monetized_affiliate_url
+    if not is_monetized_affiliate_url(aff_url):
+        target_to_monetize = p_url or aff_url or ""
+        plat_lower = (platform or "").lower()
+        if plat_lower == "amazon" and target_to_monetize:
+            tag = getattr(config, "AMAZON_ASSOCIATE_TAG", "dealpulse21-21")
+            sep = "&" if "?" in target_to_monetize else "?"
+            aff_url = f"{target_to_monetize}{sep}tag={tag}"
+        elif plat_lower in ("flipkart", "myntra", "ajio") and target_to_monetize:
+            try:
+                from budgetby.affiliate.earnkaro_links import build_earnkaro_url_sync
+                aff_url = build_earnkaro_url_sync(target_to_monetize)
+            except Exception:
+                pass
+        elif plat_lower == "nykaa" and target_to_monetize:
+            try:
+                from budgetby.affiliate.cuelinks_links import build_cuelinks_url_sync
+                aff_url = build_cuelinks_url_sync(target_to_monetize)
+            except Exception:
+                pass
 
     # If product does not exist, insert cleanly
     row = await fetchrow("""

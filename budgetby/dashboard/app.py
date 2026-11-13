@@ -1962,19 +1962,38 @@ async def submit_product_review(request: Request):
     # Queue new product
     platform_id = hashlib.md5(url.encode()).hexdigest()[:16]
     clean_title = title if title else f"Submitted {plat.capitalize()} Deal"
+    aff_url = url
+    plat_lower = (plat or "").lower()
+    if plat_lower == "amazon":
+        tag = getattr(config, "AMAZON_ASSOCIATE_TAG", "dealpulse21-21")
+        sep = "&" if "?" in url else "?"
+        aff_url = f"{url}{sep}tag={tag}"
+    elif plat_lower in ("flipkart", "myntra", "ajio"):
+        try:
+            from budgetby.affiliate.earnkaro_links import build_earnkaro_url_sync
+            aff_url = build_earnkaro_url_sync(url)
+        except Exception:
+            pass
+    elif plat_lower == "nykaa":
+        try:
+            from budgetby.affiliate.cuelinks_links import build_cuelinks_url_sync
+            aff_url = build_cuelinks_url_sync(url)
+        except Exception:
+            pass
+
     try:
         new_id = await database.fetchval("""
             INSERT INTO products (
                 platform, platform_id, title, category, product_url, affiliate_url,
                 current_price, status, priority_tier, next_check, last_checked
             ) VALUES (
-                $1, $2, $3, 'general', $4, $4,
-                $5, 'ACTIVE', 1, NOW(), '2000-01-01'::timestamptz
+                $1, $2, $3, 'general', $4, $5,
+                $6, 'ACTIVE', 1, NOW(), '2000-01-01'::timestamptz
             )
             ON CONFLICT (platform, platform_id) DO UPDATE 
             SET priority_tier = 1, next_check = NOW(), last_checked = '2000-01-01'::timestamptz
             RETURNING id;
-        """, plat, platform_id, clean_title, url, float(observed_price) if observed_price else 0)
+        """, plat, platform_id, clean_title, url, aff_url, float(observed_price) if observed_price else 0)
 
         return {
             "status": "success",

@@ -26,6 +26,20 @@ def is_telethon_connected() -> bool:
     global _client
     return bool(_client and _client.is_connected())
 
+def _fallback_ek(target: str) -> str:
+    try:
+        from budgetby.affiliate.earnkaro_links import build_earnkaro_url_sync
+        return build_earnkaro_url_sync(target)
+    except Exception:
+        return target
+
+def _fallback_cl(target: str) -> str:
+    try:
+        from budgetby.affiliate.cuelinks_links import build_cuelinks_url_sync
+        return build_cuelinks_url_sync(target)
+    except Exception:
+        return target
+
 async def convert_url_via_ek_bot(raw_url: str, platform: str = None, timeout: float = 10.0) -> str:
     """
     Automatically converts raw Flipkart/Myntra/Ajio URLs to real
@@ -33,6 +47,7 @@ async def convert_url_via_ek_bot(raw_url: str, platform: str = None, timeout: fl
     Guarantees that 100% of clicks are recorded live on earnkaro.com!
     Protected by _ek_lock to eliminate link-swapping concurrency bugs.
     Validates that returned domain matches the designated product's platform.
+    Falls back to direct EarnKaro affiliate tracking URL if bot is unavailable or times out.
     """
     global _client
     if not raw_url:
@@ -44,7 +59,7 @@ async def convert_url_via_ek_bot(raw_url: str, platform: str = None, timeout: fl
         return _ek_cache[cache_key]
 
     if not _client or not _client.is_connected():
-        return raw_url
+        return _fallback_ek(clean_target)
 
     plat = (platform or "").strip().lower()
 
@@ -99,11 +114,11 @@ async def convert_url_via_ek_bot(raw_url: str, platform: str = None, timeout: fl
                         return cand
                     else:
                         logger.warning(f"⚠️ [EARNKARO MISMATCH REJECTED] Platform '{plat}' rejected mismatched link: {cand}")
-                        return raw_url
+                        return _fallback_ek(clean_target)
     except Exception as e:
         logger.warning(f"EK converter exception for {clean_target[:45]}: {e}")
 
-    return raw_url
+    return _fallback_ek(clean_target)
 
 
 async def convert_url_via_cuelinks_bot(raw_url: str, platform: str = "nykaa", timeout: float = 10.0) -> str:
@@ -112,6 +127,7 @@ async def convert_url_via_cuelinks_bot(raw_url: str, platform: str = "nykaa", ti
     Guarantees that 100% of clicks are recorded live on cuelinks.com!
     Protected by _cl_lock to eliminate link-swapping concurrency bugs.
     Validates that returned domain matches clnk.in.
+    Falls back to direct Cuelinks affiliate tracking URL if bot is unavailable or times out.
     """
     global _client
     if not raw_url:
@@ -123,7 +139,7 @@ async def convert_url_via_cuelinks_bot(raw_url: str, platform: str = "nykaa", ti
         return _cl_cache[cache_key]
 
     if not _client or not _client.is_connected():
-        return raw_url
+        return _fallback_cl(clean_target)
 
     try:
         async with _cl_lock:
@@ -161,11 +177,11 @@ async def convert_url_via_cuelinks_bot(raw_url: str, platform: str = "nykaa", ti
                         return cand
                     else:
                         logger.warning(f"⚠️ [CUELINKS MISMATCH REJECTED] Nykaa rejected non-clnk link: {cand}")
-                        return raw_url
+                        return _fallback_cl(clean_target)
     except Exception as e:
         logger.warning(f"Cuelinks converter exception for {clean_target[:45]}: {e}")
 
-    return raw_url
+    return _fallback_cl(clean_target)
 
 
 # Target Private & Web Channel IDs / Links provided by user:

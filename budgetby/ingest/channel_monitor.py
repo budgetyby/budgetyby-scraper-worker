@@ -256,8 +256,21 @@ async def verify_and_ingest_single_deal(channel: str, post_id: int, raw_url: str
                         final_deal_url = converted
             except Exception as e:
                 logger.debug(f"Immediate channel convert notice: {e}")
-            if not final_deal_url:
-                final_deal_url = clean_url
+            if not final_deal_url or not is_monetized_affiliate_url(final_deal_url):
+                if platform in ("flipkart", "myntra", "ajio"):
+                    try:
+                        from budgetby.affiliate.earnkaro_links import build_earnkaro_url_sync
+                        final_deal_url = build_earnkaro_url_sync(clean_url)
+                    except Exception:
+                        final_deal_url = clean_url
+                elif platform == "nykaa":
+                    try:
+                        from budgetby.affiliate.cuelinks_links import build_cuelinks_url_sync
+                        final_deal_url = build_cuelinks_url_sync(clean_url)
+                    except Exception:
+                        final_deal_url = clean_url
+                else:
+                    final_deal_url = clean_url
 
         prod_dict = {
             "platform": platform,
