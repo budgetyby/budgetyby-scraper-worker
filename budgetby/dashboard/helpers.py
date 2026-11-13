@@ -173,17 +173,22 @@ def resolve_deal_button_url(
             return f"{clean}{sep}tag={tag}"
         return target
 
-    # 2. Non-Amazon: Check if already an EarnKaro or Cuelinks tracking shortlink
+    # 2. Non-Amazon: Check if already a monetized EarnKaro or Cuelinks link (including shortlinks & direct affgrowth)
     for candidate in (affiliate_url, tg_raw_url):
-        if candidate and candidate.startswith("http") and not any(bad in candidate for bad in ("affgrowth", "affExtParam")):
+        if candidate and candidate.startswith("http"):
             if is_monetized_affiliate_url(candidate):
                 return candidate
 
-    # 3. If product_id is known, route through redirect endpoint which converts live
+    # 3. If product_id is known, route through redirect endpoint which converts and tracks live
     if product_id:
         return f"/api/deal/redirect/{product_id}"
 
-    # 4. Fallback: Clean direct merchant product_url without synthetic broken params
+    # 4. Fallback: Always synthesize official affiliate link; NEVER return raw unmonetized link
     target = product_url or affiliate_url or ""
-    clean = target.split("&affid=")[0].split("?affid=")[0].split("&affExtParam")[0].split("?affExtParam")[0]
-    return clean
+    if plat in ("flipkart", "myntra", "ajio"):
+        from budgetby.affiliate.earnkaro_links import build_earnkaro_url_sync
+        return build_earnkaro_url_sync(target)
+    elif plat == "nykaa":
+        from budgetby.affiliate.cuelinks_links import build_cuelinks_url_sync
+        return build_cuelinks_url_sync(target)
+    return target

@@ -367,7 +367,7 @@
             const liveAgo = deal.last_price_change ? formatTimeAgo(deal.last_price_change) : (deal.last_checked ? formatTimeAgo(deal.last_checked) : 'Recently');
             const inWatch = isInWatchlist(deal.id);
             const safeTitle = escapeHtml(deal.title);
-            const dealLink = deal.affiliate_url || deal.product_url || '#';
+            const dealLink = (deal.affiliate_url && deal.affiliate_url !== deal.product_url) ? deal.affiliate_url : (deal.product_id ? `/api/deal/redirect/${deal.product_id}` : (deal.affiliate_url || '#'));
             const postedTimeStr = formatPostedDateTime(deal.last_price_change || deal.deal_time || deal.posted_at || deal.last_checked);
             const hasValidRating = deal.rating && typeof deal.rating === 'number' && deal.rating >= 1.0 && deal.rating <= 5.0;
             const ratingHtml = hasValidRating ? `

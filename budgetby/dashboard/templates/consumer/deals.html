@@ -574,7 +574,7 @@
             const savings = hasDiscount ? mrp - cp : 0;
             const safeTitle = escapeHtml(deal.title);
             const lastCheckedTimeStr = formatPostedDateTime(deal.last_price_change || deal.deal_time || deal.last_checked || deal.posted_at);
-            const dealLink = deal.affiliate_url || deal.product_url || '#';
+            const dealLink = (deal.affiliate_url && deal.affiliate_url !== deal.product_url) ? deal.affiliate_url : (deal.product_id ? `/api/deal/redirect/${deal.product_id}` : (deal.affiliate_url || '#'));
             const rating = deal.rating || 0;
             const reviews = deal.review_count || 0;
             const badge = deal.badge || '';

@@ -5,7 +5,7 @@
 {% set savings = (mrp - cp) if has_discount else (deal.savings_amount or 0) %}
 {% set platform = (deal.platform or 'store')|lower %}
 {% set pid = deal.product_id or deal.id or 0 %}
-{% set buy_url = deal.affiliate_url or (('/api/deal/redirect/' ~ pid) if (pid and pid > 0) else '') %}
+{% set buy_url = deal.affiliate_url if (deal.affiliate_url and deal.affiliate_url != deal.product_url and deal.affiliate_url != '') else (('/api/deal/redirect/' ~ pid) if (pid and pid > 0) else (deal.affiliate_url or '')) %}
 {% set rating = deal.rating or 0 %}
 {% set reviews = deal.review_count or 0 %}
 {% set is_atl = deal.is_atl or (deal.all_time_low and cp <= (deal.all_time_low * 1.02)) %}
