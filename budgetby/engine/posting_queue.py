@@ -410,6 +410,22 @@ class PostingQueue:
             if platform == "amazon" and url:
                 url = _apply_amazon_tag(url)
                 product["affiliate_url"] = url
+            elif platform in ("flipkart", "myntra", "ajio") and url:
+                if not any(k in url for k in ("affgrowth", "affExtParam", "ekconverter", "earnkaro")):
+                    try:
+                        from budgetby.affiliate.earnkaro_links import build_earnkaro_url_sync
+                        url = build_earnkaro_url_sync(url)
+                        product["affiliate_url"] = url
+                    except Exception:
+                        pass
+            elif platform == "nykaa" and url:
+                if not any(k in url for k in ("linksredirect", "cuelinks", "clnk")):
+                    try:
+                        from budgetby.affiliate.cuelinks_links import build_cuelinks_url_sync
+                        url = build_cuelinks_url_sync(url)
+                        product["affiliate_url"] = url
+                    except Exception:
+                        pass
 
             message_text = format_deal_message(deal_data)
             img_url = product.get("image_url") or ""
@@ -720,6 +736,11 @@ class PostingQueue:
                             deal_data["product"]["affiliate_url"] = converted_ek
                             if pid:
                                 await database.execute("UPDATE products SET affiliate_url = $1 WHERE id = $2;", converted_ek, pid)
+                        elif not any(k in url for k in ("affgrowth", "affExtParam", "ekconverter", "earnkaro")):
+                            from budgetby.affiliate.earnkaro_links import build_earnkaro_url_sync
+                            fallback_url = build_earnkaro_url_sync(url)
+                            product["affiliate_url"] = fallback_url
+                            deal_data["product"]["affiliate_url"] = fallback_url
                     except Exception as e:
                         logger.debug(f"EK conversion note: {e}")
 
@@ -732,6 +753,11 @@ class PostingQueue:
                             deal_data["product"]["affiliate_url"] = converted_cl
                             if pid:
                                 await database.execute("UPDATE products SET affiliate_url = $1 WHERE id = $2;", converted_cl, pid)
+                        elif not any(k in url for k in ("linksredirect", "cuelinks", "clnk")):
+                            from budgetby.affiliate.cuelinks_links import build_cuelinks_url_sync
+                            fallback_url = build_cuelinks_url_sync(url)
+                            product["affiliate_url"] = fallback_url
+                            deal_data["product"]["affiliate_url"] = fallback_url
                     except Exception as e:
                         logger.debug(f"Cuelinks conversion note: {e}")
 
