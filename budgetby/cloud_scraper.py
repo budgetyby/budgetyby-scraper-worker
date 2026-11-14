@@ -116,6 +116,19 @@ async def get_cloud_telethon_client():
     return None
 
 
+async def close_cloud_telethon_client():
+    """Cleanly disconnects the shared Telethon client to release MTProto session before shutdown/relay."""
+    global _telethon_client
+    if _telethon_client is not None:
+        try:
+            if _telethon_client.is_connected():
+                await _telethon_client.disconnect()
+                logger.info("Telethon client cleanly disconnected.")
+        except Exception as e:
+            logger.debug(f"Note during Telethon disconnect: {e}")
+        _telethon_client = None
+
+
 async def convert_via_cloud_telegram_bots(url: str, platform: str) -> str | None:
     """Uses real EarnKaro / Cuelinks Telegram conversion bots to get official shortlinks."""
     client = await get_cloud_telethon_client()

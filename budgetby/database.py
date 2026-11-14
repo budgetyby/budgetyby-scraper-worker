@@ -375,35 +375,35 @@ async def get_products_due_for_check(limit: int = 40) -> list[asyncpg.Record]:
          FROM products p
          WHERE p.status = 'ACTIVE' AND p.in_stock = TRUE AND p.platform = 'amazon'
            AND (p.next_check IS NULL OR p.next_check <= NOW())
-         ORDER BY p.id DESC LIMIT {per_store})
+         ORDER BY p.priority_tier ASC, p.last_checked ASC NULLS FIRST LIMIT {per_store})
         UNION ALL
         (SELECT p.id, p.platform, p.product_url, p.priority_tier, p.title, 
                 p.current_price, p.mrp, p.category, p.next_check
          FROM products p
          WHERE p.status = 'ACTIVE' AND p.in_stock = TRUE AND p.platform = 'flipkart'
            AND (p.next_check IS NULL OR p.next_check <= NOW())
-         ORDER BY p.id DESC LIMIT {per_store})
+         ORDER BY p.priority_tier ASC, p.last_checked ASC NULLS FIRST LIMIT {per_store})
         UNION ALL
         (SELECT p.id, p.platform, p.product_url, p.priority_tier, p.title, 
                 p.current_price, p.mrp, p.category, p.next_check
          FROM products p
          WHERE p.status = 'ACTIVE' AND p.in_stock = TRUE AND p.platform = 'myntra'
            AND (p.next_check IS NULL OR p.next_check <= NOW())
-         ORDER BY p.id DESC LIMIT {per_store})
+         ORDER BY p.priority_tier ASC, p.last_checked ASC NULLS FIRST LIMIT {per_store})
         UNION ALL
         (SELECT p.id, p.platform, p.product_url, p.priority_tier, p.title, 
                 p.current_price, p.mrp, p.category, p.next_check
          FROM products p
          WHERE p.status = 'ACTIVE' AND p.in_stock = TRUE AND p.platform = 'ajio'
            AND (p.next_check IS NULL OR p.next_check <= NOW())
-         ORDER BY p.id DESC LIMIT {per_store})
+         ORDER BY p.priority_tier ASC, p.last_checked ASC NULLS FIRST LIMIT {per_store})
         UNION ALL
         (SELECT p.id, p.platform, p.product_url, p.priority_tier, p.title, 
                 p.current_price, p.mrp, p.category, p.next_check
          FROM products p
          WHERE p.status = 'ACTIVE' AND p.in_stock = TRUE AND p.platform = 'nykaa'
            AND (p.next_check IS NULL OR p.next_check <= NOW())
-         ORDER BY p.id DESC LIMIT {per_store})
+         ORDER BY p.priority_tier ASC, p.last_checked ASC NULLS FIRST LIMIT {per_store})
         LIMIT $1;
     """, limit)
 

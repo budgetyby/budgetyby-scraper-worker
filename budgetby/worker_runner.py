@@ -163,17 +163,33 @@ async def main():
     # Start Autonomous Cloud Database Maintenance loop (perpetual free-tier protection)
     maintenance_task = asyncio.create_task(cloud_maintenance_loop(duration_secs))
 
-    # Wait until duration is almost reached (reserve 10 mins for clean relay)
-    sleep_time = max(10, duration_secs - 600)
+    # Wait until duration is almost reached (reserve 2 mins for clean relay)
+    sleep_time = max(10, duration_secs - 120)
     logger.info(f"⏳ Main worker active. Self-relay scheduled in {sleep_time/60:.1f} minutes.")
-    await asyncio.sleep(sleep_time)
+    try:
+        await asyncio.sleep(sleep_time)
+    except asyncio.CancelledError:
+        logger.info("Worker run received cancellation signal.")
+
+    # Clean shutdown before next worker spins up to guarantee ZERO MTProto session IP collision
+    logger.info("Cleaning up active worker tasks and disconnecting Telethon...")
+    for t in [broadcaster_task, hunter_task, keepalive_task, scraper_task, maintenance_task]:
+        t.cancel()
+
+    try:
+        from budgetby.cloud_scraper import close_cloud_telethon_client
+        await close_cloud_telethon_client()
+    except Exception as e:
+        logger.debug(f"Telethon cleanup note: {e}")
+
+    try:
+        await database.close_pool()
+    except Exception as e:
+        logger.debug(f"Database cleanup note: {e}")
 
     # Trigger relay for perpetual execution
     await self_relay_trigger()
-
-    # Finish remaining 10 minutes
-    await asyncio.sleep(min(600, duration_secs))
-    logger.info("Worker loop finished gracefully.")
+    logger.info("Worker loop finished gracefully. Handed off to next worker.")
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -4,8 +4,8 @@ on:
   push:
     branches: [main]
   schedule:
-    # Periodic fail-safe trigger every 30 minutes in case runner stops
-    - cron: '*/30 * * * *'
+    # Fail-safe watchdog every 6 hours in case runner terminates unexpectedly
+    - cron: '0 */6 * * *'
   workflow_dispatch:
 
 permissions:
