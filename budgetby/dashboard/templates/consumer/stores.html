@@ -239,7 +239,7 @@
         <!-- Store Deals Filter Bar -->
         <div class="bg-white border border-slate-200/90 rounded-2xl p-3.5 mb-6 flex flex-wrap items-center justify-between gap-3 shadow-sm">
             <div class="flex items-center gap-2">
-                <span class="text-xs text-slate-600 font-mono">Found <span id="storeTotalCount" class="font-bold text-slate-900">{{ initial_data.total_matches if initial_data and initial_data.total_matches else 0 }}</span> active deals</span>
+                <span class="text-xs text-slate-600 font-medium">Found <span id="storeTotalCount" class="font-black text-slate-900 tabular-nums">{{ initial_data.total_matches if initial_data and initial_data.total_matches else 0 }}</span> active deals</span>
             </div>
 
             <div class="flex items-center gap-2">
@@ -323,17 +323,18 @@
                                 {% set mrp = deal.mrp or 0 %}
                                 {% set has_disc = mrp > cp %}
                                 {% set disc_pct = ((((mrp - cp) / mrp) * 100)|round_int) if (has_disc and mrp > 0) else (deal.discount_pct or deal.discount_percent or 0) %}
-                                <span class="text-lg font-black text-slate-900 font-mono">{{ cp|format_inr }}</span>
+                                <span class="text-lg sm:text-xl font-black text-slate-900 tracking-tight tabular-nums">{{ cp|format_inr }}</span>
                                 {% if has_disc %}
-                                <span class="text-xs text-slate-400 line-through font-mono">{{ mrp|format_inr }}</span>
+                                <span class="text-xs text-slate-400 line-through font-medium tabular-nums">{{ mrp|format_inr }}</span>
                                 {% endif %}
                                 {% if disc_pct and disc_pct > 0 %}
-                                <span class="text-xs font-black text-rose-600 font-mono">({{ disc_pct|round_int }}% OFF)</span>
+                                <span class="text-xs font-black text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200/60 tabular-nums">{{ disc_pct|round_int }}% OFF</span>
                                 {% endif %}
                             </div>
                             {% if mrp > cp %}
-                            <div class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 font-mono shrink-0">
-                                Save {{ (mrp - cp)|format_inr }}
+                            <div class="mb-2 text-[11px] font-bold text-emerald-800 bg-emerald-50/80 px-2 py-0.5 rounded-md border border-emerald-200/60 flex items-center justify-between">
+                                <span>You Save:</span>
+                                <span class="font-extrabold text-emerald-700 tabular-nums">{{ (mrp - cp)|format_inr }}</span>
                             </div>
                             {% endif %}
                         </div>
@@ -457,13 +458,24 @@
         startStoreDealsAutoRefresh();
     });
 
+    function showSkeletonCards(count = 8) {
+        const grid = document.getElementById('storeDealsGrid');
+        if (!grid) return;
+        grid.innerHTML = Array(count).fill(0).map(() => createSkeletonCardHtml('w-full')).join('');
+        grid.classList.remove('opacity-50', 'pointer-events-none');
+    }
+
     async function loadStoreDeals(isBackground = false) {
         if (isBackground && document.hidden) return;
         const grid = document.getElementById('storeDealsGrid');
         if (!isBackground) {
             if (typeof showPageProgress === 'function') showPageProgress();
             if (grid) {
-                grid.classList.add('opacity-50', 'pointer-events-none');
+                if (storeState.items && storeState.items.length > 0) {
+                    grid.classList.add('opacity-50', 'pointer-events-none');
+                } else {
+                    showSkeletonCards(8);
+                }
             }
         }
 
@@ -555,14 +567,14 @@
                         <span class="text-amber-500">★</span> ${deal.rating.toFixed(1)}
                     </span>
                     ${deal.review_count && deal.review_count > 0 ? `
-                        <span class="text-[10px] text-slate-500 font-mono">(${Number(deal.review_count).toLocaleString('en-IN')})</span>
+                        <span class="text-[10px] text-slate-500">(${Number(deal.review_count).toLocaleString('en-IN')})</span>
                     ` : ''}
                 </div>
             ` : '';
 
             const savingsHtml = (mrp > cp) ? `
                 <div class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 font-mono">
-                    Save ${formatINR(mrp - cp)}
+                    You Save: ${formatINR(mrp - cp)}
                 </div>
             ` : '';
 
@@ -598,9 +610,9 @@
                     <div class="mt-3 pt-3 border-t border-slate-100">
                         <div class="flex items-baseline justify-between gap-1 mb-2">
                             <div class="flex items-baseline gap-1.5 flex-wrap">
-                                <span class="text-lg font-black text-slate-900 font-mono">${formatINR(deal.current_price)}</span>
-                                ${mrp > cp ? `<span class="text-xs text-slate-400 line-through font-mono">${formatINR(mrp)}</span>` : ''}
-                                ${discPct > 0 ? `<span class="text-xs font-black text-rose-600 font-mono">(${discPct}% OFF)</span>` : ''}
+                                <span class="text-lg sm:text-xl font-black text-slate-900 tracking-tight tabular-nums">${formatINR(deal.current_price)}</span>
+                                ${mrp > cp ? `<span class="text-xs text-slate-400 line-through font-medium tabular-nums">${formatINR(mrp)}</span>` : ''}
+                                ${discPct > 0 ? `<span class="text-xs font-black text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200/60 tabular-nums">${discPct}% OFF</span>` : ''}
                             </div>
                             ${savingsHtml}
                         </div>

@@ -99,48 +99,68 @@
         <div id="atlGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 transition-opacity duration-200">
             {% if initial_data and initial_data.deals %}
                 {% for deal in initial_data.deals %}
-                <div data-deal-id="{{ deal.product_id or deal.id }}" class="bg-white border border-slate-200/90 hover:border-amber-400 rounded-2xl p-3.5 flex flex-col justify-between transition-all duration-200 shadow-sm hover:shadow-md group relative">
+                {% set cp = deal.current_price or deal.deal_price or 0 %}
+                {% set mrp = deal.mrp or 0 %}
+                {% set has_disc = mrp > cp %}
+                {% set disc_pct = ((((mrp - cp) / mrp) * 100)|round_int) if (has_disc and mrp > 0) else (deal.discount_pct or deal.discount_percent or 0) %}
+                {% set savings = (mrp - cp) if has_disc else 0 %}
+                {% set buy_url = deal.affiliate_url if (deal.affiliate_url and deal.affiliate_url != deal.product_url) else (('/api/deal/redirect/' ~ (deal.product_id or deal.id)) if (deal.product_id or deal.id) else '#') %}
+                <div data-deal-id="{{ deal.product_id or deal.id }}" 
+                     data-deal-price="{{ cp }}" 
+                     data-deal-title="{{ (deal.title or '')|replace('"', '&quot;') }}" 
+                     data-deal-url="{{ buy_url }}" 
+                     data-deal-platform="{{ deal.platform }}"
+                     class="bg-white border border-slate-200/85 hover:border-amber-400 rounded-2xl p-3 sm:p-3.5 flex flex-col justify-between transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 group relative">
                     <div>
                         <!-- Top Badges -->
                         <div class="flex items-center justify-between gap-2 mb-2">
-                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider {{ deal.platform|store_badge }}">
+                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider {{ deal.platform|store_badge }}">
                                 {{ deal.platform|store_name }}
                             </span>
-                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 font-mono flex items-center gap-1">
-                                👑 ALL-TIME LOW
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-amber-50 text-amber-900 border border-amber-200 tracking-tight">
+                                <span>👑</span> Lowest Ever
                             </span>
                         </div>
 
                         <!-- Product Image Area -->
-                        <div class="relative w-full h-44 rounded-xl bg-slate-50 p-2 flex items-center justify-center overflow-hidden border border-slate-100">
+                        <div class="relative w-full h-44 rounded-xl bg-gradient-to-b from-slate-50/70 to-white p-2 flex items-center justify-center overflow-hidden border border-slate-100">
                             <img src="{{ deal.image_url or '/static/placeholder.svg' }}" 
                                  alt="{{ deal.title }}" 
                                  class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                                  loading="lazy"
                                  onerror="this.onerror=null;this.src='/static/placeholder.svg'" />
                             
-                            <!-- Watchlist Quick Toggle -->
-                            <button onclick="handleAtlCardWatchlist(this, {{ deal.product_id or deal.id }})" 
-                                    class="absolute top-2 right-2 p-1.5 rounded-xl bg-white/90 backdrop-blur-md border border-slate-200 text-slate-400 hover:text-rose-500 transition shadow-sm" 
-                                    title="Save to Watchlist">
-                                <i data-lucide="heart" class="w-4 h-4"></i>
-                            </button>
+                            <!-- Top Right Action Strip -->
+                            <div class="absolute top-2 right-2 flex items-center gap-1 z-10">
+                                <button type="button" 
+                                        onclick="event.stopPropagation(); shareDealWhatsApp('{{ (deal.title or '')|replace("'", "\'")|replace('"', '&quot;') }}', '{{ cp }}', '{{ buy_url }}', '{{ deal.platform|store_name }}')" 
+                                        class="p-1.5 rounded-xl bg-white/95 backdrop-blur-md border border-slate-200 text-slate-400 hover:text-emerald-600 hover:scale-110 active:scale-95 transition shadow-xs" 
+                                        title="Share on WhatsApp">
+                                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                                </button>
+                                <button type="button" 
+                                        onclick="handleAtlCardWatchlist(this, {{ deal.product_id or deal.id }})" 
+                                        class="p-1.5 rounded-xl bg-white/95 backdrop-blur-md border border-slate-200 text-slate-400 hover:text-rose-500 hover:scale-110 active:scale-95 transition shadow-xs" 
+                                        title="Save to Watchlist">
+                                    <i data-lucide="heart" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Product Title -->
                         <div class="mt-3">
-                            <a href="{{ deal.affiliate_url or deal.product_url or '#' }}" target="_blank" rel="noopener noreferrer" 
-                               class="text-xs font-bold text-slate-900 hover:text-amber-600 line-clamp-2 break-words transition leading-snug" 
+                            <a href="{{ buy_url }}" target="_blank" rel="noopener noreferrer" 
+                               class="text-xs sm:text-sm font-semibold text-slate-900 hover:text-amber-600 line-clamp-2 break-words transition leading-snug tracking-tight" 
                                title="{{ deal.title }}">
                                 {{ deal.title }}
                             </a>
                             {% if deal.rating and deal.rating >= 1.0 %}
                             <div class="flex items-center gap-1.5 mt-1.5">
-                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-900 text-[10px] font-bold font-mono">
+                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-900 text-[10px] font-bold">
                                     <span class="text-amber-500">★</span> {{ deal.rating }}
                                 </span>
                                 {% if deal.review_count and deal.review_count > 0 %}
-                                <span class="text-[10px] text-slate-500 font-mono">({{ deal.review_count }})</span>
+                                <span class="text-[10px] text-slate-500">({{ deal.review_count }})</span>
                                 {% endif %}
                             </div>
                             {% endif %}
@@ -148,53 +168,36 @@
                     </div>
 
                     <!-- Price & Action Footer -->
-                    <div class="mt-3 pt-3 border-t border-slate-100">
-                        <div class="flex items-baseline justify-between gap-1 mb-2">
+                    <div class="mt-3 pt-2.5 border-t border-slate-100">
+                        <div class="flex items-baseline justify-between gap-1 mb-1.5">
                             <div class="flex items-baseline gap-1.5 flex-wrap">
-                                {% set cp = deal.current_price or deal.deal_price or 0 %}
-                                {% set mrp = deal.mrp or 0 %}
-                                {% set has_disc = mrp > cp %}
-                                {% set disc_pct = ((((mrp - cp) / mrp) * 100)|round_int) if (has_disc and mrp > 0) else (deal.discount_pct or deal.discount_percent or 0) %}
-                                <span class="text-lg font-black text-slate-900 font-mono">{{ cp|format_inr }}</span>
+                                <span class="text-lg sm:text-xl font-black text-slate-900 tracking-tight tabular-nums">{{ cp|format_inr }}</span>
                                 {% if has_disc %}
-                                <span class="text-xs text-slate-400 line-through font-mono">{{ mrp|format_inr }}</span>
+                                <span class="text-xs text-slate-400 line-through font-medium tabular-nums">{{ mrp|format_inr }}</span>
                                 {% endif %}
                                 {% if disc_pct and disc_pct > 0 %}
-                                <span class="text-xs font-black text-rose-600 font-mono">({{ disc_pct|round_int }}% OFF)</span>
+                                <span class="text-xs font-black text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200/60 tabular-nums">
+                                    {{ disc_pct|round_int }}% OFF
+                                </span>
                                 {% endif %}
                             </div>
-                            {% if mrp > cp %}
-                            <div class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 font-mono shrink-0">
-                                Save {{ (mrp - cp)|format_inr }}
-                            </div>
-                            {% endif %}
                         </div>
+
+                        {% if savings > 0 %}
+                        <div class="mb-2.5 text-[11px] font-bold text-emerald-800 bg-emerald-50/80 px-2 py-0.5 rounded-md border border-emerald-200/60 flex items-center justify-between">
+                            <span>You Save:</span>
+                            <span class="font-extrabold text-emerald-700 tabular-nums">{{ savings|format_inr }}</span>
+                        </div>
+                        {% endif %}
 
                         <!-- Card Action Buttons -->
                         <div class="flex items-center gap-1.5">
-                            <button onclick="handleAtlCardShare({{ deal.product_id or deal.id }})" 
-                                    class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 flex items-center justify-center transition shrink-0" 
-                                    title="Share Deal">
-                                <i data-lucide="share-2" class="w-4 h-4 text-indigo-600"></i>
-                            </button>
-                            <a href="{{ deal.affiliate_url or deal.product_url or '#' }}" target="_blank" rel="noopener noreferrer" 
-                               class="flex-1 py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold flex items-center justify-center gap-1 shadow-sm shadow-amber-500/20 hover:scale-[1.02] active:scale-[0.98] transition">
-                                <span>Get Deal</span>
+                            <a href="{{ buy_url }}" target="_blank" rel="noopener noreferrer" 
+                                class="flex-1 py-2 px-3 rounded-xl bg-slate-900 hover:bg-amber-600 text-white text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-sm shadow-slate-900/10 active:scale-[0.98] transition">
+                                <span>Get on {{ deal.platform|store_name }}</span>
                                 <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
                             </a>
                         </div>
-
-                            <!-- Send for Review Option -->
-                            <div class="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-100 text-[10px] text-slate-500 font-medium">
-                                <span class="truncate">Price changed on the platform?</span>
-                                <button onclick="handleSendForReview({{ deal.product_id or deal.id }}, '{{ deal.title|escape }}', '{{ deal.affiliate_url or deal.product_url or '#' }}', {{ deal.current_price or deal.deal_price or 0 }})" 
-                                        class="text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 shrink-0 transition" 
-                                        title="Send product for price re-check">
-                                    <i data-lucide="help-circle" class="w-3 h-3 text-indigo-500"></i>
-                                    <span>Flag for Re-Check</span>
-                                </button>
-                            </div>
-
                     </div>
                 </div>
                 {% endfor %}
@@ -299,13 +302,24 @@
         startAtlAutoRefresh();
     });
 
+    function showSkeletonCards(count = 8) {
+        const grid = document.getElementById('atlGrid');
+        if (!grid) return;
+        grid.innerHTML = Array(count).fill(0).map(() => createSkeletonCardHtml('w-full')).join('');
+        grid.classList.remove('opacity-50', 'pointer-events-none');
+    }
+
     async function loadAtlDeals(isBackground = false) {
         if (isBackground && document.hidden) return;
         const grid = document.getElementById('atlGrid');
         if (!isBackground) {
             if (typeof showPageProgress === 'function') showPageProgress();
             if (grid) {
-                grid.classList.add('opacity-50', 'pointer-events-none');
+                if (atlState.items && atlState.items.length > 0) {
+                    grid.classList.add('opacity-50', 'pointer-events-none');
+                } else {
+                    showSkeletonCards(8);
+                }
             }
         }
 

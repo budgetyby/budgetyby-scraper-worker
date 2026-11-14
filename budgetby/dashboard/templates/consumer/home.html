@@ -31,8 +31,179 @@
 {% block content %}
 <main class="w-full pb-20">
 
-    <!-- ── 2. Shop by Category (3-Column Large Visual Cards Grid) ────────── -->
-    <section class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full pt-2 pb-6">
+    <!-- ── 1. Just Dropped 🔥 Live Fresh Deals Carousel (IMMEDIATELY VISIBLE AT TOP) ── -->
+    <section class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full pt-4 pb-2">
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+                <span class="text-xl">⚡</span>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-base sm:text-lg font-black text-slate-900 tracking-tight">Just Dropped Deals</h2>
+                        <span class="px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-black tracking-tight animate-pulse">LIVE FRESH</span>
+                    </div>
+                    <p class="text-xs text-slate-500 font-medium">Significant price drops detected across stores in the last few hours</p>
+                </div>
+            </div>
+            <a href="/drops" class="text-xs font-extrabold text-rose-600 hover:text-rose-800 flex items-center gap-1 shrink-0 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-xl transition">
+                <span>View All Drops</span>
+                <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+            </a>
+        </div>
+
+        <div id="justDroppedContainer" class="flex gap-3 overflow-x-auto pb-3 pt-1 no-scrollbar scroll-smooth">
+            {% if just_dropped and just_dropped.deals %}
+                {% for deal in just_dropped.deals %}
+                <div class="w-56 sm:w-64 shrink-0">
+                    {% include "consumer/partials/product_card.html" %}
+                </div>
+                {% endfor %}
+            {% else %}
+                {% for _ in range(6) %}
+                <div class="w-56 sm:w-64 shrink-0 skeleton-card p-3 sm:p-3.5 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between gap-1.5 mb-2.5">
+                            <div class="h-4 w-16 rounded-md shimmer-box"></div>
+                            <div class="h-4 w-20 rounded-md shimmer-box"></div>
+                        </div>
+                        <div class="w-full h-36 sm:h-44 rounded-xl shimmer-box mb-2.5"></div>
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="h-3 w-12 rounded shimmer-box"></div>
+                            <div class="h-3 w-14 rounded shimmer-box"></div>
+                        </div>
+                        <div class="space-y-1.5 mt-2">
+                            <div class="h-3.5 w-full rounded shimmer-box"></div>
+                            <div class="h-3.5 w-3/4 rounded shimmer-box"></div>
+                        </div>
+                    </div>
+                    <div class="mt-3.5 pt-2.5 border-t border-slate-100">
+                        <div class="flex items-baseline justify-between mb-2">
+                            <div class="h-5 w-20 rounded shimmer-box"></div>
+                            <div class="h-4 w-12 rounded shimmer-box"></div>
+                        </div>
+                        <div class="h-9 w-full rounded-xl shimmer-box"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- ── 3. All-Time Lows (ATL) 👑 Historic Low Deals ───────────────────── -->
+    <section class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full pt-4 pb-2">
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+                <span class="text-xl">👑</span>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-base sm:text-lg font-black text-slate-900 tracking-tight">All-Time Low Price Records</h2>
+                        <span class="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-black tracking-tight">LOWEST EVER</span>
+                    </div>
+                    <p class="text-xs text-slate-500 font-medium">Products currently selling at the lowest price ever recorded in our database</p>
+                </div>
+            </div>
+            <a href="/all-time-lows" class="text-xs font-extrabold text-amber-700 hover:text-amber-900 flex items-center gap-1 shrink-0 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-xl transition">
+                <span>View All ATLs</span>
+                <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+            </a>
+        </div>
+
+        <div id="atlHomeContainer" class="flex gap-3 overflow-x-auto pb-3 pt-1 no-scrollbar scroll-smooth">
+            {% if atl_mini and atl_mini.deals %}
+                {% for deal in atl_mini.deals %}
+                <div class="w-56 sm:w-64 shrink-0">
+                    {% include "consumer/partials/product_card.html" %}
+                </div>
+                {% endfor %}
+            {% else %}
+                {% for _ in range(6) %}
+                <div class="w-56 sm:w-64 shrink-0 skeleton-card p-3 sm:p-3.5 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between gap-1.5 mb-2.5">
+                            <div class="h-4 w-16 rounded-md shimmer-box"></div>
+                            <div class="h-4 w-20 rounded-md shimmer-box"></div>
+                        </div>
+                        <div class="w-full h-36 sm:h-44 rounded-xl shimmer-box mb-2.5"></div>
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="h-3 w-12 rounded shimmer-box"></div>
+                            <div class="h-3 w-14 rounded shimmer-box"></div>
+                        </div>
+                        <div class="space-y-1.5 mt-2">
+                            <div class="h-3.5 w-full rounded shimmer-box"></div>
+                            <div class="h-3.5 w-3/4 rounded shimmer-box"></div>
+                        </div>
+                    </div>
+                    <div class="mt-3.5 pt-2.5 border-t border-slate-100">
+                        <div class="flex items-baseline justify-between mb-2">
+                            <div class="h-5 w-20 rounded shimmer-box"></div>
+                            <div class="h-4 w-12 rounded shimmer-box"></div>
+                        </div>
+                        <div class="h-9 w-full rounded-xl shimmer-box"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- ── 4. Best Deals Today 🎯 Ranked by Shopper Quality Score ────────── -->
+    <section class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full pt-4 pb-2">
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+                <span class="text-xl">🎯</span>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-base sm:text-lg font-black text-slate-900 tracking-tight">Best Value Deals Today</h2>
+                        <span class="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-black tracking-tight">TOP VALUE</span>
+                    </div>
+                    <p class="text-xs text-slate-500 font-medium">Highest shopper quality scores based on real discount, price history & ratings</p>
+                </div>
+            </div>
+            <a href="/deals?sort_by=score_desc" class="text-xs font-extrabold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 shrink-0 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl transition">
+                <span>View All Best</span>
+                <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+            </a>
+        </div>
+
+        <div id="bestDealsContainer" class="flex gap-3 overflow-x-auto pb-3 pt-1 no-scrollbar scroll-smooth">
+            {% if best_deals and best_deals.deals %}
+                {% for deal in best_deals.deals %}
+                <div class="w-56 sm:w-64 shrink-0">
+                    {% include "consumer/partials/product_card.html" %}
+                </div>
+                {% endfor %}
+            {% else %}
+                {% for _ in range(6) %}
+                <div class="w-56 sm:w-64 shrink-0 skeleton-card p-3 sm:p-3.5 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between gap-1.5 mb-2.5">
+                            <div class="h-4 w-16 rounded-md shimmer-box"></div>
+                            <div class="h-4 w-20 rounded-md shimmer-box"></div>
+                        </div>
+                        <div class="w-full h-36 sm:h-44 rounded-xl shimmer-box mb-2.5"></div>
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="h-3 w-12 rounded shimmer-box"></div>
+                            <div class="h-3 w-14 rounded shimmer-box"></div>
+                        </div>
+                        <div class="space-y-1.5 mt-2">
+                            <div class="h-3.5 w-full rounded shimmer-box"></div>
+                            <div class="h-3.5 w-3/4 rounded shimmer-box"></div>
+                        </div>
+                    </div>
+                    <div class="mt-3.5 pt-2.5 border-t border-slate-100">
+                        <div class="flex items-baseline justify-between mb-2">
+                            <div class="h-5 w-20 rounded shimmer-box"></div>
+                            <div class="h-4 w-12 rounded shimmer-box"></div>
+                        </div>
+                        <div class="h-9 w-full rounded-xl shimmer-box"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- ── 5. Shop by Category (Now nicely placed in flow) ───────────────── -->
+    <section class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full pt-6 pb-4">
         <div class="flex items-center justify-between mb-4">
             <div>
                 <h2 class="text-lg sm:text-2xl font-black text-slate-900 flex items-center gap-2">
@@ -41,7 +212,7 @@
                 </h2>
                 <p class="text-xs sm:text-sm text-slate-500">Explore departments, top subcategories and live verified deals</p>
             </div>
-            <a href="/deals" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 shrink-0 bg-indigo-50 px-3 py-1.5 rounded-xl transition">
+            <a href="/deals" class="text-xs font-extrabold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 shrink-0 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl transition">
                 <span>All Departments</span>
                 <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
             </a>
@@ -101,98 +272,7 @@
         </div>
     </section>
 
-    <!-- ── 2. Best Deals Today 🎯 Ranked by Shopper Deal Quality Score ──────── -->
-    {% if best_deals and best_deals.deals %}
-    <section class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full pt-3 pb-3">
-        <div class="flex items-center justify-between mb-3">
-            <div class="flex items-center gap-2">
-                <span class="text-xl">🎯</span>
-                <div>
-                    <div class="flex items-center gap-2">
-                        <h2 class="text-base sm:text-lg font-black text-slate-900">Best Deals Today</h2>
-                        <span class="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-black font-mono">TOP VALUE</span>
-                    </div>
-                    <p class="text-xs text-slate-500">Highest shopper quality scores based on real discount, price history & ratings</p>
-                </div>
-            </div>
-            <a href="/deals?sort_by=score_desc" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 shrink-0 bg-indigo-50 px-2.5 py-1 rounded-xl transition">
-                <span>View All Best</span>
-                <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
-            </a>
-        </div>
-
-        <div id="bestDealsContainer" class="flex gap-3 overflow-x-auto pb-3 pt-1 no-scrollbar scroll-smooth">
-            {% for deal in best_deals.deals %}
-            <div class="w-56 sm:w-64 shrink-0">
-                {% include "consumer/partials/product_card.html" %}
-            </div>
-            {% endfor %}
-        </div>
-    </section>
-    {% endif %}
-
-    <!-- ── 3. Just Dropped 🔥 Live Fresh Deals Carousel ───────────────────── -->
-    {% if just_dropped and just_dropped.deals %}
-    <section class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full pt-3 pb-3">
-        <div class="flex items-center justify-between mb-3">
-            <div class="flex items-center gap-2">
-                <span class="text-xl">⚡</span>
-                <div>
-                    <div class="flex items-center gap-2">
-                        <h2 class="text-base sm:text-lg font-black text-slate-900">Just Dropped Deals</h2>
-                        <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold font-mono animate-pulse">FRESH</span>
-                    </div>
-                    <p class="text-xs text-slate-500">Recently lowest prices posted in the last few hours</p>
-                </div>
-            </div>
-            <a href="/deals?sort_by=latest" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 shrink-0 bg-indigo-50 px-2.5 py-1 rounded-xl transition">
-                <span>View All</span>
-                <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
-            </a>
-        </div>
-
-        <div id="justDroppedContainer" class="flex gap-3 overflow-x-auto pb-3 pt-1 no-scrollbar scroll-smooth">
-            {% for deal in just_dropped.deals %}
-            <div class="w-56 sm:w-64 shrink-0">
-                {% include "consumer/partials/product_card.html" %}
-            </div>
-            {% endfor %}
-        </div>
-    </section>
-    {% endif %}
-
-
-    <!-- ── 4. All-Time Lows (ATL) 🏆 Price Records Carousel ───────────────── -->
-    {% if atl_mini and atl_mini.deals %}
-    <section class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full pt-3 pb-3">
-        <div class="flex items-center justify-between mb-3">
-            <div class="flex items-center gap-2">
-                <span class="text-xl">🏆</span>
-                <div>
-                    <div class="flex items-center gap-2">
-                        <h2 class="text-base sm:text-lg font-black text-slate-900">All-Time Low Price Records</h2>
-                        <span class="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold font-mono">HISTORIC LOW</span>
-                    </div>
-                    <p class="text-xs text-slate-500">Products currently selling at the lowest price ever recorded in our database</p>
-                </div>
-            </div>
-            <a href="/all-time-lows" class="text-xs font-bold text-amber-700 hover:text-amber-900 flex items-center gap-1 shrink-0 bg-amber-50 px-2.5 py-1 rounded-xl transition">
-                <span>View All ATLs</span>
-                <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
-            </a>
-        </div>
-
-        <div id="atlHomeContainer" class="flex gap-3 overflow-x-auto pb-3 pt-1 no-scrollbar scroll-smooth">
-            {% for deal in atl_mini.deals %}
-            <div class="w-56 sm:w-64 shrink-0">
-                {% include "consumer/partials/product_card.html" %}
-            </div>
-            {% endfor %}
-        </div>
-    </section>
-    {% endif %}
-
-    <!-- ── 4. Multi-Store Showcase Cards Grid ────────────────────────────── -->
+    <!-- ── 6. Multi-Store Showcase Cards Grid ────────────────────────────── -->
     <section class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full pt-3 pb-3">
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
             
@@ -254,7 +334,7 @@
         </div>
     </section>
 
-    <!-- ── 5. Category Aisle Banners Showcase ────────────────────────────── -->
+    <!-- ── 7. Category Aisle Banners Showcase ────────────────────────────── -->
     <section class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full pt-4 pb-6 space-y-8">
         
         <!-- Fashion Aisle Showcase -->
@@ -264,11 +344,11 @@
                 <div class="flex items-center gap-2">
                     <span class="text-xl">👗</span>
                     <div>
-                        <h2 class="text-base sm:text-lg font-black text-slate-900">Fashion & Apparel Loot</h2>
+                        <h2 class="text-base sm:text-lg font-black text-slate-900 tracking-tight">Fashion & Apparel Loot</h2>
                         <p class="text-xs text-slate-500">Live deals on T-shirts, Shirts, Kurtis & Jeans</p>
                     </div>
                 </div>
-                <a href="/deals?category=fashion" class="text-xs font-bold text-purple-700 hover:text-purple-900 flex items-center gap-1 bg-purple-50 px-2.5 py-1 rounded-xl transition">
+                <a href="/deals?category=fashion" class="text-xs font-extrabold text-purple-700 hover:text-purple-900 flex items-center gap-1 bg-purple-50 hover:bg-purple-100 px-3 py-1.5 rounded-xl transition">
                     <span>View All Fashion</span>
                     <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
                 </a>
@@ -290,11 +370,11 @@
                 <div class="flex items-center gap-2">
                     <span class="text-xl">📱</span>
                     <div>
-                        <h2 class="text-base sm:text-lg font-black text-slate-900">Electronics & Gadgets Steals</h2>
+                        <h2 class="text-base sm:text-lg font-black text-slate-900 tracking-tight">Electronics & Gadgets Steals</h2>
                         <p class="text-xs text-slate-500">Top discounts on TWS Earbuds, Powerbanks & Accessories</p>
                     </div>
                 </div>
-                <a href="/deals?category=electronics" class="text-xs font-bold text-blue-700 hover:text-blue-900 flex items-center gap-1 bg-blue-50 px-2.5 py-1 rounded-xl transition">
+                <a href="/deals?category=electronics" class="text-xs font-extrabold text-blue-700 hover:text-blue-900 flex items-center gap-1 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-xl transition">
                     <span>View All Electronics</span>
                     <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
                 </a>
@@ -316,11 +396,11 @@
                 <div class="flex items-center gap-2">
                     <span class="text-xl">💄</span>
                     <div>
-                        <h2 class="text-base sm:text-lg font-black text-slate-900">Beauty & Skincare Offers</h2>
+                        <h2 class="text-base sm:text-lg font-black text-slate-900 tracking-tight">Beauty & Skincare Offers</h2>
                         <p class="text-xs text-slate-500">Sunscreen, Serums, Facewash & Grooming deals</p>
                     </div>
                 </div>
-                <a href="/deals?category=beauty" class="text-xs font-bold text-rose-700 hover:text-rose-900 flex items-center gap-1 bg-rose-50 px-2.5 py-1 rounded-xl transition">
+                <a href="/deals?category=beauty" class="text-xs font-extrabold text-rose-700 hover:text-rose-900 flex items-center gap-1 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-xl transition">
                     <span>View All Beauty</span>
                     <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
                 </a>
@@ -342,11 +422,11 @@
                 <div class="flex items-center gap-2">
                     <span class="text-xl">🏠</span>
                     <div>
-                        <h2 class="text-base sm:text-lg font-black text-slate-900">Home & Kitchen Essentials</h2>
+                        <h2 class="text-base sm:text-lg font-black text-slate-900 tracking-tight">Home & Kitchen Essentials</h2>
                         <p class="text-xs text-slate-500">Cookware, Water Bottles & Appliances</p>
                     </div>
                 </div>
-                <a href="/deals?category=home" class="text-xs font-bold text-amber-700 hover:text-amber-900 flex items-center gap-1 bg-amber-50 px-2.5 py-1 rounded-xl transition">
+                <a href="/deals?category=home" class="text-xs font-extrabold text-amber-700 hover:text-amber-900 flex items-center gap-1 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-xl transition">
                     <span>View All Home</span>
                     <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
                 </a>
@@ -363,9 +443,74 @@
 
     </section>
 
-    <!-- ── 7. High-Converting Telegram Channel CTA Strip ───────────────── -->
+        <!-- ── 7. Value & 120-Day Historical Price Drop Tracker Strip ──────── -->
+    <section class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full pt-4 pb-2">
+        <div style="background-color: #0f172a; color: #ffffff;" class="relative overflow-hidden rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-800">
+            <!-- Background Glow Circles -->
+            <div style="background-color: rgba(99, 102, 241, 0.15);" class="absolute -right-12 -top-12 w-64 h-64 rounded-full blur-3xl pointer-events-none"></div>
+            <div style="background-color: rgba(244, 63, 94, 0.12);" class="absolute -left-12 -bottom-12 w-64 h-64 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div class="max-w-2xl">
+                    <div style="background-color: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.35); color: #34d399;" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider mb-3">
+                        <span style="background-color: #34d399;" class="w-2 h-2 rounded-full animate-pulse"></span>
+                        <span>100% Free Live Price Drop Tracker</span>
+                    </div>
+                    <h2 style="color: #ffffff;" class="text-xl sm:text-2xl md:text-3xl font-black tracking-tight leading-snug">
+                        Discover Real Price Drops & Historic Lows in India
+                    </h2>
+                    <p style="color: #cbd5e1;" class="text-xs sm:text-sm mt-2 font-medium leading-relaxed">
+                        Never overpay again. We track 120-day historical prices to verify genuine discounts before you buy.
+                    </p>
+                </div>
+
+                <!-- Live Quick Stats Badges -->
+                <div class="flex items-center gap-3 self-start md:self-auto shrink-0 flex-wrap">
+                    <div style="background-color: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15);" class="px-4 py-3 rounded-2xl text-center">
+                        <span style="color: #fbbf24;" class="text-base sm:text-lg font-black block tabular-nums">43,000+</span>
+                        <span style="color: #94a3b8;" class="text-[10px] uppercase tracking-wider font-bold">Active Deals</span>
+                    </div>
+                    <div style="background-color: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15);" class="px-4 py-3 rounded-2xl text-center">
+                        <span style="color: #f87171;" class="text-base sm:text-lg font-black block tabular-nums">Every 30s</span>
+                        <span style="color: #94a3b8;" class="text-[10px] uppercase tracking-wider font-bold">Price Scans</span>
+                    </div>
+                    <div style="background-color: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15);" class="px-4 py-3 rounded-2xl text-center">
+                        <span style="color: #34d399;" class="text-base sm:text-lg font-black block tabular-nums">120 Days</span>
+                        <span style="color: #94a3b8;" class="text-[10px] uppercase tracking-wider font-bold">Price Baselines</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Jump Filter Pills (Without platform links/names as requested) -->
+            <div style="border-top: 1px solid rgba(255, 255, 255, 0.12);" class="mt-5 pt-4 flex items-center gap-2 overflow-x-auto no-scrollbar">
+                <span style="color: #94a3b8;" class="text-[11px] font-bold uppercase tracking-wider shrink-0 mr-1 hidden sm:inline">Quick Jump:</span>
+                
+                <a href="/drops" style="background-color: rgba(244, 63, 94, 0.2); border: 1px solid rgba(244, 63, 94, 0.4); color: #fda4af;" class="shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-black tracking-tight transition flex items-center gap-1.5 hover:opacity-90">
+                    <span>⚡</span>
+                    <span>24h Price Drops</span>
+                </a>
+
+                <a href="/all-time-lows" style="background-color: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); color: #fde68a;" class="shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-black tracking-tight transition flex items-center gap-1.5 hover:opacity-90">
+                    <span>👑</span>
+                    <span>All-Time Lows</span>
+                </a>
+
+                <a href="/deals?max_price=499" style="background-color: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: #f1f5f9;" class="shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-extrabold tracking-tight transition flex items-center gap-1 hover:opacity-90">
+                    <span>🏷️</span>
+                    <span>Under ₹499</span>
+                </a>
+
+                <a href="/deals?max_price=999" style="background-color: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: #f1f5f9;" class="shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-extrabold tracking-tight transition flex items-center gap-1 hover:opacity-90">
+                    <span>💎</span>
+                    <span>Under ₹999</span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+<!-- ── 8. High-Converting Telegram Channel CTA Strip ───────────────── -->
     <section class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full pt-4 pb-6">
-        <div class="rounded-3xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 p-6 sm:p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl relative overflow-hidden">
+        <div style="background: linear-gradient(135deg, #4f46e5 0%, #4338ca 50%, #6b21a8 100%); color: #ffffff;" class="rounded-3xl p-6 sm:p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl relative overflow-hidden">
             <div class="relative z-10 max-w-xl text-center md:text-left">
                 <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 text-white text-xs font-extrabold uppercase tracking-wider backdrop-blur-sm mb-3">
                     <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Instant Flash Deal Alerts
@@ -387,7 +532,7 @@
         </div>
     </section>
 
-    <!-- ── 8. How BudgetBy Works & Need Help Strip ──────────────────────── -->
+    <!-- ── 9. How BudgetBy Works & Trust Strip ─────────────────────────── -->
     <section class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full pb-8">
         <div class="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6">
             <div class="flex items-center gap-4">
@@ -395,18 +540,74 @@
                     💡
                 </div>
                 <div>
-                    <h3 class="text-base sm:text-lg font-black text-slate-900">Have Questions or Want to Know How We Track Prices?</h3>
-                    <p class="text-xs text-slate-500 mt-0.5">Learn about our 120-day baseline algorithm, report price errors, or send direct inquiries to our team.</p>
+                    <h3 class="text-base sm:text-lg font-black text-slate-900">How Does BudgetBy Ensure Deals are Genuine?</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">We track prices 24/7 and calculate 30, 60, and 120-day median baselines so discounts represent real historical price drops, never inflated MRP fake sales.</p>
                 </div>
             </div>
             <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto">
                 <a href="/about" class="w-full sm:w-auto text-center px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-sm">
-                    <i data-lucide="mail" class="w-3.5 h-3.5 text-indigo-400"></i>
-                    <span>About Us & Contact Support</span>
+                    <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-400"></i>
+                    <span>Learn About Our Price Algorithm</span>
                 </a>
             </div>
         </div>
     </section>
 
 </main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function initProgressiveStorefront() {
+    let completed = 0;
+    const total = 3;
+
+    function onSectionComplete() {
+        completed++;
+        if (typeof setPageProgress === 'function') {
+            setPageProgress(Math.round((completed / total) * 100));
+        }
+    }
+
+    function hydrateSection(containerId, apiUrl) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        // If already server-rendered with real product cards, do not refetch
+        if (container.children.length > 0 && !container.querySelector('.skeleton-card')) {
+            onSectionComplete();
+            return;
+        }
+
+        fetch(apiUrl)
+            .then(res => {
+                if (!res.ok) throw new Error('Network response not ok');
+                return res.json();
+            })
+            .then(data => {
+                const deals = (data.deals || data.items || []);
+                if (deals.length > 0 && container) {
+                    container.innerHTML = deals.slice(0, 10).map(deal => 
+                        `<div class="w-56 sm:w-64 shrink-0 animate-card-in">${createProductCardHtml(deal)}</div>`
+                    ).join('');
+                    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                        window.lucide.createIcons();
+                    }
+                }
+            })
+            .catch(err => {
+                console.debug('Progressive section load note:', err);
+            })
+            .finally(() => {
+                onSectionComplete();
+            });
+    }
+
+    // Fire all three progressive sections concurrently on page load:
+    // As each section finishes, it immediately renders without waiting for the others!
+    hydrateSection('justDroppedContainer', '/api/public/deals?tab=drops&sort_by=latest&limit=10&include_count=false');
+    hydrateSection('atlHomeContainer', '/api/public/deals?tab=atl&sort_by=latest&limit=10&include_count=false');
+    hydrateSection('bestDealsContainer', '/api/public/deals?sort_by=score_desc&limit=10&include_count=false');
+})();
+</script>
 {% endblock %}

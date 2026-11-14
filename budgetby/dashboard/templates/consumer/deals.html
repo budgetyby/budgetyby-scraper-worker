@@ -439,21 +439,10 @@
         }
     });
 
-    function showSkeletonCards(count = 6) {
+    function showSkeletonCards(count = 8) {
         const grid = document.getElementById('dealsGrid');
         if (!grid) return;
-        const skeleton = Array(count).fill(0).map(() => `
-            <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden animate-pulse">
-                <div class="h-48 bg-slate-200 rounded-t-2xl"></div>
-                <div class="p-4 space-y-3">
-                    <div class="h-2.5 bg-slate-200 rounded w-1/3"></div>
-                    <div class="h-3 bg-slate-200 rounded w-full"></div>
-                    <div class="h-3 bg-slate-200 rounded w-4/5"></div>
-                    <div class="h-8 bg-slate-200 rounded-xl mt-4 w-full"></div>
-                </div>
-            </div>
-        `).join('');
-        grid.innerHTML = skeleton;
+        grid.innerHTML = Array(count).fill(0).map(() => createSkeletonCardHtml('w-full')).join('');
         grid.classList.remove('opacity-50', 'pointer-events-none');
     }
 
@@ -581,58 +570,72 @@
             const inStock = deal.in_stock !== false; // defaults to true if undefined
 
             return `
-                <div class="bg-white border border-slate-200/90 hover:border-indigo-400 rounded-2xl p-3 sm:p-3.5 flex flex-col justify-between transition-all duration-200 shadow-sm hover:shadow-md group relative ${!inStock ? 'opacity-60 grayscale' : ''}">
+                <div data-deal-id="${deal.product_id || deal.id}" 
+                     data-deal-price="${cp}" 
+                     data-deal-title="${safeTitle}" 
+                     data-deal-url="${dealLink}" 
+                     data-deal-platform="${store}"
+                     class="bg-white border border-slate-200/85 hover:border-indigo-400 rounded-2xl p-3 sm:p-3.5 flex flex-col justify-between transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 group relative ${!inStock ? 'opacity-60 grayscale' : ''}">
                     ${!inStock ? '<div class="absolute inset-0 bg-white/40 z-10 rounded-2xl pointer-events-none flex items-center justify-center"><span class="bg-black text-white px-3 py-1 rounded-full font-black tracking-widest text-xs uppercase shadow-xl transform -rotate-12 border-2 border-white">Out of Stock</span></div>' : ''}
                     <div>
                         <!-- Store Badge & Discount Tag -->
                         <div class="flex items-center justify-between gap-1.5 mb-2">
-                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${storeCfg.badge}">
+                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider ${storeCfg.badge}">
                                 ${storeCfg.name}
                             </span>
                             ${discPct > 0 ? `
-                            <span class="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-200 font-mono">
-                                -${discPct}%
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200 tracking-tight">
+                                -${discPct}% OFF
                             </span>` : (badge ? `
-                            <span class="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-amber-50 text-amber-700 border border-amber-200 uppercase font-mono">
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-amber-50 text-amber-800 border border-amber-200 uppercase tracking-tight">
                                 ${badge}
-                            </span>` : '')}
+                            </span>` : '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-50 text-slate-600 border border-slate-200">✓ Verified Deal</span>')}
                         </div>
 
                         <!-- Image Area -->
-                        <div class="relative w-full h-36 sm:h-44 rounded-xl bg-slate-50 p-2 flex items-center justify-center overflow-hidden border border-slate-100">
+                        <div class="relative w-full h-36 sm:h-44 rounded-xl bg-gradient-to-b from-slate-50/70 to-white p-2 flex items-center justify-center overflow-hidden border border-slate-100">
                             <img src="${deal.image_url || '/static/placeholder.svg'}" 
                                  alt="${safeTitle}" 
-                                 class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
-                                 loading="lazy"
-                                 onerror="this.onerror=null;this.src='/static/placeholder.svg'" />
+                                 class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300" 
+                                 loading="lazy" 
+                                 onerror="this.onerror=null;this.src='/static/placeholder.svg'"/>
                             
                             ${badge === 'ATL' ? `
-                            <span class="absolute top-2 left-2 px-1.5 py-0.5 rounded-md text-[9px] font-black bg-amber-500 text-white uppercase font-mono shadow-sm">
-                                🏆 ATL
+                            <span class="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[9px] font-black bg-amber-500 text-slate-950 uppercase tracking-wide shadow-sm flex items-center gap-0.5">
+                                👑 ATL
                             </span>` : (discPct >= 60 ? `
-                            <span class="absolute top-2 left-2 px-1.5 py-0.5 rounded-md text-[9px] font-black bg-rose-600 text-white uppercase font-mono shadow-sm">
+                            <span class="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[9px] font-black bg-rose-600 text-white uppercase tracking-wide shadow-sm flex items-center gap-0.5">
                                 🔥 LOOT
                             </span>` : '')}
 
-                            <button onclick="handleDealsWatchlist(this, ${deal.product_id || deal.id})" 
-                                    class="absolute top-2 right-2 p-1.5 rounded-xl bg-white/90 backdrop-blur-md border border-slate-200 text-slate-400 hover:text-rose-500 transition shadow-sm" 
-                                    title="Save to Watchlist">
-                                <i data-lucide="heart" class="w-3.5 h-3.5"></i>
-                            </button>
+                            <div class="absolute top-2 right-2 flex items-center gap-1 z-10">
+                                <button type="button" 
+                                        onclick="event.stopPropagation(); shareDealWhatsApp('${safeTitle.replace(/'/g, "\\'")}', '${cp}', '${dealLink}', '${storeCfg.name}')" 
+                                        class="p-1.5 rounded-xl bg-white/95 backdrop-blur-md border border-slate-200 text-slate-400 hover:text-emerald-600 hover:scale-110 active:scale-95 transition shadow-xs" 
+                                        title="Share on WhatsApp">
+                                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                                </button>
+                                <button type="button" 
+                                        onclick="handleDealsWatchlist(this, ${deal.product_id || deal.id})" 
+                                        class="p-1.5 rounded-xl bg-white/95 backdrop-blur-md border border-slate-200 text-slate-400 hover:text-rose-500 hover:scale-110 active:scale-95 transition shadow-xs" 
+                                        title="Save to Watchlist">
+                                    <i data-lucide="heart" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Ratings Row -->
-                        <div class="mt-2 flex items-center justify-between text-[10px] text-slate-500">
+                        <div class="mt-2 flex items-center justify-between text-[11px] text-slate-500">
                             ${rating > 0 ? `
-                            <span class="flex items-center gap-1 font-bold text-amber-600 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200/60">
-                                <span>★</span> ${rating.toFixed(1)} ${reviews > 0 ? `<span class="text-slate-400 font-normal">(${reviews})</span>` : ''}
-                            </span>` : `<span class="text-slate-400 text-[10px] font-medium">Verified Product</span>`}
+                            <span class="inline-flex items-center gap-1 font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/70">
+                                <span class="text-amber-500">★</span> ${rating.toFixed(1)} ${reviews > 0 ? `<span class="text-slate-400 font-medium">(${reviews})</span>` : ''}
+                            </span>` : `<span class="text-slate-400 text-[10px] font-medium flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Verified Deal</span>`}
                         </div>
 
                         <!-- Title -->
                         <div class="mt-1.5">
                             <a href="${dealLink ? dealLink : '#'}" ${dealLink ? 'target="_blank" rel="noopener noreferrer"' : ''} 
-                                class="text-xs font-bold text-slate-900 hover:text-indigo-600 line-clamp-2 break-words transition leading-snug" 
+                                class="text-xs sm:text-sm font-semibold text-slate-900 group-hover:text-indigo-600 line-clamp-2 break-words transition leading-snug tracking-tight" 
                                 title="${safeTitle}">
                                 ${safeTitle}
                             </a>
@@ -641,25 +644,27 @@
 
                     <!-- Price & Buy Button -->
                     <div class="mt-3 pt-2.5 border-t border-slate-100">
-                        <div class="flex items-baseline justify-between gap-1 mb-2">
+                        <div class="flex items-baseline justify-between gap-1 mb-1.5">
                             <div class="flex items-baseline gap-1.5 flex-wrap">
-                                <span class="text-base sm:text-lg font-black text-slate-900 font-mono">${formatINR(cp)}</span>
-                                ${hasDiscount ? `<span class="text-xs text-slate-400 line-through font-mono">${formatINR(mrp)}</span>` : ''}
-                                ${discPct > 0 ? `<span class="text-xs font-black text-rose-600 font-mono">(${discPct}% OFF)</span>` : ''}
+                                <span class="text-lg sm:text-xl font-black text-slate-900 tracking-tight tabular-nums">${formatINR(cp)}</span>
+                                ${hasDiscount ? `<span class="text-xs text-slate-400 line-through font-medium tabular-nums">${formatINR(mrp)}</span>` : ''}
+                                ${discPct > 0 ? `<span class="text-xs font-black text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200/60 tabular-nums">${discPct}% OFF</span>` : ''}
                             </div>
-                            ${savings > 0 ? `
-                            <div class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 font-mono shrink-0">
-                                Save ${formatINR(savings)}
-                            </div>` : ''}
                         </div>
+
+                        ${savings > 0 ? `
+                        <div class="mb-2.5 text-[11px] font-bold text-emerald-800 bg-emerald-50/80 px-2 py-0.5 rounded-md border border-emerald-200/60 flex items-center justify-between">
+                            <span>You Save:</span>
+                            <span class="font-extrabold text-emerald-700 tabular-nums">${formatINR(savings)}</span>
+                        </div>` : ''}
 
                         ${dealLink ? `
                         <a href="${dealLink}" target="_blank" rel="noopener noreferrer" 
-                           class="w-full py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 transition shadow-sm shadow-indigo-600/20 active:scale-98">
-                            <span>Buy on ${storeCfg.name}</span>
+                           class="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-indigo-600 active:scale-[0.98] text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition duration-150 shadow-sm shadow-slate-900/10">
+                            <span>Shop on ${storeCfg.name}</span>
                             <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
                         </a>` : `
-                        <div class="w-full py-2 px-3 rounded-xl bg-slate-100 text-slate-400 font-bold text-xs flex items-center justify-center gap-1.5 cursor-not-allowed">
+                        <div class="w-full py-2.5 px-3 rounded-xl bg-slate-100 text-slate-400 font-bold text-xs flex items-center justify-center gap-1.5 cursor-not-allowed">
                             <span>Price Tracked on ${storeCfg.name}</span>
                         </div>`}
 

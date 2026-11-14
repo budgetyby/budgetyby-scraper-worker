@@ -68,6 +68,54 @@
             background-color: #f8fafc;
             color: #0f172a;
         }
+
+        /* ── Ultra-Smooth Shimmer Wave Animation for Progressive Loading ── */
+        @keyframes shimmerWave {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        .shimmer-box {
+            position: relative;
+            overflow: hidden;
+            background-color: #f1f5f9;
+        }
+        .shimmer-box::after {
+            position: absolute;
+            top: 0; right: 0; bottom: 0; left: 0;
+            transform: translateX(-100%);
+            background-image: linear-gradient(
+                90deg,
+                rgba(255, 255, 255, 0) 0,
+                rgba(255, 255, 255, 0.6) 20%,
+                rgba(255, 255, 255, 0.8) 60%,
+                rgba(255, 255, 255, 0)
+            );
+            animation: shimmerWave 1.6s infinite;
+            content: '';
+        }
+
+        /* ── Progressive Card Fade-In Entrance Animation ── */
+        @keyframes cardFadeIn {
+            0% {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .animate-card-in {
+            animation: cardFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        /* Skeleton Card Base */
+        .skeleton-card {
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            background: #ffffff;
+            border-radius: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        }
     </style>
     {% block extra_head %}{% endblock %}
 </head>
@@ -81,7 +129,7 @@
         <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 font-bold text-[10px] tracking-wide border border-emerald-500/30 shrink-0">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Live Deal Sync
         </span>
-        <span class="truncate text-[11px] sm:text-xs">Discounts tracked against 30, 60 & 120-day median & minimum price baselines on Amazon, Flipkart, Myntra, Ajio & Nykaa.</span>
+        <span class="truncate text-[11px] sm:text-xs">🔥 <b>Over 43,000 Verified Price Drops Today</b> across Amazon, Flipkart, Myntra, Ajio & Nykaa • 100% Free Live Price Tracker</span>
         <a href="https://t.me/DealPulse_Deals" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-emerald-400 hover:text-emerald-300 font-bold underline underline-offset-2 shrink-0 text-[11px] sm:text-xs">
             Join Telegram ↗
         </a>
@@ -131,10 +179,12 @@
                 <a href="/drops" class="px-3 py-1.5 rounded-xl text-slate-700 hover:text-rose-600 hover:bg-slate-100 transition flex items-center gap-1.5">
                     <svg class="w-4 h-4 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>
                     <span>Price Drops</span>
+                    <span class="px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[9px] font-extrabold tracking-tight">HOT</span>
                 </a>
-                <a href="/all-time-lows" class="px-3 py-1.5 rounded-xl text-slate-700 hover:text-amber-600 hover:bg-slate-100 transition flex items-center gap-1.5">
-                    <svg class="w-4 h-4 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
+                <a href="/all-time-lows" class="px-3 py-1.5 rounded-xl text-slate-700 hover:text-amber-700 hover:bg-slate-100 transition flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
                     <span>All-Time Lows</span>
+                    <span class="px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 text-[9px] font-black tracking-tight">ATL</span>
                 </a>
                 <a href="/stores" class="px-3 py-1.5 rounded-xl text-slate-700 hover:text-indigo-600 hover:bg-slate-100 transition flex items-center gap-1.5">
                     <svg class="w-4 h-4 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></svg>
@@ -847,18 +897,47 @@
             }
         }
 
+        function shareDealWhatsApp(title, price, url, platform) {
+            const safeTitle = (title || 'Check out this deal').trim();
+            const safePrice = price && parseInt(price) > 0 ? `₹${price}` : '';
+            const safeStore = platform ? ` on ${platform}` : '';
+            const dealLink = url && url.startsWith('http') ? url : (window.location.origin + (url || '/'));
+            const message = `🔥 *Found this hot deal${safeStore}!*
+
+🛍️ *${safeTitle}*
+💰 *Deal Price: ${safePrice}*
+
+👉 *Grab it here:* ${dealLink}
+
+Tracked via BudgetBy — Free Price Drop Alerts`;
+            const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+            window.open(waUrl, '_blank');
+        }
+
+        function copyDealLink(url) {
+            const targetUrl = url || window.location.href;
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(targetUrl).then(() => {
+                    showDealNotification('🔗 Deal link copied to clipboard!', 'success');
+                });
+            } else {
+                showDealNotification('Link copied!', 'info');
+            }
+        }
+
         function handleHomeWatchlist(btn, productId) {
             if (!productId) return;
             const card = btn.closest('[data-deal-id]') || btn.closest('.group');
-            let title = card?.querySelector('a[title]')?.getAttribute('title') || 'Deal';
+            let title = card?.getAttribute('data-deal-title') || card?.querySelector('a[title]')?.getAttribute('title') || 'Deal';
             let img = card?.querySelector('img')?.getAttribute('src') || '';
-            let priceText = card?.querySelector('.font-black.text-slate-900.font-mono')?.textContent?.replace(/[^\d]/g, '') || '0';
+            let priceText = card?.getAttribute('data-deal-price') || card?.querySelector('.font-black.text-slate-900')?.textContent?.replace(/[^\d]/g, '') || '0';
+            let platform = card?.getAttribute('data-deal-platform') || 'store';
             let product = {
                 id: productId,
                 title: title,
                 current_price: parseInt(priceText) || 0,
                 image_url: img,
-                platform: 'store'
+                platform: platform
             };
             const added = toggleWatchlist(product);
             const icon = btn.querySelector('svg') || btn.querySelector('i');
@@ -1321,23 +1400,203 @@ ${deal.title}
             }, { passive: true });
         })();
 
-        // Loading bar helper
-        function showPageProgress() {
+        // ── Smooth Progressive Loading & Page Progress Bar Helpers ──
+        function setPageProgress(pct) {
             const bar = document.getElementById('pageProgressBar');
-            if (bar) {
-                bar.style.width = '70%';
-                bar.classList.remove('opacity-0');
-            }
-        }
-        function hidePageProgress() {
-            const bar = document.getElementById('pageProgressBar');
-            if (bar) {
-                bar.style.width = '100%';
+            if (!bar) return;
+            bar.classList.remove('opacity-0');
+            bar.style.width = Math.min(100, Math.max(5, pct)) + '%';
+            if (pct >= 100) {
                 setTimeout(() => {
                     bar.classList.add('opacity-0');
-                    bar.style.width = '0%';
-                }, 300);
+                    setTimeout(() => { bar.style.width = '0%'; }, 300);
+                }, 350);
             }
+        }
+        function showPageProgress() { setPageProgress(70); }
+        function hidePageProgress() { setPageProgress(100); }
+
+        // ── Global Store Theme Configurations ──
+        const GLOBAL_STORES = {
+            amazon: { name: 'Amazon', badge: 'bg-amber-50 text-amber-900 border border-amber-200/90' },
+            flipkart: { name: 'Flipkart', badge: 'bg-blue-50 text-blue-900 border border-blue-200/90' },
+            myntra: { name: 'Myntra', badge: 'bg-pink-50 text-pink-900 border border-pink-200/90' },
+            ajio: { name: 'Ajio', badge: 'bg-yellow-50 text-yellow-900 border border-yellow-200/90' },
+            nykaa: { name: 'Nykaa', badge: 'bg-rose-50 text-rose-900 border border-rose-200/90' }
+        };
+
+        function formatInrGlobal(num) {
+            if (num === null || num === undefined || isNaN(num)) return '0';
+            return Number(num).toLocaleString('en-IN');
+        }
+
+        function escapeHtmlGlobal(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function createSkeletonCardHtml(widthClass = 'w-56 sm:w-64') {
+            return `
+                <div class="${widthClass} shrink-0 skeleton-card p-3 sm:p-3.5 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between gap-1.5 mb-2.5">
+                            <div class="h-4 w-16 rounded-md shimmer-box"></div>
+                            <div class="h-4 w-20 rounded-md shimmer-box"></div>
+                        </div>
+                        <div class="w-full h-36 sm:h-44 rounded-xl shimmer-box mb-2.5"></div>
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="h-3 w-12 rounded shimmer-box"></div>
+                            <div class="h-3 w-14 rounded shimmer-box"></div>
+                        </div>
+                        <div class="space-y-1.5 mt-2">
+                            <div class="h-3.5 w-full rounded shimmer-box"></div>
+                            <div class="h-3.5 w-3/4 rounded shimmer-box"></div>
+                        </div>
+                    </div>
+                    <div class="mt-3.5 pt-2.5 border-t border-slate-100">
+                        <div class="flex items-baseline justify-between mb-2">
+                            <div class="h-5 w-20 rounded shimmer-box"></div>
+                            <div class="h-4 w-12 rounded shimmer-box"></div>
+                        </div>
+                        <div class="h-9 w-full rounded-xl shimmer-box"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function createProductCardHtml(deal, widthClass = '') {
+            const store = (deal.platform || 'store').toLowerCase();
+            const storeCfg = GLOBAL_STORES[store] || { name: (deal.platform || 'Store').toUpperCase(), badge: 'bg-slate-50 text-slate-700 border border-slate-200' };
+            const cp = deal.current_price || deal.deal_price || deal.posted_price || 0;
+            const mrp = deal.mrp || deal.posted_mrp || 0;
+            const hasDiscount = mrp > cp;
+            const discPct = hasDiscount ? Math.round(((mrp - cp) / mrp) * 100) : Math.round(deal.discount_pct || deal.discount_percent || 0);
+            const pid = deal.product_id || deal.id || 0;
+            const isAtl = deal.is_atl || (deal.all_time_low && cp <= (deal.all_time_low * 1.02));
+            const safeTitle = escapeHtmlGlobal(deal.title || 'Product Deal');
+            const rawAff = deal.affiliate_url || '';
+            const rawProd = deal.product_url || '';
+            const buyUrl = (rawAff && rawAff !== rawProd) ? rawAff : (pid ? `/api/deal/redirect/${pid}` : (rawAff || '#'));
+            const dealDetailUrl = pid ? `/deal/${pid}` : buyUrl;
+            const rating = deal.rating || 0;
+            const reviews = deal.review_count || 0;
+            const badge = deal.badge || '';
+
+            return `
+                <div data-deal-id="${pid}"
+                     data-deal-price="${cp}"
+                     data-deal-title="${safeTitle}"
+                     data-deal-url="${buyUrl}"
+                     data-deal-platform="${store}"
+                     class="${widthClass} bg-white border border-slate-200/85 hover:border-indigo-400/90 rounded-2xl p-3 sm:p-3.5 flex flex-col justify-between transition-all duration-200 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 group relative">
+                    <div>
+                        <div class="flex items-center justify-between gap-1.5 mb-2">
+                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider ${storeCfg.badge}">
+                                ${storeCfg.name}
+                            </span>
+                            ${isAtl ? `
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-amber-50 text-amber-900 border border-amber-200/90 shadow-2xs">
+                                    <span>👑</span> Lowest Ever
+                                </span>
+                            ` : (discPct >= 60 ? `
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200/90 shadow-2xs">
+                                    <span>🔥</span> ${discPct}% OFF
+                                </span>
+                            ` : (badge === 'PRICE DROP' || badge === 'PRICE_DROP' ? `
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/90 shadow-2xs">
+                                    <span>⚡</span> Price Drop
+                                </span>
+                            ` : `
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-50 text-slate-600 border border-slate-200">
+                                    <span>✓</span> Verified Deal
+                                </span>
+                            `))}
+                        </div>
+
+                        <div class="relative w-full h-36 sm:h-44 rounded-xl bg-gradient-to-b from-slate-50/70 to-white p-2 flex items-center justify-center overflow-hidden border border-slate-100">
+                            <a href="${dealDetailUrl}" class="w-full h-full flex items-center justify-center">
+                                <img src="${deal.image_url || '/static/placeholder.svg'}"
+                                     alt="${safeTitle}"
+                                     class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                                     loading="lazy"
+                                     decoding="async"
+                                     onerror="this.onerror=null;this.src='/static/placeholder.svg'" />
+                            </a>
+                            ${isAtl ? `
+                                <span class="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[9px] font-extrabold bg-amber-500 text-slate-950 uppercase tracking-wide shadow-sm flex items-center gap-0.5">
+                                    <span>👑</span> ATL
+                                </span>
+                            ` : (discPct >= 60 ? `
+                                <span class="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[9px] font-extrabold bg-rose-600 text-white uppercase tracking-wide shadow-sm flex items-center gap-0.5">
+                                    <span>🔥</span> LOOT
+                                </span>
+                            ` : '')}
+
+                            <div class="absolute top-2 right-2 flex items-center gap-1 z-10">
+                                <button type="button"
+                                        onclick="event.stopPropagation(); shareDealWhatsApp('${safeTitle.replace(/'/g, "\\'")}', '${cp}', '${buyUrl}', '${storeCfg.name}')"
+                                        class="p-1.5 rounded-xl bg-white/95 backdrop-blur-md border border-slate-200 text-slate-400 hover:text-emerald-600 hover:border-emerald-200 hover:scale-110 active:scale-95 transition shadow-xs"
+                                        title="Share on WhatsApp">
+                                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                                </button>
+                                <button type="button"
+                                        onclick="event.stopPropagation(); handleHomeWatchlist(this, ${pid})"
+                                        class="p-1.5 rounded-xl bg-white/95 backdrop-blur-md border border-slate-200 text-slate-400 hover:text-rose-500 hover:border-rose-200 hover:scale-110 active:scale-95 transition shadow-xs"
+                                        title="Save to Watchlist">
+                                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+                            ${rating > 0 ? `
+                                <span class="inline-flex items-center gap-1 font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/70">
+                                    <span class="text-amber-500">★</span> ${rating.toFixed(1)} ${reviews > 0 ? `<span class="text-slate-400 font-medium">(${reviews})</span>` : ''}
+                                </span>
+                            ` : `
+                                <span class="text-slate-400 text-[10px] font-medium flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Live Deal
+                                </span>
+                            `}
+                        </div>
+
+                        <div class="mt-1.5">
+                            <a href="${dealDetailUrl}"
+                               class="text-xs sm:text-sm font-semibold text-slate-900 group-hover:text-indigo-600 line-clamp-2 break-words transition leading-snug tracking-tight"
+                               title="${safeTitle}">
+                                ${safeTitle}
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 pt-2.5 border-t border-slate-100">
+                        <div class="flex items-baseline justify-between gap-1 mb-1.5">
+                            <div class="flex items-baseline gap-1.5 flex-wrap">
+                                <span class="text-lg sm:text-xl font-black text-slate-900 tracking-tight tabular-nums">₹${formatInrGlobal(cp)}</span>
+                                ${hasDiscount ? `<span class="text-xs text-slate-400 line-through font-medium tabular-nums">₹${formatInrGlobal(mrp)}</span>` : ''}
+                            </div>
+                            ${discPct > 0 ? `
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-rose-50 text-rose-600 shrink-0">
+                                    -${discPct}%
+                                </span>
+                            ` : ''}
+                        </div>
+
+                        <div class="flex items-center gap-1.5 mt-2">
+                            <a href="${buyUrl}" target="_blank" rel="noopener noreferrer"
+                               class="flex-1 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center justify-center gap-1 shadow-sm shadow-indigo-600/20 hover:scale-[1.02] active:scale-[0.98] transition">
+                                <span>Get Deal</span>
+                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
 
         // Instant Hover Prefetcher: warms the browser/RAM cache on hover/touchstart

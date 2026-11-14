@@ -2541,6 +2541,15 @@ async def get_public_deals(
                     """) or 100000
                     await ram_cache.set("total_catalog_deals_count", cached_total_catalog, ttl=900)
                 total_matches = cached_total_catalog
+            elif not search_clean and not ids and tab_clean in ("drops", "atl"):
+                count_cache_key = f"deals_count:{tab_clean}"
+                cached_tab_count = await ram_cache.get(count_cache_key)
+                if cached_tab_count is None:
+                    cached_tab_count = await database.fetchval(
+                        "SELECT COUNT(*) FROM deals d WHERE d.posted_at >= NOW() - INTERVAL '14 days';"
+                    ) or 45000
+                    await ram_cache.set(count_cache_key, cached_tab_count, ttl=1800)
+                total_matches = cached_tab_count
             else:
                 cnt_key = f"cnt:{hashlib.md5(f'{where_sql}:{where_args}'.encode()).hexdigest()}"
                 cached_count = await ram_cache.get(cnt_key)
@@ -2881,9 +2890,12 @@ async def build_home_html(request: Request = None) -> str:
         atl_task = get_public_deals(request=request, platform="", platforms="", category="", categories="", sub="", subcategory="", gender="", tab="atl", search="", sort_by="latest", min_discount=0.0, min_price=0.0, max_price=0.0, min_rating=0.0, verified_only=True, deal_type="atl", ids="", page=1, limit=20, include_count=False)
         stats_task = get_public_stats()
 
-        results = await asyncio.gather(
-            best_deals_task, just_dropped_task, atl_task, stats_task,
-            return_exceptions=True
+        results = await asyncio.wait_for(
+            asyncio.gather(
+                best_deals_task, just_dropped_task, atl_task, stats_task,
+                return_exceptions=True
+            ),
+            timeout=1.0  # Responsive budget: if DB answers under 1s, embed deals; if DB is slow or cold, return instant skeleton shell immediately!
         )
         if not isinstance(results[0], Exception):
             best_deals = results[0]
