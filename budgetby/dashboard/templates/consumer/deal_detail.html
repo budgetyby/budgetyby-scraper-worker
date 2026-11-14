@@ -139,15 +139,15 @@
                                 {{ platform|store_name }}
                             </span>
                             {% if is_atl %}
-                            <span class="px-2 py-1 rounded-lg text-xs font-black bg-amber-50 text-amber-800 border border-amber-300 uppercase font-mono flex items-center gap-1">
+                            <span class="px-2 py-1 rounded-lg text-xs font-black bg-amber-50 text-amber-800 border border-amber-300 uppercase font-extrabold tracking-tight flex items-center gap-1">
                                 <span>🏆</span> ALL-TIME LOW
                             </span>
                             {% elif discount_pct >= 60 %}
-                            <span class="px-2 py-1 rounded-lg text-xs font-black bg-rose-50 text-rose-700 border border-rose-300 uppercase font-mono">
+                            <span class="px-2 py-1 rounded-lg text-xs font-black bg-rose-50 text-rose-700 border border-rose-300 uppercase font-extrabold tracking-tight">
                                 🔥 LOOT DEAL
                             </span>
                             {% elif product.badge %}
-                            <span class="px-2 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase font-mono">
+                            <span class="px-2 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase font-extrabold tracking-tight">
                                 {{ product.badge }}
                             </span>
                             {% endif %}
@@ -232,23 +232,23 @@
                     <div class="bg-slate-50 rounded-2xl p-4 sm:p-5 border border-slate-200/80 mb-5">
                         <div class="flex items-baseline justify-between gap-3 flex-wrap">
                             <div class="flex items-baseline gap-2.5 flex-wrap">
-                                <span class="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight">
+                                <span class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight tabular-nums">
                                     {{ cp|format_inr }}
                                 </span>
                                 {% if has_discount and mrp > cp %}
-                                <span class="text-base sm:text-lg text-slate-400 line-through font-mono">
+                                <span class="text-base sm:text-lg text-slate-400 line-through font-medium tabular-nums">
                                     {{ mrp|format_inr }}
                                 </span>
                                 {% endif %}
                                 {% if discount_pct > 0 %}
-                                <span class="text-base sm:text-lg font-black text-rose-600 font-mono bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200">
+                                <span class="text-base sm:text-lg font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200 tabular-nums">
                                     {{ discount_pct }}% OFF
                                 </span>
                                 {% endif %}
                             </div>
 
                             {% if savings > 0 %}
-                            <div class="text-sm font-black text-emerald-800 bg-emerald-100/80 px-3 py-1.5 rounded-xl border border-emerald-300 font-mono shrink-0">
+                            <div class="text-sm font-black text-emerald-800 bg-emerald-100/80 px-3 py-1.5 rounded-xl border border-emerald-300 tabular-nums shrink-0">
                                 You Save {{ savings|format_inr }}
                             </div>
                             {% endif %}
@@ -258,19 +258,19 @@
                         <div class="grid grid-cols-3 gap-2 sm:gap-3 mt-4 pt-4 border-t border-slate-200/70 text-center">
                             <div class="bg-white rounded-xl p-2.5 border border-slate-200">
                                 <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">30-Day Low</span>
-                                <span class="text-xs sm:text-sm font-black text-slate-800 font-mono mt-0.5 block">
+                                <span class="text-xs sm:text-sm font-black text-slate-800 tabular-nums mt-0.5 block">
                                     {{ (min_30d or cp)|format_inr }}
                                 </span>
                             </div>
                             <div class="bg-white rounded-xl p-2.5 border border-slate-200">
                                 <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">90-Day Low</span>
-                                <span class="text-xs sm:text-sm font-black text-slate-800 font-mono mt-0.5 block">
+                                <span class="text-xs sm:text-sm font-black text-slate-800 tabular-nums mt-0.5 block">
                                     {{ (min_90d or min_30d or cp)|format_inr }}
                                 </span>
                             </div>
                             <div class="bg-white rounded-xl p-2.5 border {% if is_atl %}border-amber-400 bg-amber-50/50{% else %}border-slate-200{% endif %}">
                                 <span class="text-[10px] uppercase font-bold {% if is_atl %}text-amber-800{% else %}text-slate-400{% endif %} tracking-wider block">All-Time Low</span>
-                                <span class="text-xs sm:text-sm font-black {% if is_atl %}text-amber-900{% else %}text-slate-800{% endif %} font-mono mt-0.5 block">
+                                <span class="text-xs sm:text-sm font-black {% if is_atl %}text-amber-900{% else %}text-slate-800{% endif %} tabular-nums mt-0.5 block">
                                     {{ (atl or cp)|format_inr }}
                                 </span>
                             </div>
@@ -336,6 +336,12 @@
                     </a>
                     {% endif %}
                     
+                    <button type="button" 
+                            onclick="shareDealWhatsApp('{{ (product.title or '')|replace("'", "\\'")|replace('"', '&quot;') }}', '{{ cp }}', '{{ buy_url }}', '{{ platform|store_name }}')" 
+                            class="w-full py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-extrabold text-sm flex items-center justify-center gap-2 transition shadow-md shadow-emerald-600/20 mt-2.5">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                        <span>Share Deal via WhatsApp</span>
+                    </button>
                     <p class="text-center text-[11px] text-slate-400 mt-2">
                         Direct merchant checkout — BudgetBy never charges fees or alters merchant discounts.
                     </p>
@@ -345,7 +351,9 @@
         </div>
     </div>
 
-    <!-- ── Interactive Price History Visualizer (Zero External JS Libraries) ── -->
+    <!-- ── Adaptive Price History & Valuation Benchmark ── -->
+    {% if price_history and price_history|length >= 3 %}
+    <!-- Dense History View: Interactive Pure Vanilla SVG Trend Chart -->
     <div class="bg-white border border-slate-200/90 rounded-3xl p-4 sm:p-8 shadow-sm mb-8">
         <div class="flex items-center justify-between gap-3 mb-6 flex-wrap">
             <div>
@@ -353,12 +361,13 @@
                     <span>📈</span> Price History & Trends
                 </h2>
                 <p class="text-xs text-slate-500 mt-0.5">
-                    Tracked price observations over the last 30 days. No fake markups.
+                    Verified price checks recorded over the last 30 days. No fake markups.
                 </p>
             </div>
             <div class="flex items-center gap-2">
-                <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                    30-Day Timeline
+                <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/70 flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-indigo-600 animate-pulse"></span>
+                    {{ price_history|length }} Verified Checks
                 </span>
             </div>
         </div>
@@ -377,17 +386,146 @@
         <div class="flex items-center justify-between gap-4 mt-4 text-xs text-slate-500 flex-wrap">
             <div class="flex items-center gap-4 flex-wrap">
                 <span class="flex items-center gap-1.5 font-medium">
-                    <span class="w-3 h-1 bg-indigo-600 rounded-full inline-block"></span> Tracked Daily Price
+                    <span class="w-3 h-1 bg-indigo-600 rounded-full inline-block"></span> Verified Price Check
                 </span>
+                {% if atl %}
                 <span class="flex items-center gap-1.5 font-medium">
-                    <span class="w-3 h-0.5 border-t-2 border-dashed border-amber-500 inline-block"></span> All-Time Low ({{ (atl or cp)|format_inr }})
+                    <span class="w-3 h-0.5 border-t-2 border-dashed border-amber-500 inline-block"></span> All-Time Low ({{ atl|format_inr }})
                 </span>
+                {% endif %}
             </div>
             <div class="text-[11px] text-slate-400 font-mono">
                 Updated {{ product.last_checked|time_ago if product.last_checked else "recently" }}
             </div>
         </div>
     </div>
+    {% else %}
+    <!-- Transparent Active Tracking Benchmark Card (When History < 3 Points) -->
+    <div class="bg-white border border-slate-200/90 rounded-3xl p-5 sm:p-8 shadow-sm mb-8">
+        <div class="flex items-center justify-between gap-3 mb-6 flex-wrap">
+            <div>
+                <h2 class="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-2">
+                    <span>🛡️</span> Active Price Tracking & Valuation Benchmark
+                </h2>
+                <p class="text-xs text-slate-500 mt-0.5">
+                    Live price monitoring active. Verified against historical catalog low & retailer MSRP.
+                </p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Active Monitoring
+                </span>
+            </div>
+        </div>
+
+        <!-- 4 Valuation Metric Tiles -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+            <!-- Current Price -->
+            <div class="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-4">
+                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center justify-between">
+                    <span>Current Price</span>
+                    <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+                </div>
+                <div class="text-xl sm:text-2xl font-black text-slate-900 tabular-nums">
+                    ₹{{ cp|format_inr }}
+                </div>
+                <div class="text-xs mt-1">
+                    {% if discount_pct > 0 %}
+                    <span class="text-rose-600 font-extrabold">-{{ discount_pct }}% OFF MSRP</span>
+                    {% else %}
+                    <span class="text-slate-500">Active retail price</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- All-Time Low -->
+            <div class="bg-amber-50/40 border border-amber-200/70 rounded-2xl p-4">
+                <div class="text-[11px] font-bold uppercase tracking-wider text-amber-700 mb-1 flex items-center justify-between">
+                    <span>All-Time Low</span>
+                    <span>⭐</span>
+                </div>
+                <div class="text-xl sm:text-2xl font-black text-slate-900 tabular-nums">
+                    ₹{{ (atl or cp)|format_inr }}
+                </div>
+                <div class="text-xs mt-1">
+                    {% if is_atl %}
+                    <span class="text-amber-700 font-extrabold">🏆 Matched lowest ever!</span>
+                    {% elif atl and cp > atl %}
+                    <span class="text-slate-500">₹{{ (cp - atl)|format_inr }} from record low</span>
+                    {% else %}
+                    <span class="text-slate-500">Lowest verified point</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 30-Day Benchmark -->
+            <div class="bg-indigo-50/30 border border-indigo-100 rounded-2xl p-4">
+                <div class="text-[11px] font-bold uppercase tracking-wider text-indigo-700 mb-1 flex items-center justify-between">
+                    <span>30-Day Lowest</span>
+                    <span>📉</span>
+                </div>
+                <div class="text-xl sm:text-2xl font-black text-slate-900 tabular-nums">
+                    ₹{{ (min_30d or atl or cp)|format_inr }}
+                </div>
+                <div class="text-xs text-slate-500 mt-1">
+                    Recent price baseline
+                </div>
+            </div>
+
+            <!-- List Price (MRP) -->
+            <div class="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-4">
+                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center justify-between">
+                    <span>Retailer MRP</span>
+                    <span>🏷️</span>
+                </div>
+                <div class="text-xl sm:text-2xl font-black text-slate-900 tabular-nums">
+                    ₹{{ mrp|format_inr }}
+                </div>
+                <div class="text-xs mt-1">
+                    {% if savings > 0 %}
+                    <span class="text-emerald-600 font-extrabold">Save ₹{{ savings|format_inr }}</span>
+                    {% else %}
+                    <span class="text-slate-500">Manufacturer list</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Deal Health & Price Verdict Banner -->
+        <div class="bg-gradient-to-r from-slate-50 to-indigo-50/40 border border-slate-200/80 rounded-2xl p-4 flex items-center justify-between gap-4 flex-wrap">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-lg shrink-0 shadow-sm">
+                    {% if is_atl %}🔥{% elif discount_pct >= 40 %}⭐{% elif discount_pct > 0 %}👍{% else %}📊{% endif %}
+                </div>
+                <div>
+                    <div class="text-sm font-extrabold text-slate-900">
+                        {% if is_atl %}
+                        Best Price Record: This item is currently at or near its lowest price ever!
+                        {% elif discount_pct >= 40 %}
+                        High-Discount Opportunity: Significant {{ discount_pct }}% reduction below standard MRP.
+                        {% elif discount_pct > 0 %}
+                        Solid Deal: Currently discounted by ₹{{ savings|format_inr }}.
+                        {% else %}
+                        Fair Retail Price: Monitored 24/7 for upcoming flash drops and coupon sales.
+                        {% endif %}
+                    </div>
+                    <p class="text-xs text-slate-500 mt-0.5">
+                        Interactive graph activates automatically once multiple seller price updates are verified.
+                    </p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 text-xs flex-wrap">
+                <span class="font-mono text-slate-400">Checked {{ product.last_checked|time_ago if product.last_checked else "recently" }}</span>
+                <button id="btnRefreshPrice" onclick="triggerLivePriceCheck({{ pid }})"
+                        class="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200 shadow-sm hover:scale-[1.02] active:scale-[0.98] transition flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                    <span>Check Live Price</span>
+                </button>
+                <span id="refreshMsg" class="hidden text-xs font-bold text-indigo-600"></span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- ── Related Deals in Category ──────────────────────────────────── -->
     {% if related_deals and related_deals|length > 0 %}
@@ -416,6 +554,7 @@
 </main>
 
 <!-- ── Embedded Lightweight Pure Vanilla JS SVG Price Chart ──────────────── -->
+{% if price_history and price_history|length >= 3 %}
 <script>
 (function() {
     // Embedded historical observations
@@ -427,16 +566,7 @@
 
     if (!container) return;
 
-    // Ensure we have at least 2 data points for a smooth line
     let points = Array.isArray(historyData) && historyData.length > 0 ? historyData.slice() : [];
-    if (points.length === 0) {
-        points = [
-            { date: "Day 1", price: currentPrice },
-            { date: "Today", price: currentPrice }
-        ];
-    } else if (points.length === 1) {
-        points.unshift({ date: "Start", price: points[0].price });
-    }
 
     function renderChart() {
         const width = container.clientWidth || 600;
@@ -457,7 +587,7 @@
         const maxPrice = Math.ceil(Math.max(...prices) * 1.05);
         const priceRange = Math.max(1, maxPrice - minPrice);
 
-        const getX = (idx) => padLeft + (idx / (points.length - 1)) * plotWidth;
+        const getX = (idx) => padLeft + (idx / Math.max(1, points.length - 1)) * plotWidth;
         const getY = (price) => padTop + plotHeight - ((price - minPrice) / priceRange) * plotHeight;
 
         // Path generator
@@ -499,7 +629,7 @@
 
             <!-- Data Point Circles -->
             ${points.map((p, i) => `
-                <circle cx="${getX(i)}" cy="${getY(p.price)}" r="4" fill="#ffffff" stroke="#4f46e5" stroke-width="2.5" 
+                <circle cx="${getX(i)}" cy="${getY(p.price)}" r="4.5" fill="#ffffff" stroke="#4f46e5" stroke-width="2.5" 
                         class="cursor-pointer transition-transform hover:scale-150" 
                         data-date="${p.date}" data-price="${p.price}" />
             `).join('')}
@@ -532,5 +662,42 @@
     renderChart();
     window.addEventListener('resize', renderChart);
 })();
+</script>
+{% endif %}
+
+<script>
+function triggerLivePriceCheck(pid) {
+    const btn = document.getElementById('btnRefreshPrice');
+    const msg = document.getElementById('refreshMsg');
+    if (!btn) return;
+    btn.disabled = true;
+    btn.innerHTML = `
+        <svg class="animate-spin w-3.5 h-3.5 text-indigo-600 inline-block" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+        </svg>
+        <span>Checking seller page...</span>
+    `;
+    fetch(`/api/public/deal/${pid}/refresh`, { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            btn.innerHTML = `<span class="text-emerald-700 font-extrabold flex items-center gap-1"><span>✓</span> Prioritized</span>`;
+            if (msg) {
+                msg.textContent = 'Price prioritized for immediate live update!';
+                msg.classList.remove('hidden');
+            }
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.innerHTML = `
+                    <svg class="w-3.5 h-3.5 text-slate-500 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                    <span>Check Live Price</span>
+                `;
+            }, 5000);
+        })
+        .catch(() => {
+            btn.disabled = false;
+            btn.innerHTML = `<span>Check Live Price</span>`;
+        });
+}
 </script>
 {% endblock %}

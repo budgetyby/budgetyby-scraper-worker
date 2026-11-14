@@ -2802,25 +2802,17 @@ async def get_public_deal_detail(product_id: int) -> dict | None:
         min_30d = float(product_row["min_30d"]) if product_row["min_30d"] is not None else None
         min_90d = float(product_row["min_90d"]) if product_row["min_90d"] is not None else None
 
-        if len(history) < 2:
-            created = product_row["created_at"]
-            start_date = str(created.date()) if hasattr(created, "date") else "Start"
-            today_date = "Today"
-            if prev_p and prev_p != cp:
-                history = [
-                    {"date": start_date, "price": prev_p},
-                    {"date": today_date, "price": cp}
-                ]
-            elif atl and atl != cp:
-                history = [
-                    {"date": "Historical Low", "price": atl},
-                    {"date": today_date, "price": cp}
-                ]
-            else:
-                history = [
-                    {"date": start_date, "price": cp},
-                    {"date": today_date, "price": cp}
-                ]
+        # Honest Price History & Valuation Benchmarks:
+        # Avoid generating artificial flat lines between arbitrary dates.
+        # If daily_prices has real tracked observations, keep them intact.
+        # If there was a real price drop recorded in last_price_change, include it.
+        if len(history) < 2 and prev_p and prev_p != cp and product_row.get("last_price_change"):
+            lpc = product_row["last_price_change"]
+            lpc_date = str(lpc.date()) if hasattr(lpc, "date") else "Previous"
+            history = [
+                {"date": lpc_date, "price": prev_p},
+                {"date": "Current", "price": cp}
+            ]
 
         savings = max(0.0, mrp - cp) if mrp > cp else 0.0
         discount_pct = int(round(((mrp - cp) / mrp) * 100)) if (mrp > cp and mrp > 0) else 0
@@ -2838,7 +2830,8 @@ async def get_public_deal_detail(product_id: int) -> dict | None:
         result = {
             "product": prod_dict,
             "price_history": history,
-            "history_count": len(history)
+            "history_count": len(history),
+            "has_dense_history": len(history) >= 3
         }
         await ram_cache.set(cache_key, result, ttl=60)
         return result
@@ -2854,6 +2847,47 @@ async def api_public_deal_detail(product_id: int):
     if not detail or not detail.get("product"):
         raise HTTPException(status_code=404, detail="Product not found")
     return detail
+
+
+@app.post("/api/public/deal/{product_id}/refresh")
+async def api_public_deal_refresh(product_id: int):
+    """
+    On-demand Live Price Verification:
+    Allows visitors to trigger a live price check for any product they are currently viewing.
+    Prioritizes the item for immediate verification in the scraper loop and clears local caches.
+    """
+    try:
+        prod = await database.fetchrow("""
+            SELECT id, platform, product_url, current_price, mrp, last_checked, status
+            FROM products
+            WHERE id = $1;
+        """, product_id)
+        if not prod:
+            raise HTTPException(status_code=404, detail="Product not found")
+
+        # Promote to Tier 1 and mark next_check due immediately
+        await database.execute("""
+            UPDATE products SET
+                priority_tier = 1,
+                next_check = NOW() - INTERVAL '1 second'
+            WHERE id = $1;
+        """, product_id)
+
+        # Invalidate RAM cache for this deal detail
+        await ram_cache.delete(f"deal_detail:{product_id}")
+        await ram_cache.delete(f"ssr:deal_detail:{product_id}")
+
+        return {
+            "status": "success",
+            "message": "Product prioritized for live verification",
+            "current_price": float(prod["current_price"] or 0.0),
+            "last_checked": prod["last_checked"].isoformat() if prod.get("last_checked") else None
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in on-demand price refresh for product {product_id}: {e}")
+        return {"status": "error", "message": "Failed to queue price check"}
 
 
 # ── Page Rendering Routes ───────────────────────────────────────────────────
