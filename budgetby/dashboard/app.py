@@ -368,6 +368,11 @@ class SimpleMemoryCache:
                         self._cache.pop(k, None)
             self._cache[key] = (value, fresh_until, stale_until)
 
+    async def delete(self, key: str):
+        """Invalidate a specific cache key."""
+        async with self._lock:
+            self._cache.pop(key, None)
+
     def clear(self):
         self._cache.clear()
 
@@ -2776,10 +2781,14 @@ async def get_public_deal_detail(product_id: int) -> dict | None:
 
         history_task = database.fetch("""
             SELECT date, min_price, close_price
-            FROM daily_prices
-            WHERE product_id = $1
-            ORDER BY date ASC
-            LIMIT 30;
+            FROM (
+                SELECT date, min_price, close_price
+                FROM daily_prices
+                WHERE product_id = $1
+                ORDER BY date DESC
+                LIMIT 60
+            ) sub
+            ORDER BY date ASC;
         """, product_id)
 
         product_row, history_rows = await asyncio.gather(prod_task, history_task)
@@ -2814,6 +2823,18 @@ async def get_public_deal_detail(product_id: int) -> dict | None:
                 {"date": "Current", "price": cp}
             ]
 
+        # Brand-New Product Detection:
+        # If product was added within the last 14 days and has <= 1 price observation,
+        # it is classified truthfully as a Brand-New Maiden Listing rather than sparse unobserved item.
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        created_dt = product_row.get("created_at")
+        is_brand_new = False
+        if created_dt:
+            if created_dt.tzinfo is None:
+                created_dt = created_dt.replace(tzinfo=datetime.timezone.utc)
+            if (now_utc - created_dt).total_seconds() < (14 * 86400) and len(history) <= 1:
+                is_brand_new = True
+
         savings = max(0.0, mrp - cp) if mrp > cp else 0.0
         discount_pct = int(round(((mrp - cp) / mrp) * 100)) if (mrp > cp and mrp > 0) else 0
 
@@ -2831,7 +2852,8 @@ async def get_public_deal_detail(product_id: int) -> dict | None:
             "product": prod_dict,
             "price_history": history,
             "history_count": len(history),
-            "has_dense_history": len(history) >= 3
+            "has_dense_history": len(history) >= 3,
+            "is_brand_new": is_brand_new
         }
         await ram_cache.set(cache_key, result, ttl=60)
         return result
@@ -2847,6 +2869,68 @@ async def api_public_deal_detail(product_id: int):
     if not detail or not detail.get("product"):
         raise HTTPException(status_code=404, detail="Product not found")
     return detail
+
+
+@app.get("/api/public/deal/{product_id}/history-live")
+async def api_public_deal_history_live(product_id: int):
+    """
+    On-demand multi-store verified price history fetcher.
+    1. Returns immediately if database already has dense observations (>= 3 points).
+    2. Otherwise fetches external verified tracking sources within 2.5s.
+    3. Detects brand-new products truthfully.
+    4. Seeds database in background on dense discovery.
+    """
+    if not product_id or product_id <= 0:
+        raise HTTPException(status_code=400, detail="Invalid product ID")
+
+    # 1. Check local database first
+    rows = await database.fetch("""
+        SELECT date, min_price, close_price
+        FROM (
+            SELECT date, min_price, close_price
+            FROM daily_prices
+            WHERE product_id = $1
+            ORDER BY date DESC
+            LIMIT 60
+        ) sub
+        ORDER BY date ASC;
+    """, product_id)
+
+    if len(rows) >= 3:
+        history = []
+        for r in rows:
+            p_val = float(r["min_price"]) if r["min_price"] is not None else float(r["close_price"])
+            history.append({"date": str(r["date"]), "price": p_val})
+        return {
+            "status": "success",
+            "product_id": product_id,
+            "has_dense_history": True,
+            "is_brand_new": False,
+            "count": len(history),
+            "points": history,
+            "source": "database"
+        }
+
+    # 2. Need external lookup
+    prod = await database.fetchrow("""
+        SELECT id, platform, product_url, current_price, mrp, all_time_low, created_at
+        FROM products
+        WHERE id = $1;
+    """, product_id)
+    if not prod:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    from budgetby.engine.price_history_puller import pull_and_sync_price_history
+    
+    res = await pull_and_sync_price_history(
+        product_id=prod["id"],
+        product_url=prod["product_url"] or "",
+        platform=prod["platform"] or "",
+        current_price=float(prod["current_price"] or 0.0),
+        created_at=prod.get("created_at"),
+        db_execute_func=database.execute
+    )
+    return res
 
 
 @app.post("/api/public/deal/{product_id}/refresh")
@@ -3393,6 +3477,8 @@ async def page_deal_detail(request: Request, product_id: int):
             "active_page": "deals",
             "product": prod,
             "price_history": detail_data.get("price_history", []),
+            "has_dense_history": detail_data.get("has_dense_history", False),
+            "is_brand_new": detail_data.get("is_brand_new", False),
             "related_deals": related_deals,
             "categories": UNIVERSAL_CATEGORIES
         }, cache_seconds=300)
