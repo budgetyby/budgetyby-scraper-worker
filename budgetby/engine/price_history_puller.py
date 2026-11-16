@@ -280,8 +280,8 @@ async def _seed_daily_prices(
     try:
         from budgetby import database
         
-        # Batch insert recent observations in one roundtrip using executemany
-        recent_points = points[-60:]
+        # Batch insert recent observations in one roundtrip using executemany (up to 180 points)
+        recent_points = points[-180:]
         records = []
         for pt in recent_points:
             d_str = pt["date"]

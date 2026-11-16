@@ -2786,7 +2786,7 @@ async def get_public_deal_detail(product_id: int) -> dict | None:
                 FROM daily_prices
                 WHERE product_id = $1
                 ORDER BY date DESC
-                LIMIT 60
+                LIMIT 180
             ) sub
             ORDER BY date ASC;
         """, product_id)
@@ -2896,7 +2896,7 @@ async def api_public_deal_history_live(product_id: int):
             FROM daily_prices
             WHERE product_id = $1
             ORDER BY date DESC
-            LIMIT 60
+            LIMIT 180
         ) sub
         ORDER BY date ASC;
     """, product_id)

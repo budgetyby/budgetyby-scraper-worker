@@ -397,6 +397,33 @@
                     Updated {{ product.last_checked|time_ago if product.last_checked else "recently" }}
                 </div>
             </div>
+
+            <!-- Complete Date-by-Date Price History Log -->
+            <div id="priceHistoryTableCard" class="mt-6 pt-5 border-t border-slate-100">
+                <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                    <h3 class="text-xs sm:text-sm font-extrabold text-slate-800 flex items-center gap-1.5">
+                        <span>📅</span> Complete Date-by-Date Price Log (<span id="historyLogCount">{{ price_history|length if price_history else 0 }}</span> Recorded Dates)
+                    </h3>
+                    <span class="text-[11px] text-slate-400 font-medium">Every recorded date in timeline</span>
+                </div>
+                <div id="priceHistoryTableWrapper" class="overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-50/50 shadow-xs">
+                    <div class="overflow-x-auto max-h-64 overflow-y-auto">
+                        <table class="w-full text-left text-xs text-slate-600">
+                            <thead class="bg-slate-100 text-[11px] font-bold uppercase tracking-wider text-slate-500 sticky top-0 border-b border-slate-200/80 z-10">
+                                <tr>
+                                    <th class="px-4 py-2.5">Recorded Date</th>
+                                    <th class="px-4 py-2.5">Verified Price</th>
+                                    <th class="px-4 py-2.5">Savings vs MRP</th>
+                                    <th class="px-4 py-2.5 text-right">Market Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="priceHistoryTableBody" class="divide-y divide-slate-100 font-mono text-[11px] bg-white">
+                                <!-- Populated dynamically by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
 
         {% if not has_dense_history %}
@@ -799,10 +826,10 @@
 
         const totalPoints = points.length;
         let tickIndices = [];
-        if (totalPoints <= 5) {
+        if (totalPoints <= 6) {
             for (let i = 0; i < totalPoints; i++) tickIndices.push(i);
         } else {
-            const numTicks = width < 480 ? 3 : 5;
+            const numTicks = width < 480 ? 4 : 7;
             for (let k = 0; k < numTicks; k++) {
                 const idx = Math.min(totalPoints - 1, Math.round(k * (totalPoints - 1) / (numTicks - 1)));
                 if (!tickIndices.includes(idx)) {
@@ -983,6 +1010,58 @@
                 onEnter();
             }, { passive: true });
         });
+
+        populatePriceHistoryTable(points, effectiveAtl);
+    }
+
+    function populatePriceHistoryTable(points, effectiveAtl) {
+        const tbody = document.getElementById('priceHistoryTableBody');
+        const countEl = document.getElementById('historyLogCount');
+        if (!tbody || !Array.isArray(points) || points.length === 0) return;
+
+        if (countEl) countEl.textContent = points.length;
+
+        const mrpVal = {{ mrp }};
+        const reversed = [...points].reverse();
+
+        tbody.innerHTML = reversed.map((p, idx) => {
+            const rawDate = p.date;
+            const pNum = Number(p.price);
+            const pFormatted = pNum.toLocaleString('en-IN');
+            const dateFormatted = formatDateFull(rawDate);
+            const isAtl = (effectiveAtl && Math.abs(pNum - effectiveAtl) < 0.5);
+
+            let savingsText = '-';
+            if (mrpVal && mrpVal > pNum) {
+                const diff = mrpVal - pNum;
+                const pct = Math.round((diff / mrpVal) * 100);
+                savingsText = `<span class="text-emerald-700 font-semibold">Save ₹${diff.toLocaleString('en-IN')} (${pct}% off)</span>`;
+            }
+
+            let statusBadge = `<span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500">● Verified Check</span>`;
+            if (isAtl) {
+                statusBadge = `<span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300">★ All-Time Low</span>`;
+            } else if (idx === 0) {
+                statusBadge = `<span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">Current Deal</span>`;
+            }
+
+            return `
+                <tr class="hover:bg-slate-50/80 transition">
+                    <td class="px-4 py-2.5 font-sans font-medium text-slate-800 whitespace-nowrap">
+                        ${dateFormatted}
+                    </td>
+                    <td class="px-4 py-2.5 font-black text-slate-900 whitespace-nowrap">
+                        ₹${pFormatted}
+                    </td>
+                    <td class="px-4 py-2.5 font-sans text-slate-500 whitespace-nowrap">
+                        ${savingsText}
+                    </td>
+                    <td class="px-4 py-2.5 text-right whitespace-nowrap font-sans">
+                        ${statusBadge}
+                    </td>
+                </tr>
+            `;
+        }).join('');
     }
 
     // Debounced window resize handler
