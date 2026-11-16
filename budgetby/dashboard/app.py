@@ -2814,12 +2814,11 @@ async def get_public_deal_detail(product_id: int) -> dict | None:
         # Honest Price History & Valuation Benchmarks:
         # Avoid generating artificial flat lines between arbitrary dates.
         # If daily_prices has real tracked observations, keep them intact.
-        # If there was a real price drop recorded in last_price_change, include it.
-        if len(history) < 2 and prev_p and prev_p != cp and product_row.get("last_price_change"):
-            lpc = product_row["last_price_change"]
-            lpc_date = str(lpc.date()) if hasattr(lpc, "date") else "Previous"
+        # If there was a real price drop recorded, anchor the previous price to when it was first tracked (created_at).
+        if len(history) < 2 and prev_p and prev_p != cp:
+            c_date = str(product_row["created_at"].date()) if product_row.get("created_at") else "Initial"
             history = [
-                {"date": lpc_date, "price": prev_p},
+                {"date": c_date, "price": prev_p},
                 {"date": "Current", "price": cp}
             ]
 
@@ -2954,14 +2953,13 @@ async def api_public_deal_history_live(product_id: int):
             "source": "database"
         }
 
-    # 5. Fallback to 2-point verified drop if product has previous_price != current_price
+    # 5. Fallback to catalog launch baseline if product has previous_price != current_price
     cp = float(prod["current_price"] or 0.0)
     prev_p = float(prod["previous_price"] or cp)
-    if prev_p and prev_p != cp and prod.get("last_price_change"):
-        lpc = prod["last_price_change"]
-        lpc_date = str(lpc.date()) if hasattr(lpc, "date") else "Previous"
+    if prev_p and prev_p != cp:
+        c_date = str(prod["created_at"].date()) if prod.get("created_at") else "Initial"
         fallback_points = [
-            {"date": lpc_date, "price": prev_p},
+            {"date": c_date, "price": prev_p},
             {"date": "Current", "price": cp}
         ]
         return {
@@ -2971,7 +2969,7 @@ async def api_public_deal_history_live(product_id: int):
             "is_brand_new": False,
             "count": len(fallback_points),
             "points": fallback_points,
-            "source": "local_drop"
+            "source": "catalog_baseline"
         }
 
     return res
