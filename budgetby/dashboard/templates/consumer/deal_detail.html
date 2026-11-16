@@ -374,12 +374,11 @@
 
             <!-- SVG Chart Container -->
             <div class="w-full bg-slate-50/70 border border-slate-100 rounded-2xl p-4 sm:p-6 relative">
-                <div id="chartContainer" class="w-full h-56 sm:h-72">
-                    <!-- Inline SVG rendered dynamically by lightweight vanilla JS below -->
-                </div>
-                
-                <div id="chartTooltip" class="absolute hidden pointer-events-none bg-slate-900 text-white text-xs px-2.5 py-1.5 rounded-lg shadow-xl font-mono z-20 transform -translate-x-1/2 -translate-y-full">
-                    <!-- Tooltip content -->
+                <div id="chartContainer" class="w-full h-60 sm:h-72 relative">
+                    <div id="chartSvgWrapper" class="w-full h-full"></div>
+                    <div id="chartTooltip" class="absolute hidden pointer-events-none bg-slate-900/95 text-white text-xs px-3.5 py-2.5 rounded-xl shadow-2xl font-mono z-30 border border-slate-700/80 backdrop-blur-md transition-opacity duration-100">
+                        <!-- Tooltip content -->
+                    </div>
                 </div>
             </div>
 
@@ -702,18 +701,73 @@
     const brandNewCard = document.getElementById('historyBrandNewCard');
     const benchmarkCard = document.getElementById('historyBenchmarkCard');
     const container = document.getElementById('chartContainer');
+    const svgWrapper = document.getElementById('chartSvgWrapper');
     const tooltip = document.getElementById('chartTooltip');
 
+    let currentRenderedPoints = null;
+    let currentRenderedAtl = null;
+
+    const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    function parseDateParts(raw) {
+        if (!raw) return null;
+        const str = String(raw).trim();
+        const parts = str.split('T')[0].split('-');
+        if (parts.length === 3) {
+            const y = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10) - 1;
+            const d = parseInt(parts[2], 10);
+            if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+                return { year: y, month: m, day: d };
+            }
+        }
+        const dt = new Date(raw);
+        if (!isNaN(dt.getTime())) {
+            return { year: dt.getFullYear(), month: dt.getMonth(), day: dt.getDate() };
+        }
+        return null;
+    }
+
+    function formatDateLabel(rawDate) {
+        if (!rawDate) return '';
+        const lower = String(rawDate).trim().toLowerCase();
+        if (lower === 'current' || lower === 'now') return 'Current';
+        if (lower === 'today') return 'Today';
+        if (lower === 'previous' || lower === 'initial') return 'Initial Check';
+
+        const p = parseDateParts(rawDate);
+        if (!p) return String(rawDate).slice(0, 10);
+        const currentYear = new Date().getFullYear();
+        if (p.year !== currentYear) {
+            return `${p.day} ${MONTHS_SHORT[p.month]} '${String(p.year).slice(-2)}`;
+        }
+        return `${p.day} ${MONTHS_SHORT[p.month]}`;
+    }
+
+    function formatDateFull(rawDate) {
+        if (!rawDate) return '';
+        const lower = String(rawDate).trim().toLowerCase();
+        if (lower === 'current' || lower === 'now') return 'Current Verified Price (Live)';
+        if (lower === 'today') return 'Today (Verified Check)';
+        if (lower === 'previous' || lower === 'initial') return 'Previous Verified Check';
+
+        const p = parseDateParts(rawDate);
+        if (!p) return String(rawDate);
+        return `${p.day} ${MONTHS_SHORT[p.month]} ${p.year}`;
+    }
+
     function renderSvgChart(points, customAtl) {
-        if (!container || !Array.isArray(points) || points.length < 2) return;
-        
-        const effectiveAtl = customAtl || atlPrice;
+        if (!svgWrapper || !container || !Array.isArray(points) || points.length < 2) return;
+        currentRenderedPoints = points;
+        currentRenderedAtl = (customAtl !== undefined && customAtl !== null) ? customAtl : atlPrice;
+
+        const effectiveAtl = currentRenderedAtl;
         const width = container.clientWidth || 600;
-        const height = container.clientHeight || 250;
-        const padLeft = 45;
-        const padRight = 20;
-        const padTop = 25;
-        const padBottom = 30;
+        const height = container.clientHeight || 260;
+        const padLeft = 52;
+        const padRight = 24;
+        const padTop = 26;
+        const padBottom = 44;
 
         const plotWidth = Math.max(10, width - padLeft - padRight);
         const plotHeight = Math.max(10, height - padTop - padBottom);
@@ -735,26 +789,63 @@
         }
 
         const areaD = `${pathD} L ${getX(points.length - 1)} ${padTop + plotHeight} L ${getX(0)} ${padTop + plotHeight} Z`;
-        const atlY = getY(effectiveAtl);
+        const atlY = effectiveAtl ? getY(effectiveAtl) : 0;
+
+        // X-Axis baseline and ticks logic
+        let xAxisSvg = `
+            <!-- X-Axis Line -->
+            <line x1="${padLeft}" y1="${padTop + plotHeight}" x2="${width - padRight}" y2="${padTop + plotHeight}" stroke="#cbd5e1" stroke-width="1.5"/>
+        `;
+
+        const totalPoints = points.length;
+        let tickIndices = [];
+        if (totalPoints <= 5) {
+            for (let i = 0; i < totalPoints; i++) tickIndices.push(i);
+        } else {
+            const numTicks = width < 480 ? 3 : 5;
+            for (let k = 0; k < numTicks; k++) {
+                const idx = Math.min(totalPoints - 1, Math.round(k * (totalPoints - 1) / (numTicks - 1)));
+                if (!tickIndices.includes(idx)) {
+                    tickIndices.push(idx);
+                }
+            }
+        }
+
+        tickIndices.forEach(idx => {
+            const x = getX(idx);
+            const isFirst = (idx === 0);
+            const isLast = (idx === totalPoints - 1);
+            const anchor = isFirst ? 'start' : (isLast ? 'end' : 'middle');
+            const label = formatDateLabel(points[idx].date);
+
+            xAxisSvg += `
+                <!-- Tick Mark -->
+                <line x1="${x}" y1="${padTop + plotHeight}" x2="${x}" y2="${padTop + plotHeight + 5}" stroke="#94a3b8" stroke-width="1.5"/>
+                <!-- Tick Label -->
+                <text x="${x}" y="${padTop + plotHeight + 20}" font-size="11" font-weight="600" fill="#64748b" text-anchor="${anchor}">${label}</text>
+            `;
+        });
 
         let svg = `
         <svg width="100%" height="100%" viewBox="0 0 ${width} ${height}" class="overflow-visible select-none">
             <defs>
                 <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="#4f46e5" stop-opacity="0.25"/>
+                    <stop offset="0%" stop-color="#4f46e5" stop-opacity="0.22"/>
                     <stop offset="100%" stop-color="#4f46e5" stop-opacity="0.0"/>
                 </linearGradient>
             </defs>
 
-            <!-- Grid Lines -->
+            <!-- Y-Axis Header -->
+            <text x="${padLeft}" y="${padTop - 10}" font-size="9" font-weight="700" fill="#94a3b8" text-anchor="start" letter-spacing="0.5">PRICE (₹)</text>
+
+            <!-- Horizontal Grid Lines -->
             <line x1="${padLeft}" y1="${padTop}" x2="${width - padRight}" y2="${padTop}" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4"/>
             <line x1="${padLeft}" y1="${padTop + plotHeight / 2}" x2="${width - padRight}" y2="${padTop + plotHeight / 2}" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4"/>
-            <line x1="${padLeft}" y1="${padTop + plotHeight}" x2="${width - padRight}" y2="${padTop + plotHeight}" stroke="#cbd5e1" stroke-width="1"/>
 
             <!-- Y-Axis Labels -->
-            <text x="${padLeft - 8}" y="${padTop + 4}" font-size="10" fill="#94a3b8" font-family="monospace" text-anchor="end">₹${maxPrice.toLocaleString('en-IN')}</text>
-            <text x="${padLeft - 8}" y="${padTop + plotHeight / 2 + 3}" font-size="10" fill="#94a3b8" font-family="monospace" text-anchor="end">₹${Math.round((maxPrice + minPrice) / 2).toLocaleString('en-IN')}</text>
-            <text x="${padLeft - 8}" y="${padTop + plotHeight}" font-size="10" fill="#94a3b8" font-family="monospace" text-anchor="end">₹${minPrice.toLocaleString('en-IN')}</text>
+            <text x="${padLeft - 10}" y="${padTop + 4}" font-size="10" font-weight="600" fill="#94a3b8" font-family="monospace" text-anchor="end">₹${maxPrice.toLocaleString('en-IN')}</text>
+            <text x="${padLeft - 10}" y="${padTop + plotHeight / 2 + 3}" font-size="10" font-weight="600" fill="#94a3b8" font-family="monospace" text-anchor="end">₹${Math.round((maxPrice + minPrice) / 2).toLocaleString('en-IN')}</text>
+            <text x="${padLeft - 10}" y="${padTop + plotHeight + 3}" font-size="10" font-weight="600" fill="#94a3b8" font-family="monospace" text-anchor="end">₹${minPrice.toLocaleString('en-IN')}</text>
 
             <!-- ATL Reference Line -->
             ${effectiveAtl ? `
@@ -765,46 +856,153 @@
             <path d="${areaD}" fill="url(#chartGradient)"/>
             <path d="${pathD}" fill="none" stroke="#4f46e5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
 
-            <!-- Data Point Circles -->
-            ${points.map((p, i) => `
-                <circle cx="${getX(i)}" cy="${getY(p.price)}" r="4.5" fill="#ffffff" stroke="#4f46e5" stroke-width="2.5" 
-                        class="cursor-pointer transition-transform hover:scale-150" 
-                        data-date="${p.date}" data-price="${p.price}" />
-            `).join('')}
+            <!-- X-Axis Line & Date Ticks -->
+            ${xAxisSvg}
+
+            <!-- Static Visible Circles (Zero hover scaling, non-interactive to eliminate flicker) -->
+            <g class="pointer-events-none">
+                ${points.map((p, i) => `
+                    <circle id="dot-static-${i}" cx="${getX(i)}" cy="${getY(p.price)}" r="4.5" fill="#ffffff" stroke="#4f46e5" stroke-width="2.5" class="transition-opacity duration-150" />
+                `).join('')}
+            </g>
+
+            <!-- Dynamic Crosshair Guideline & Hover Highlight (Pointer-events-none) -->
+            <g class="pointer-events-none">
+                <line id="chartHoverGuide" x1="0" y1="${padTop}" x2="0" y2="${padTop + plotHeight}" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="3 3" opacity="0" class="transition-opacity duration-150" />
+                <circle id="chartHoverHalo" cx="0" cy="0" r="12" fill="#4f46e5" fill-opacity="0.18" opacity="0" class="transition-all duration-150" />
+                <circle id="chartHoverDot" cx="0" cy="0" r="6" fill="#4f46e5" stroke="#ffffff" stroke-width="2.5" opacity="0" class="transition-all duration-150" />
+            </g>
+
+            <!-- Generous Invisible Hit Targets (r=22 means 44px touch target; zero scaling, ZERO FLICKER) -->
+            <g id="chartHitTargets">
+                ${points.map((p, i) => `
+                    <circle cx="${getX(i)}" cy="${getY(p.price)}" r="22" fill="transparent" class="cursor-pointer" 
+                            data-index="${i}" data-date="${p.date}" data-price="${p.price}" />
+                `).join('')}
+            </g>
         </svg>
         `;
 
-        container.innerHTML = svg;
+        svgWrapper.innerHTML = svg;
 
-        // Tooltip handlers
-        const circles = container.querySelectorAll('circle');
-        circles.forEach(c => {
-            c.addEventListener('mouseenter', () => {
-                const cx = parseFloat(c.getAttribute('cx'));
-                const cy = parseFloat(c.getAttribute('cy'));
-                const d = c.getAttribute('data-date');
-                const p = Number(c.getAttribute('data-price')).toLocaleString('en-IN');
+        // Attach Tooltip & Hover Handlers
+        const activeTooltip = document.getElementById('chartTooltip');
+        const guide = svgWrapper.querySelector('#chartHoverGuide');
+        const halo = svgWrapper.querySelector('#chartHoverHalo');
+        const dot = svgWrapper.querySelector('#chartHoverDot');
+        const hitTargets = svgWrapper.querySelectorAll('#chartHitTargets circle');
 
-                tooltip.innerHTML = `<div class="font-bold text-indigo-300">₹${p}</div><div class="text-[10px] text-slate-300">${d}</div>`;
-                tooltip.style.left = `${cx}px`;
-                tooltip.style.top = `${cy - 10}px`;
-                tooltip.classList.remove('hidden');
-            });
-            c.addEventListener('mouseleave', () => {
-                tooltip.classList.add('hidden');
-            });
+        hitTargets.forEach(target => {
+            const idx = parseInt(target.getAttribute('data-index'), 10);
+            const staticDot = svgWrapper.querySelector(`#dot-static-${idx}`);
+
+            function onEnter() {
+                const cx = parseFloat(target.getAttribute('cx'));
+                const cy = parseFloat(target.getAttribute('cy'));
+                const rawDate = target.getAttribute('data-date');
+                const pNum = Number(target.getAttribute('data-price'));
+                const pFormatted = pNum.toLocaleString('en-IN');
+                const dateFormatted = formatDateFull(rawDate);
+
+                if (guide) {
+                    guide.setAttribute('x1', cx);
+                    guide.setAttribute('x2', cx);
+                    guide.setAttribute('opacity', '1');
+                }
+                if (halo) {
+                    halo.setAttribute('cx', cx);
+                    halo.setAttribute('cy', cy);
+                    halo.setAttribute('opacity', '1');
+                }
+                if (dot) {
+                    dot.setAttribute('cx', cx);
+                    dot.setAttribute('cy', cy);
+                    dot.setAttribute('opacity', '1');
+                }
+                if (staticDot) {
+                    staticDot.setAttribute('opacity', '0');
+                }
+
+                const isPointAtl = (effectiveAtl && Math.abs(pNum - effectiveAtl) < 0.5);
+
+                if (activeTooltip) {
+                    activeTooltip.innerHTML = `
+                        <div class="flex items-center gap-2 mb-0.5">
+                            <span class="text-sm font-black text-indigo-300">₹${pFormatted}</span>
+                            ${isPointAtl ? '<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-400 text-amber-950">★ All-Time Low</span>' : ''}
+                        </div>
+                        <div class="text-[11px] text-slate-300 font-sans flex items-center gap-1.5 whitespace-nowrap">
+                            <svg class="w-3 h-3 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            <span>${dateFormatted}</span>
+                        </div>
+                    `;
+
+                    // Exact position relative to container
+                    const targetRect = target.getBoundingClientRect();
+                    const containerRect = container.getBoundingClientRect();
+                    const cxPx = targetRect.left + targetRect.width / 2 - containerRect.left;
+                    const cyPx = targetRect.top + targetRect.height / 2 - containerRect.top;
+
+                    activeTooltip.style.left = `${cxPx}px`;
+
+                    if (cyPx < 65) {
+                        activeTooltip.style.top = `${cyPx + 14}px`;
+                        if (cxPx < 70) {
+                            activeTooltip.style.transform = 'translateX(-15%)';
+                        } else if (cxPx > containerRect.width - 70) {
+                            activeTooltip.style.transform = 'translateX(-85%)';
+                        } else {
+                            activeTooltip.style.transform = 'translateX(-50%)';
+                        }
+                    } else {
+                        activeTooltip.style.top = `${cyPx - 14}px`;
+                        if (cxPx < 70) {
+                            activeTooltip.style.transform = 'translate(-15%, -100%)';
+                        } else if (cxPx > containerRect.width - 70) {
+                            activeTooltip.style.transform = 'translate(-85%, -100%)';
+                        } else {
+                            activeTooltip.style.transform = 'translate(-50%, -100%)';
+                        }
+                    }
+
+                    activeTooltip.classList.remove('hidden');
+                }
+            }
+
+            function onLeave() {
+                if (guide) guide.setAttribute('opacity', '0');
+                if (halo) halo.setAttribute('opacity', '0');
+                if (dot) dot.setAttribute('opacity', '0');
+                if (staticDot) staticDot.setAttribute('opacity', '1');
+                if (activeTooltip) activeTooltip.classList.add('hidden');
+            }
+
+            target.addEventListener('mouseenter', onEnter);
+            target.addEventListener('mouseleave', onLeave);
+            target.addEventListener('touchstart', (e) => {
+                onEnter();
+            }, { passive: true });
         });
     }
 
+    // Debounced window resize handler
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            if (currentRenderedPoints && currentRenderedPoints.length >= 2) {
+                renderSvgChart(currentRenderedPoints, currentRenderedAtl);
+            }
+        }, 120);
+    });
+
     // 1. If SSR already provided dense history, render immediately
     if (hasDenseHistory && historyData && historyData.length >= 2) {
-        renderSvgChart(historyData);
-        window.addEventListener('resize', () => renderSvgChart(historyData));
+        renderSvgChart(historyData, atlPrice);
         return;
     }
 
     // 2. Progressive On-Demand Fetcher with Strict 2.8s Window
-    let activePoints = null;
     let hasResolved = false;
     const controller = new AbortController();
 
@@ -819,7 +1017,6 @@
         }
     }
 
-    // Strict 2.8s timeout
     const timer = setTimeout(() => {
         controller.abort();
         fallbackGracefully(isBrandNewInit);
@@ -835,14 +1032,12 @@
             if (skeleton) skeleton.classList.add('hidden');
 
             if (data && data.has_dense_history && data.points && data.points.length >= 2) {
-                activePoints = data.points;
                 if (chartCard) chartCard.classList.remove('hidden');
                 
                 const badgeText = document.getElementById('verifiedCheckText');
                 if (badgeText) badgeText.textContent = `${data.count} Verified Checks`;
 
-                renderSvgChart(activePoints, data.lowest_price);
-                window.addEventListener('resize', () => renderSvgChart(activePoints, data.lowest_price));
+                renderSvgChart(data.points, data.lowest_price);
             } else if (data && data.is_brand_new) {
                 if (brandNewCard) brandNewCard.classList.remove('hidden');
             } else {
