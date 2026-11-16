@@ -996,13 +996,17 @@
         }, 120);
     });
 
-    // 1. If SSR already provided dense history, render immediately
+    // 1. Fast Initial Render (SSR baseline)
     if (hasDenseHistory && historyData && historyData.length >= 2) {
         renderSvgChart(historyData, atlPrice);
-        return;
+        // If we already have deep history from local database (>= 15 points), no external lookup needed
+        if (historyData.length >= 15) {
+            return;
+        }
     }
 
-    // 2. Progressive On-Demand Fetcher with Strict 2.8s Window
+    // 2. Progressive On-Demand External Fetcher (Strict 2.8s Window)
+    // Always queries external verified sources to upgrade to deep multi-month history!
     let hasResolved = false;
     const controller = new AbortController();
 
@@ -1010,10 +1014,12 @@
         if (hasResolved) return;
         hasResolved = true;
         if (skeleton) skeleton.classList.add('hidden');
-        if (isBrandNew) {
-            if (brandNewCard) brandNewCard.classList.remove('hidden');
-        } else {
-            if (benchmarkCard) benchmarkCard.classList.remove('hidden');
+        if (!hasDenseHistory || !historyData || historyData.length < 2) {
+            if (isBrandNew) {
+                if (brandNewCard) brandNewCard.classList.remove('hidden');
+            } else {
+                if (benchmarkCard) benchmarkCard.classList.remove('hidden');
+            }
         }
     }
 
@@ -1031,17 +1037,25 @@
 
             if (skeleton) skeleton.classList.add('hidden');
 
-            if (data && data.has_dense_history && data.points && data.points.length >= 2) {
-                if (chartCard) chartCard.classList.remove('hidden');
-                
-                const badgeText = document.getElementById('verifiedCheckText');
-                if (badgeText) badgeText.textContent = `${data.count} Verified Checks`;
+            // If external tracker provided more points than our current baseline, upgrade the chart!
+            if (data && data.points && data.points.length >= 2) {
+                const currentCount = (historyData && historyData.length) || 0;
+                if (data.points.length >= currentCount) {
+                    if (chartCard) chartCard.classList.remove('hidden');
+                    if (brandNewCard) brandNewCard.classList.add('hidden');
+                    if (benchmarkCard) benchmarkCard.classList.add('hidden');
 
-                renderSvgChart(data.points, data.lowest_price);
-            } else if (data && data.is_brand_new) {
-                if (brandNewCard) brandNewCard.classList.remove('hidden');
-            } else {
-                if (benchmarkCard) benchmarkCard.classList.remove('hidden');
+                    const badgeText = document.getElementById('verifiedCheckText');
+                    if (badgeText) badgeText.textContent = `${data.count} Verified Checks`;
+
+                    renderSvgChart(data.points, data.lowest_price);
+                }
+            } else if (!hasDenseHistory || !historyData || historyData.length < 2) {
+                if (data && data.is_brand_new) {
+                    if (brandNewCard) brandNewCard.classList.remove('hidden');
+                } else {
+                    if (benchmarkCard) benchmarkCard.classList.remove('hidden');
+                }
             }
         })
         .catch(() => {

@@ -2888,7 +2888,7 @@ async def api_public_deal_history_live(product_id: int):
     if not product_id or product_id <= 0:
         raise HTTPException(status_code=400, detail="Invalid product ID")
 
-    # 1. Check local database first
+    # 1. Check local database first - if we already have truly dense history (>= 15 points), return immediately
     rows = await database.fetch("""
         SELECT date, min_price, close_price
         FROM (
@@ -2901,24 +2901,26 @@ async def api_public_deal_history_live(product_id: int):
         ORDER BY date ASC;
     """, product_id)
 
-    if len(rows) >= 2:
-        history = []
-        for r in rows:
-            p_val = float(r["min_price"]) if r["min_price"] is not None else float(r["close_price"])
-            history.append({"date": str(r["date"]), "price": p_val})
+    local_history = []
+    for r in rows:
+        p_val = float(r["min_price"]) if r["min_price"] is not None else (float(r["close_price"]) if r["close_price"] is not None else None)
+        if p_val is not None:
+            local_history.append({"date": str(r["date"]), "price": p_val})
+
+    if len(local_history) >= 15:
         return {
             "status": "success",
             "product_id": product_id,
             "has_dense_history": True,
             "is_brand_new": False,
-            "count": len(history),
-            "points": history,
+            "count": len(local_history),
+            "points": local_history,
             "source": "database"
         }
 
-    # 2. Need external lookup
+    # 2. Otherwise, perform fast on-demand external lookup
     prod = await database.fetchrow("""
-        SELECT id, platform, product_url, current_price, mrp, all_time_low, created_at
+        SELECT id, platform, product_url, current_price, previous_price, mrp, all_time_low, created_at, last_price_change
         FROM products
         WHERE id = $1;
     """, product_id)
@@ -2935,6 +2937,43 @@ async def api_public_deal_history_live(product_id: int):
         created_at=prod.get("created_at"),
         db_execute_func=database.execute
     )
+
+    # 3. If external tracker found more points than local database, use external
+    if res and res.get("points") and len(res["points"]) >= len(local_history):
+        return res
+
+    # 4. If external tracker had no points or fewer points, fall back to local history if available
+    if len(local_history) >= 2:
+        return {
+            "status": "success",
+            "product_id": product_id,
+            "has_dense_history": True,
+            "is_brand_new": False,
+            "count": len(local_history),
+            "points": local_history,
+            "source": "database"
+        }
+
+    # 5. Fallback to 2-point verified drop if product has previous_price != current_price
+    cp = float(prod["current_price"] or 0.0)
+    prev_p = float(prod["previous_price"] or cp)
+    if prev_p and prev_p != cp and prod.get("last_price_change"):
+        lpc = prod["last_price_change"]
+        lpc_date = str(lpc.date()) if hasattr(lpc, "date") else "Previous"
+        fallback_points = [
+            {"date": lpc_date, "price": prev_p},
+            {"date": "Current", "price": cp}
+        ]
+        return {
+            "status": "success",
+            "product_id": product_id,
+            "has_dense_history": True,
+            "is_brand_new": False,
+            "count": len(fallback_points),
+            "points": fallback_points,
+            "source": "local_drop"
+        }
+
     return res
 
 
