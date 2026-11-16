@@ -445,10 +445,10 @@
             <div class="flex items-center justify-between gap-3 mb-6 flex-wrap">
                 <div>
                     <h2 class="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-2">
-                        <span>✨</span> Brand New Product Listing
+                        <span>📈</span> Price History & Valuation: Maiden Catalog Launch
                     </h2>
                     <p class="text-xs text-slate-500 mt-0.5">
-                        Newly introduced to retail catalog. Today's price is its maiden market benchmark.
+                        First recorded price observation for this product. 24/7 price drop tracking active.
                     </p>
                 </div>
                 <div class="flex items-center gap-2">
@@ -467,7 +467,7 @@
                         <span>🏷️</span>
                     </div>
                     <div class="text-xl sm:text-2xl font-black text-slate-900 tabular-nums">
-                        ₹{{ cp|format_inr }}
+                        {{ cp|format_inr }}
                     </div>
                     <div class="text-xs text-amber-700 font-semibold mt-1">
                         First observed market baseline
@@ -481,7 +481,7 @@
                         <span>📋</span>
                     </div>
                     <div class="text-xl sm:text-2xl font-black text-slate-900 tabular-nums">
-                        ₹{{ mrp|format_inr }}
+                        {{ mrp|format_inr }}
                     </div>
                     <div class="text-xs text-slate-500 mt-1">
                         Manufacturer list price
@@ -496,7 +496,7 @@
                     </div>
                     <div class="text-xl sm:text-2xl font-black text-emerald-700 tabular-nums">
                         {% if savings > 0 %}
-                        Save ₹{{ savings|format_inr }}
+                        Save {{ savings|format_inr }}
                         {% else %}
                         Launch Price
                         {% endif %}
@@ -538,10 +538,10 @@
             <div class="flex items-center justify-between gap-3 mb-6 flex-wrap">
                 <div>
                     <h2 class="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-2">
-                        <span>🛡️</span> Active Price Tracking & Valuation Benchmark
+                        <span>📈</span> Price History & Valuation: Active Tracking
                     </h2>
                     <p class="text-xs text-slate-500 mt-0.5">
-                        Live price monitoring active. Verified against historical catalog low & retailer MSRP.
+                        Verified against historical catalog low & retailer MSRP. Monitored 24/7.
                     </p>
                 </div>
                 <div class="flex items-center gap-2">
@@ -560,7 +560,7 @@
                         <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
                     </div>
                     <div class="text-xl sm:text-2xl font-black text-slate-900 tabular-nums">
-                        ₹{{ cp|format_inr }}
+                        {{ cp|format_inr }}
                     </div>
                     <div class="text-xs mt-1">
                         {% if discount_pct > 0 %}
@@ -578,13 +578,13 @@
                         <span>⭐</span>
                     </div>
                     <div class="text-xl sm:text-2xl font-black text-slate-900 tabular-nums">
-                        ₹{{ (atl or cp)|format_inr }}
+                        {{ (atl or cp)|format_inr }}
                     </div>
                     <div class="text-xs mt-1">
                         {% if is_atl %}
                         <span class="text-amber-700 font-extrabold">🏆 Matched lowest ever!</span>
                         {% elif atl and cp > atl %}
-                        <span class="text-slate-500">₹{{ (cp - atl)|format_inr }} from record low</span>
+                        <span class="text-slate-500">{{ (cp - atl)|format_inr }} from record low</span>
                         {% else %}
                         <span class="text-slate-500">Lowest verified point</span>
                         {% endif %}
@@ -598,7 +598,7 @@
                         <span>📉</span>
                     </div>
                     <div class="text-xl sm:text-2xl font-black text-slate-900 tabular-nums">
-                        ₹{{ (min_30d or atl or cp)|format_inr }}
+                        {{ (min_30d or atl or cp)|format_inr }}
                     </div>
                     <div class="text-xs text-slate-500 mt-1">
                         Recent price baseline
@@ -612,11 +612,11 @@
                         <span>🏷️</span>
                     </div>
                     <div class="text-xl sm:text-2xl font-black text-slate-900 tabular-nums">
-                        ₹{{ mrp|format_inr }}
+                        {{ mrp|format_inr }}
                     </div>
                     <div class="text-xs mt-1">
                         {% if savings > 0 %}
-                        <span class="text-emerald-600 font-extrabold">Save ₹{{ savings|format_inr }}</span>
+                        <span class="text-emerald-600 font-extrabold">Save {{ savings|format_inr }}</span>
                         {% else %}
                         <span class="text-slate-500">Manufacturer list</span>
                         {% endif %}
@@ -637,7 +637,7 @@
                             {% elif discount_pct >= 40 %}
                             High-Discount Opportunity: Significant {{ discount_pct }}% reduction below standard MRP.
                             {% elif discount_pct > 0 %}
-                            Solid Deal: Currently discounted by ₹{{ savings|format_inr }}.
+                            Solid Deal: Currently discounted by {{ savings|format_inr }}.
                             {% else %}
                             Fair Retail Price: Monitored 24/7 for upcoming flash drops and coupon sales.
                             {% endif %}
@@ -797,7 +797,7 @@
     }
 
     // 1. If SSR already provided dense history, render immediately
-    if (hasDenseHistory && historyData && historyData.length >= 3) {
+    if (hasDenseHistory && historyData && historyData.length >= 2) {
         renderSvgChart(historyData);
         window.addEventListener('resize', () => renderSvgChart(historyData));
         return;
@@ -834,7 +834,7 @@
 
             if (skeleton) skeleton.classList.add('hidden');
 
-            if (data && data.has_dense_history && data.points && data.points.length >= 3) {
+            if (data && data.has_dense_history && data.points && data.points.length >= 2) {
                 activePoints = data.points;
                 if (chartCard) chartCard.classList.remove('hidden');
                 

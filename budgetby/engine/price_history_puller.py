@@ -251,7 +251,7 @@ async def pull_and_sync_price_history(
         is_brand_new = True
 
     # 2. Asynchronously seed retrieved points into Supabase `daily_prices` so future loads are instant
-    if len(result_points) >= 3 and db_execute_func and product_id > 0:
+    if len(result_points) >= 2 and db_execute_func and product_id > 0:
         asyncio.create_task(
             _seed_daily_prices(product_id, result_points, lowest_observed, current_price, db_execute_func)
         )
@@ -261,8 +261,8 @@ async def pull_and_sync_price_history(
         "product_id": product_id,
         "points": result_points,
         "count": len(result_points),
-        "has_dense_history": len(result_points) >= 3,
-        "is_brand_new": is_brand_new,
+        "has_dense_history": len(result_points) >= 2,
+        "is_brand_new": is_brand_new and len(result_points) <= 1,
         "lowest_price": lowest_observed,
         "mrp": mrp_observed,
         "source": source_used

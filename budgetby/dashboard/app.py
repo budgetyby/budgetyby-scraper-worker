@@ -2848,11 +2848,16 @@ async def get_public_deal_detail(product_id: int) -> dict | None:
         prod_dict["min_90d"] = min_90d
         prod_dict["deal_score"] = float(prod_dict.get("deal_score") or 75.0)
 
+        has_dense_history = len(history) >= 2
+        # If there are >= 2 observed points (e.g. price drop from previous price), it has history
+        if has_dense_history:
+            is_brand_new = False
+
         result = {
             "product": prod_dict,
             "price_history": history,
             "history_count": len(history),
-            "has_dense_history": len(history) >= 3,
+            "has_dense_history": has_dense_history,
             "is_brand_new": is_brand_new
         }
         await ram_cache.set(cache_key, result, ttl=60)
@@ -2875,7 +2880,7 @@ async def api_public_deal_detail(product_id: int):
 async def api_public_deal_history_live(product_id: int):
     """
     On-demand multi-store verified price history fetcher.
-    1. Returns immediately if database already has dense observations (>= 3 points).
+    1. Returns immediately if database already has dense observations (>= 2 points).
     2. Otherwise fetches external verified tracking sources within 2.5s.
     3. Detects brand-new products truthfully.
     4. Seeds database in background on dense discovery.
@@ -2896,7 +2901,7 @@ async def api_public_deal_history_live(product_id: int):
         ORDER BY date ASC;
     """, product_id)
 
-    if len(rows) >= 3:
+    if len(rows) >= 2:
         history = []
         for r in rows:
             p_val = float(r["min_price"]) if r["min_price"] is not None else float(r["close_price"])
