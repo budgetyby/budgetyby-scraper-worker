@@ -17,17 +17,17 @@
 {% set is_in_stock = (product.in_stock != False and product.status != 'TEMP_OOS') %}
 {% set score = product.deal_score or 75 %}
 
-{% block title %}{{ product.title }} at ₹{{ cp|format_inr }} ({{ discount_pct }}% Off) | BudgetBy Deal Tracker{% endblock %}
-{% block description %}Track live price and deals for {{ product.title }}. Current price ₹{{ cp|format_inr }} with {{ discount_pct }}% discount (Save ₹{{ savings|format_inr }}). Historical low ₹{{ atl|format_inr if atl else cp|format_inr }}. Verified by BudgetBy.{% endblock %}
+{% block title %}{{ product.title }} at {{ cp|format_inr }} ({{ discount_pct }}% Off) | BudgetBy Deal Tracker{% endblock %}
+{% block description %}Track live price and deals for {{ product.title }}. Current price {{ cp|format_inr }} with {{ discount_pct }}% discount (Save {{ savings|format_inr }}). Historical low {{ atl|format_inr if atl else cp|format_inr }}. Verified by BudgetBy.{% endblock %}
 
 {% block extra_head %}
 <!-- Product Open Graph Metadata -->
-<meta property="og:title" content="{{ product.title }} — ₹{{ cp|format_inr }} ({{ discount_pct }}% Off)">
-<meta property="og:description" content="Save ₹{{ savings|format_inr }} on {{ platform|store_name }}. Verified against 30-day and 90-day price history.">
+<meta property="og:title" content="{{ product.title }} — {{ cp|format_inr }} ({{ discount_pct }}% Off)">
+<meta property="og:description" content="Save {{ savings|format_inr }} on {{ platform|store_name }}. Verified against 30-day and 90-day price history.">
 <meta property="og:image" content="{{ product.image_url or '/static/placeholder.svg' }}">
 <meta property="og:type" content="product">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="{{ product.title }} — ₹{{ cp|format_inr }}">
+<meta name="twitter:title" content="{{ product.title }} — {{ cp|format_inr }}">
 <meta name="twitter:description" content="{{ discount_pct }}% discount on {{ platform|store_name }}. Verified deal on BudgetBy.">
 <meta name="twitter:image" content="{{ product.image_url or '/static/placeholder.svg' }}">
 
