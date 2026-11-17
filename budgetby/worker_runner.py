@@ -16,6 +16,7 @@ Capabilities:
 import os
 import sys
 import time
+import signal
 import asyncio
 import logging
 from datetime import datetime, timezone
@@ -163,13 +164,28 @@ async def main():
     # Start Autonomous Cloud Database Maintenance loop (perpetual free-tier protection)
     maintenance_task = asyncio.create_task(cloud_maintenance_loop(duration_secs))
 
+    # Register signal handlers for clean cloud cancellation (SIGTERM/SIGINT)
+    shutdown_event = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    def _sig_handler():
+        logger.info("🛑 [SIGNAL] Intercepted termination signal. Initiating graceful shutdown and Telethon release...")
+        shutdown_event.set()
+
+    if sys.platform != "win32":
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            try:
+                loop.add_signal_handler(sig, _sig_handler)
+            except Exception:
+                pass
+
     # Wait until duration is almost reached (reserve 2 mins for clean relay)
     sleep_time = max(10, duration_secs - 120)
     logger.info(f"⏳ Main worker active. Self-relay scheduled in {sleep_time/60:.1f} minutes.")
     try:
-        await asyncio.sleep(sleep_time)
-    except asyncio.CancelledError:
-        logger.info("Worker run received cancellation signal.")
+        await asyncio.wait_for(shutdown_event.wait(), timeout=sleep_time)
+        logger.info("Shutdown event triggered before relay timer.")
+    except asyncio.TimeoutError:
+        logger.info(f"Worker run duration limit ({args.duration_minutes}m) reached. Initiating clean handoff...")
 
     # Clean shutdown before next worker spins up to guarantee ZERO MTProto session IP collision
     logger.info("Cleaning up active worker tasks and disconnecting Telethon...")
@@ -187,9 +203,12 @@ async def main():
     except Exception as e:
         logger.debug(f"Database cleanup note: {e}")
 
-    # Trigger relay for perpetual execution
-    await self_relay_trigger()
-    logger.info("Worker loop finished gracefully. Handed off to next worker.")
+    # Trigger relay for perpetual execution only if not cancelled by external SIGTERM
+    if not shutdown_event.is_set():
+        await self_relay_trigger()
+        logger.info("Worker loop finished gracefully. Handed off to next worker.")
+    else:
+        logger.info("Worker stopped cleanly on external termination signal.")
 
 if __name__ == "__main__":
     asyncio.run(main())

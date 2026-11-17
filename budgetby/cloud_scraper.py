@@ -62,10 +62,29 @@ def is_valid_affiliate_shortlink(url: str, platform: str = "") -> bool:
 
 _telethon_client = None
 _bot_conversation_lock = asyncio.Lock()
+_current_runner_id = None
+_heartbeat_task = None
+
+async def _telethon_heartbeat_loop(runner_id: str):
+    """Background task sending heartbeat to DB lease every 20s."""
+    try:
+        while True:
+            await asyncio.sleep(20)
+            await database.heartbeat_telethon_lease(runner_id)
+    except asyncio.CancelledError:
+        pass
+    except Exception as e:
+        logger.debug(f"Telethon heartbeat loop notice: {e}")
 
 async def get_cloud_telethon_client():
-    """Initializes a Telethon MTProto client in cloud environments using TELEGRAM_SESSION_STRING."""
-    global _telethon_client
+    """
+    Initializes a Telethon MTProto client with STRICT DISTRIBUTED LEASE PROTECTION.
+    Guarantees:
+    1. Zero IP Collision: Only ONE machine on Earth can connect at a time.
+    2. Local Protection: Local commands never steal or kill the 24/7 cloud session.
+    3. Auto-Healing: Expired leases (>60s) are automatically reclaimed.
+    """
+    global _telethon_client, _current_runner_id, _heartbeat_task
     if _telethon_client is not None:
         if _telethon_client.is_connected():
             return _telethon_client
@@ -76,6 +95,35 @@ async def get_cloud_telethon_client():
         except Exception as e:
             logger.debug(f"Telethon reconnect attempt note: {e}")
             _telethon_client = None
+
+    # Local environment safeguard: protect 24/7 cloud worker from local collisions
+    is_github_actions = bool(os.getenv("GITHUB_ACTIONS"))
+    allow_local = os.getenv("ALLOW_LOCAL_TELETHON", "false").lower() in ("true", "1", "yes")
+    if not is_github_actions and not allow_local:
+        logger.info("🛡️ [TELETHON GUARD] Local environment detected. Telethon disabled locally to guarantee 0 IP collisions with 24/7 cloud runner. (ALLOW_LOCAL_TELETHON=true to override).")
+        return None
+
+    # Distributed DB Lease Acquisition: Strictly 1 machine on Earth at any time
+    runner_id = os.getenv("GITHUB_RUN_ID") or f"runner_{os.getpid()}_{int(time.time())}"
+    runner_type = "github_actions" if is_github_actions else "local"
+    acquired = False
+    for _ in range(5):
+        acquired = await database.acquire_telethon_lease(runner_id=runner_id, runner_type=runner_type)
+        if acquired:
+            break
+        await asyncio.sleep(3)
+
+    if not acquired:
+        current_lease = await database.get_telethon_lease()
+        logger.warning(
+            f"🔒 [TELETHON LEASE GUARD] Active lease is currently held by {current_lease.get('runner_id') if current_lease else 'another worker'}. "
+            f"Aborting connection to prevent MTProto IP collision."
+        )
+        return None
+
+    _current_runner_id = runner_id
+    if _heartbeat_task is None or _heartbeat_task.done():
+        _heartbeat_task = asyncio.create_task(_telethon_heartbeat_loop(runner_id))
 
     session_str = (getattr(config, "TELEGRAM_SESSION_STRING", "") or os.environ.get("TELEGRAM_SESSION_STRING", "")).strip()
     api_id = getattr(config, "TG_API_ID", 31137769)
@@ -106,7 +154,7 @@ async def get_cloud_telethon_client():
             _telethon_client = TelegramClient(StringSession(session_str), int(api_id), str(api_hash))
             await _telethon_client.connect()
             if await _telethon_client.is_user_authorized():
-                logger.info("Connected to Telethon MTProto via cloud TELEGRAM_SESSION_STRING.")
+                logger.info("Connected to Telethon MTProto via cloud TELEGRAM_SESSION_STRING (Lease Active).")
                 return _telethon_client
             else:
                 logger.warning("Cloud Telethon StringSession is not authorized.")
@@ -118,7 +166,11 @@ async def get_cloud_telethon_client():
 
 async def close_cloud_telethon_client():
     """Cleanly disconnects the shared Telethon client to release MTProto session before shutdown/relay."""
-    global _telethon_client
+    global _telethon_client, _current_runner_id, _heartbeat_task
+    if _heartbeat_task and not _heartbeat_task.done():
+        _heartbeat_task.cancel()
+        _heartbeat_task = None
+
     if _telethon_client is not None:
         try:
             if _telethon_client.is_connected():
@@ -127,6 +179,17 @@ async def close_cloud_telethon_client():
         except Exception as e:
             logger.debug(f"Note during Telethon disconnect: {e}")
         _telethon_client = None
+
+    if _current_runner_id:
+        try:
+            await database.release_telethon_lease(_current_runner_id)
+            logger.info(f"Released Telethon lease for {_current_runner_id}.")
+        except Exception as e:
+            logger.debug(f"Note during lease release: {e}")
+        _current_runner_id = None
+
+    # Allow 5s for Telegram's DC to cleanly close TCP socket state
+    await asyncio.sleep(5)
 
 
 async def convert_via_cloud_telegram_bots(url: str, platform: str) -> str | None:

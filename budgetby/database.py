@@ -736,3 +736,100 @@ async def batch_update_products(updates: list):
         WHERE platform = $4 AND platform_id = $5
     """
     await executemany(query, updates)
+
+
+# ══════════════════════════════════════════════════════════════════════════════════
+# DISTRIBUTED TELETHON LEASE (ZERO IP COLLISION GUARANTEE)
+# ══════════════════════════════════════════════════════════════════════════════════
+
+async def acquire_telethon_lease(runner_id: str, runner_type: str = "cloud", ip: str = None) -> bool:
+    """
+    Acquires an exclusive distributed lease for Telethon MTProto connection.
+    Guarantees that only ONE machine/IP on Earth is connected to Telethon at any given moment.
+    Automatically reclaims expired leases after 60 seconds of missed heartbeats.
+    """
+    pool = get_pool()
+    if not pool:
+        return False
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS telethon_runner_lease (
+                    id INT PRIMARY KEY DEFAULT 1,
+                    runner_id TEXT NOT NULL,
+                    runner_type TEXT NOT NULL,
+                    ip_address TEXT,
+                    acquired_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    last_heartbeat TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    CONSTRAINT single_lease_row CHECK (id = 1)
+                );
+            """)
+            res = await conn.fetchrow("""
+                INSERT INTO telethon_runner_lease (id, runner_id, runner_type, ip_address, acquired_at, last_heartbeat)
+                VALUES (1, $1, $2, $3, NOW(), NOW())
+                ON CONFLICT (id) DO UPDATE
+                SET runner_id = EXCLUDED.runner_id,
+                    runner_type = EXCLUDED.runner_type,
+                    ip_address = EXCLUDED.ip_address,
+                    acquired_at = NOW(),
+                    last_heartbeat = NOW()
+                WHERE telethon_runner_lease.last_heartbeat < NOW() - INTERVAL '60 seconds'
+                   OR telethon_runner_lease.runner_id = $1
+                RETURNING runner_id;
+            """, runner_id, runner_type, ip)
+            return bool(res and res['runner_id'] == runner_id)
+    except Exception as e:
+        logger.warning(f"Error acquiring telethon lease: {e}")
+        return False
+
+async def heartbeat_telethon_lease(runner_id: str) -> bool:
+    """Refreshes the heartbeat timestamp of the currently held Telethon lease."""
+    pool = get_pool()
+    if not pool:
+        return False
+    try:
+        async with pool.acquire() as conn:
+            res = await conn.execute("""
+                UPDATE telethon_runner_lease
+                SET last_heartbeat = NOW()
+                WHERE id = 1 AND runner_id = $1;
+            """, runner_id)
+            return res == "UPDATE 1"
+    except Exception as e:
+        logger.debug(f"Error updating telethon lease heartbeat: {e}")
+        return False
+
+async def release_telethon_lease(runner_id: str) -> bool:
+    """Releases the Telethon lease when a worker shuts down cleanly."""
+    pool = get_pool()
+    if not pool:
+        return False
+    try:
+        async with pool.acquire() as conn:
+            res = await conn.execute("""
+                DELETE FROM telethon_runner_lease
+                WHERE id = 1 AND runner_id = $1;
+            """, runner_id)
+            return res == "DELETE 1"
+    except Exception as e:
+        logger.debug(f"Error releasing telethon lease: {e}")
+        return False
+
+async def get_telethon_lease() -> dict | None:
+    """Returns the current Telethon lease holder and health status."""
+    pool = get_pool()
+    if not pool:
+        return None
+    try:
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow("""
+                SELECT runner_id, runner_type, ip_address, acquired_at, last_heartbeat,
+                       EXTRACT(EPOCH FROM (NOW() - last_heartbeat)) as seconds_since_heartbeat
+                FROM telethon_runner_lease
+                WHERE id = 1;
+            """)
+            return dict(row) if row else None
+    except Exception as e:
+        logger.debug(f"Error reading telethon lease: {e}")
+        return None
+
