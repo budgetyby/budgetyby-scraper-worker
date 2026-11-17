@@ -13,11 +13,7 @@ import asyncio
 import logging
 import re
 from budgetby import database
-from budgetby.ingest.telegram_listener import (
-    convert_url_via_ek_bot,
-    convert_url_via_cuelinks_bot,
-    is_telethon_connected
-)
+from budgetby.cloud_scraper import get_cloud_telethon_client, convert_via_cloud_telegram_bots
 
 logger = logging.getLogger("budgetby.affiliate.converter_worker")
 
@@ -38,17 +34,12 @@ async def run_affiliate_converter_worker():
     """
     logger.info("🚀 Starting 1-by-1 Safe Affiliate Deal Converter Worker...")
     
-    # Wait for Telethon MTProto to boot and establish connection
-    for _ in range(30):
-        if is_telethon_connected():
-            break
-        await asyncio.sleep(2)
-
     while True:
         try:
-            if not is_telethon_connected():
+            client = await get_cloud_telethon_client()
+            if not client:
                 CONVERTER_STATS["status"] = "waiting_telegram_connection"
-                await asyncio.sleep(10)
+                await asyncio.sleep(15)
                 continue
 
             CONVERTER_STATS["status"] = "scanning_deals"
@@ -140,11 +131,7 @@ async def run_affiliate_converter_worker():
 
                 clean_url = target_url.split("&affid=")[0].split("?affid=")[0].split("&affExtParam")[0].split("?affExtParam")[0]
 
-                new_aff_url = None
-                if plat in ("flipkart", "myntra", "ajio"):
-                    new_aff_url = await convert_url_via_ek_bot(clean_url, platform=plat, timeout=10.0)
-                elif plat == "nykaa":
-                    new_aff_url = await convert_url_via_cuelinks_bot(clean_url, platform="nykaa", timeout=10.0)
+                new_aff_url = await convert_via_cloud_telegram_bots(clean_url, plat)
 
                 # Strict Verification: Guarantee that link genuinely belongs to this product's platform
                 is_valid = False

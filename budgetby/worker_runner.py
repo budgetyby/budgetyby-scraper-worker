@@ -164,6 +164,10 @@ async def main():
     # Start Autonomous Cloud Database Maintenance loop (perpetual free-tier protection)
     maintenance_task = asyncio.create_task(cloud_maintenance_loop(duration_secs))
 
+    # Start Continuous Affiliate Shortlink Converter Worker (1-by-1 safe conversion of raw deals)
+    from budgetby.affiliate.converter_worker import run_affiliate_converter_worker
+    converter_task = asyncio.create_task(run_affiliate_converter_worker())
+
     # Register signal handlers for clean cloud cancellation (SIGTERM/SIGINT)
     shutdown_event = asyncio.Event()
     loop = asyncio.get_running_loop()
@@ -189,7 +193,7 @@ async def main():
 
     # Clean shutdown before next worker spins up to guarantee ZERO MTProto session IP collision
     logger.info("Cleaning up active worker tasks and disconnecting Telethon...")
-    for t in [broadcaster_task, hunter_task, keepalive_task, scraper_task, maintenance_task]:
+    for t in [broadcaster_task, hunter_task, keepalive_task, scraper_task, maintenance_task, converter_task]:
         t.cancel()
 
     try:

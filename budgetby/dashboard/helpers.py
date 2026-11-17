@@ -173,13 +173,14 @@ def resolve_deal_button_url(
             return f"{clean}{sep}tag={tag}"
         return target
 
-    # 2. Non-Amazon: Check if already a monetized EarnKaro or Cuelinks link (including shortlinks & direct affgrowth)
+    # 2. Non-Amazon: Check if already an official branded shortlink (fktr.in, myntr.it, ajiio.in, clnk.in, ekaro.in)
     for candidate in (affiliate_url, tg_raw_url):
         if candidate and candidate.startswith("http"):
-            if is_monetized_affiliate_url(candidate):
+            c_low = candidate.lower()
+            if any(dom in c_low for dom in ("fktr.in", "myntr.it", "ajiio.in", "clnk.in", "ekaro.in")):
                 return candidate
 
-    # 3. If product_id is known, route through redirect endpoint which converts and tracks live
+    # 3. If product_id is known, route through redirect endpoint so shoppers never see raw merchant domains
     if product_id:
         return f"/api/deal/redirect/{product_id}"
 
