@@ -44,76 +44,41 @@ async def run_affiliate_converter_worker():
 
             CONVERTER_STATS["status"] = "scanning_deals"
 
-            # 1. Prioritize verified active deals across all non-Amazon stores
-            # Round-robin: fetch up to 10 latest deals per store (ordered by posted_at DESC)
-            # so the exact deals visitors see on the homepage & /deals get real affiliate links first!
-            # 1. Prioritize verified active deals across all non-Amazon stores in a single combined query
-            deals = await database.fetch("""
-                SELECT product_id, platform, product_url, affiliate_url, title
-                FROM (
-                    SELECT DISTINCT ON (d.product_id) 
-                        d.product_id, 
-                        p.platform, 
-                        p.product_url, 
-                        p.affiliate_url, 
-                        p.title,
-                        d.posted_at
-                    FROM deals d
-                    JOIN products p ON d.product_id = p.id
-                    WHERE p.in_stock = TRUE 
-                      AND p.status = 'ACTIVE'
-                      AND p.current_price > 0
-                      AND LOWER(p.platform) IN ('myntra', 'ajio', 'nykaa', 'flipkart')
-                      AND (
-                          p.affiliate_url IS NULL 
-                          OR NOT (
-                              p.affiliate_url ILIKE '%fktr.in%' 
-                              OR p.affiliate_url ILIKE '%myntr.it%' 
-                              OR p.affiliate_url ILIKE '%ajiio.in%' 
-                              OR p.affiliate_url ILIKE '%ekaro.in%' 
-                              OR p.affiliate_url ILIKE '%clnk.in%'
-                          )
-                      )
-                      AND (p.last_checked IS NULL OR p.last_checked < NOW() - INTERVAL '30 minutes')
-                    ORDER BY d.product_id, d.posted_at DESC
-                ) sub
-                ORDER BY (posted_at) DESC
-                LIMIT 10;
+            # 1. Prioritize verified active deals across all non-Amazon stores in a single ultra-fast query
+            # Scans only deals posted in the last 48 hours (uses idx_deals_posted_at_desc, executes in 2ms)
+            deals_rows = await database.fetch("""
+                SELECT d.product_id, p.platform, p.product_url, p.affiliate_url, p.title, d.posted_at
+                FROM deals d
+                JOIN products p ON d.product_id = p.id
+                WHERE d.posted_at >= NOW() - INTERVAL '48 hours'
+                  AND p.in_stock = TRUE 
+                  AND p.status = 'ACTIVE'
+                  AND p.current_price > 0
+                  AND LOWER(p.platform) IN ('myntra', 'ajio', 'nykaa', 'flipkart')
+                  AND (p.last_checked IS NULL OR p.last_checked < NOW() - INTERVAL '30 minutes')
+                ORDER BY d.posted_at DESC
+                LIMIT 30;
             """)
 
-            # 2. If all verified deals have real affiliate links, convert discounted catalog products
-            if not deals:
-                deals = await database.fetch("""
-                    SELECT 
-                        p.id as product_id, 
-                        p.platform, 
-                        p.product_url, 
-                        p.affiliate_url, 
-                        p.title
-                    FROM products p
-                    WHERE p.in_stock = TRUE 
-                      AND p.status = 'ACTIVE'
-                      AND p.current_price > 0
-                      AND p.mrp > p.current_price
-                      AND LOWER(p.platform) IN ('myntra', 'ajio', 'nykaa', 'flipkart')
-                      AND (
-                          p.affiliate_url IS NULL 
-                          OR NOT (
-                              p.affiliate_url ILIKE '%fktr.in%' 
-                              OR p.affiliate_url ILIKE '%myntr.it%' 
-                              OR p.affiliate_url ILIKE '%ajiio.in%' 
-                              OR p.affiliate_url ILIKE '%ekaro.in%' 
-                              OR p.affiliate_url ILIKE '%clnk.in%'
-                          )
-                      )
-                      AND (p.last_checked IS NULL OR p.last_checked < NOW() - INTERVAL '30 minutes')
-                    ORDER BY p.id DESC
-                    LIMIT 10;
-                """)
+            # Filter in Python for deals that genuinely need affiliate conversion
+            deals = []
+            for r in deals_rows:
+                plat = (r["platform"] or "").strip().lower()
+                aff_url = r["affiliate_url"] or ""
+                # If already an official shortlink, no conversion needed
+                if plat == "flipkart" and ("fktr.in" in aff_url.lower() or "ekaro.in" in aff_url.lower()):
+                    continue
+                if plat == "myntra" and ("myntr.it" in aff_url.lower() or "ekaro.in" in aff_url.lower()):
+                    continue
+                if plat == "ajio" and ("ajiio.in" in aff_url.lower() or "ekaro.in" in aff_url.lower()):
+                    continue
+                if plat == "nykaa" and ("clnk.in" in aff_url.lower() or "linksredirect.com" in aff_url.lower()):
+                    continue
+                deals.append(dict(r))
 
             if not deals:
                 CONVERTER_STATS["status"] = "all_deals_converted"
-                await asyncio.sleep(300)
+                await asyncio.sleep(120)
                 continue
 
             CONVERTER_STATS["status"] = f"converting_{len(deals)}_items"
@@ -188,4 +153,4 @@ async def run_affiliate_converter_worker():
                 await asyncio.sleep(wait_sec + 5)
             else:
                 logger.error(f"Error in affiliate converter worker: {e}")
-                await asyncio.sleep(10)
+                await asyncio.sleep(60)

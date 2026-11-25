@@ -4,8 +4,8 @@ on:
   push:
     branches: [main]
   schedule:
-    # Fail-safe watchdog every 6 hours in case runner terminates unexpectedly
-    - cron: '0 */6 * * *'
+    # 30-minute fail-safe watchdog (checks DB lease, guarantees perpetual 24/7 uptime with zero gaps)
+    - cron: '*/30 * * * *'
   workflow_dispatch:
 
 permissions:

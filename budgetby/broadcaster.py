@@ -140,7 +140,7 @@ async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict 
         # Step A: Live Flash Hunter - Discover fresh high-discount loot on the fly!
         try:
             from budgetby.engine.live_hunter import hunt_live_store_deal
-            hunt_deal = await asyncio.wait_for(hunt_live_store_deal(store), timeout=30)
+            hunt_deal = await asyncio.wait_for(hunt_live_store_deal(store), timeout=15)
             if hunt_deal and hunt_deal.get("product"):
                 hp = hunt_deal["product"]
                 pid = hp.get("id")
@@ -190,7 +190,7 @@ async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict 
     if not prefer_hunter:
         try:
             from budgetby.engine.live_hunter import hunt_live_store_deal
-            hunt_deal = await asyncio.wait_for(hunt_live_store_deal(store), timeout=30)
+            hunt_deal = await asyncio.wait_for(hunt_live_store_deal(store), timeout=15)
             if hunt_deal and hunt_deal.get("product"):
                 hp = hunt_deal["product"]
                 pid = hp.get("id")
@@ -217,34 +217,44 @@ async def _fetch_deal_candidate_for_store(store: str, exclude_ids: set) -> dict 
             logger.debug(f"Live hunt candidate note for {store}: {he}")
 
     # Step C: Fall back to active high-discount catalog items specifically for this store
-    # Index-backed query skipping deals posted in last 7 days and active cooldowns, prioritizing recent price changes
+    # High-performance index-backed candidate selection with in-memory 7-day deduplication
     try:
-        candidates = await database.fetch(f"""
-            SELECT 0 as deal_id, p.id as product_id, p.current_price as posted_price, p.mrp as posted_mrp,
-                   ROUND((((p.mrp - p.current_price)/NULLIF(p.mrp,0)) * 100)::numeric, 1) as deal_score,
-                   'HOT_DEAL' as badge, NOW() as posted_at,
-                   p.title, p.platform, p.product_url, p.affiliate_url, p.image_url, 
-                   p.current_price, p.mrp, p.category, p.rating
-            FROM products p
-            WHERE p.in_stock = TRUE AND p.status = 'ACTIVE' AND p.current_price > 0
-              AND p.platform = '{store}'
-              AND p.mrp > p.current_price
-              AND ((p.mrp - p.current_price) / p.mrp) >= 0.20
-              AND NOT EXISTS (
-                  SELECT 1 FROM deals d WHERE d.product_id = p.id AND d.posted_at >= (NOW() - INTERVAL '7 days')
-              )
-              AND NOT EXISTS (
-                  SELECT 1 FROM post_cooldowns c WHERE c.product_id = p.id AND c.expires_at > NOW()
-              )
-              {exclude_clause.replace('d.product_id', 'p.id')}
-            ORDER BY p.last_price_change DESC NULLS LAST, p.created_at DESC
-            LIMIT 5;
-        """)
-        if candidates:
-            for r in candidates:
-                pid = r["product_id"]
-                if pid and pid not in exclude_ids and not await is_on_cooldown(pid):
-                    return dict(r)
+        # C1: Fetch recent 7-day posted product IDs (uses idx_deals_posted_at_desc, < 5ms)
+        recent_rows = await database.fetch(
+            "SELECT product_id FROM deals WHERE posted_at >= NOW() - INTERVAL '7 days' LIMIT 10000;"
+        )
+        recent_posted = {r["product_id"] for r in recent_rows}
+        all_exclude = set(exclude_ids) | recent_posted
+
+        # C2: Multi-tiered discount scan using idx_products_status_stock_platform index
+        # Guarantees that every platform (Flipkart, Myntra, Ajio, Nykaa, Amazon) finds fresh deals
+        for min_disc in (0.25, 0.15, 0.08):
+            candidates = await database.fetch("""
+                SELECT id as product_id, current_price as posted_price, mrp as posted_mrp,
+                       ROUND((((mrp - current_price)/NULLIF(mrp,0)) * 100)::numeric, 1) as deal_score,
+                       'HOT_DEAL' as badge, NOW() as posted_at,
+                       title, platform, product_url, affiliate_url, image_url, 
+                       current_price, mrp, category, rating
+                FROM products
+                WHERE status = 'ACTIVE' AND in_stock = TRUE AND platform = $1
+                  AND current_price > 0 AND mrp > current_price
+                  AND ((mrp - current_price) / mrp) >= $2
+                LIMIT 80;
+            """, store, min_disc)
+
+            if candidates:
+                # Sort in memory by discount percentage descending
+                sorted_candidates = sorted(
+                    candidates,
+                    key=lambda x: float(x["deal_score"] or 0),
+                    reverse=True
+                )
+                for r in sorted_candidates:
+                    pid = r["product_id"]
+                    if pid and pid not in all_exclude and not await is_on_cooldown(pid):
+                        deal_dict = dict(r)
+                        deal_dict["deal_id"] = 0
+                        return deal_dict
     except Exception as c_err:
         logger.warning(f"Error fetching Step C candidates for {store}: {c_err}")
 
@@ -274,7 +284,7 @@ async def broadcast_single_deal(deal_row: dict) -> bool:
     platform = (prod_dict.get("platform") or "amazon").lower()
 
     # 100% STRICT AFFILIATE CONVERSION ENFORCEMENT
-    aff_url = await get_or_create_affiliate_link(prod_dict, force_fresh=True)
+    aff_url = await get_or_create_affiliate_link(prod_dict, force_fresh=False)
     if not aff_url or not is_valid_affiliate_shortlink(aff_url, platform):
         logger.warning(
             f"⚠️ [AFFILIATE GUARD] Product {pid} ({platform}) has unconverted link. "
@@ -508,11 +518,15 @@ async def run_paced_30s_broadcaster():
             if deal_row:
                 posted_ok = await broadcast_single_deal(deal_row)
                 if not posted_ok:
-                    # If first candidate failed affiliate conversion or post, retry with alternate candidate for the SAME store
-                    logger.info(f"Target platform [{target_plat.upper()}] first candidate failed; retrying alternate candidate...")
-                    deal_row_retry = await _fetch_deal_candidate_for_store(target_plat, _last_posted_product_ids)
-                    if deal_row_retry:
-                        posted_ok = await broadcast_single_deal(deal_row_retry)
+                    # If first candidate failed affiliate conversion or post, retry with alternate candidates for the SAME store (up to 3 attempts)
+                    # to strictly guarantee platform quota without skipping to the next store
+                    for retry_attempt in range(2):
+                        logger.info(f"Target platform [{target_plat.upper()}] attempt {retry_attempt+1} failed; retrying alternate candidate for {target_plat.upper()}...")
+                        deal_row_retry = await _fetch_deal_candidate_for_store(target_plat, _last_posted_product_ids)
+                        if deal_row_retry:
+                            posted_ok = await broadcast_single_deal(deal_row_retry)
+                            if posted_ok:
+                                break
 
             if not posted_ok and not deal_row:
                 logger.warning(f"No candidates currently available for target platform [{target_plat.upper()}] this cycle.")

@@ -116,7 +116,7 @@ async def self_relay_trigger():
     repo = os.getenv("GITHUB_REPOSITORY", "budgetyby/budgetyby-scraper-worker")
     if not gh_token:
         logger.warning("No GITHUB_TOKEN available for self-relay trigger; relying on cron.")
-        return
+        return False
 
     logger.info(f"🔄 [AUTO-RELAY] Dispatching next GitHub Actions workflow run for {repo}...")
     headers = {
@@ -125,15 +125,35 @@ async def self_relay_trigger():
         "User-Agent": "BudgetBy-Worker"
     }
     url = f"https://api.github.com/repos/{repo}/actions/workflows/cloud_scraper.yml/dispatches"
-    try:
-        async with AsyncSession(timeout=15) as session:
-            resp = await session.post(url, headers=headers, json={"ref": "main"})
-            if resp.status_code in (201, 204):
-                logger.info("🎉 [AUTO-RELAY] Next 24/7 worker workflow dispatched successfully!")
-            else:
-                logger.warning(f"[AUTO-RELAY] Dispatch returned {resp.status_code}: {resp.text}")
-    except Exception as e:
-        logger.error(f"[AUTO-RELAY] Error dispatching next run: {e}")
+    for attempt in range(3):
+        try:
+            async with AsyncSession(timeout=15) as session:
+                resp = await session.post(url, headers=headers, json={"ref": "main"})
+                if resp.status_code in (201, 204):
+                    logger.info("🎉 [AUTO-RELAY] Next 24/7 worker workflow dispatched successfully!")
+                    return True
+                else:
+                    logger.warning(f"[AUTO-RELAY] Dispatch attempt {attempt+1} returned {resp.status_code}: {resp.text}")
+        except Exception as e:
+            logger.error(f"[AUTO-RELAY] Attempt {attempt+1} error dispatching next run: {e}")
+        await asyncio.sleep(10)
+    return False
+
+async def broadcaster_stall_watchdog():
+    """Monitors broadcaster activity. If no deal is posted for 15+ minutes, logs alert."""
+    from budgetby.broadcaster import broadcaster_stats, get_broadcaster_stats
+    last_count = -1
+    stall_minutes = 0
+    while True:
+        await asyncio.sleep(60)
+        curr = broadcaster_stats.get("total_posted", 0)
+        if curr == last_count:
+            stall_minutes += 1
+            if stall_minutes in (15, 20, 30):
+                logger.warning(f"⚠️ [BROADCASTER WATCHDOG] No deals posted for {stall_minutes} minutes! Status: {get_broadcaster_stats()}")
+        else:
+            last_count = curr
+            stall_minutes = 0
 
 async def main():
     import argparse
@@ -147,6 +167,20 @@ async def main():
     # Initialize shared database connection pool
     from budgetby import database
     await database.init_pool()
+
+    # Distributed Lease Check on startup:
+    # If another runner is already actively heartbeating, exit immediately to save runner minutes and prevent IP collision
+    is_github_actions = bool(os.getenv("GITHUB_ACTIONS"))
+    runner_id = os.getenv("GITHUB_RUN_ID") or f"runner_{os.getpid()}_{int(time.time())}"
+    lease = await database.get_telethon_lease()
+    if lease and lease.get("runner_id") and lease.get("runner_id") != runner_id:
+        last_hb = lease.get("last_heartbeat")
+        if last_hb:
+            elapsed = (datetime.now(timezone.utc) - last_hb).total_seconds()
+            if elapsed < 90:
+                logger.info(f"🔒 [RUNNER GUARD] Runner #{lease.get('runner_id')} is actively healthy (heartbeat {elapsed:.0f}s ago). Exiting watchdog runner gracefully.")
+                await database.close_pool()
+                return
 
     # Start the 30-second broadcaster
     from budgetby.broadcaster import run_paced_30s_broadcaster, run_continuous_deal_hunter_daemon
@@ -168,6 +202,9 @@ async def main():
     from budgetby.affiliate.converter_worker import run_affiliate_converter_worker
     converter_task = asyncio.create_task(run_affiliate_converter_worker())
 
+    # Start Broadcaster Stall Watchdog
+    watchdog_task = asyncio.create_task(broadcaster_stall_watchdog())
+
     # Register signal handlers for clean cloud cancellation (SIGTERM/SIGINT)
     shutdown_event = asyncio.Event()
     loop = asyncio.get_running_loop()
@@ -182,8 +219,8 @@ async def main():
             except Exception:
                 pass
 
-    # Wait until duration is almost reached (reserve 2 mins for clean relay)
-    sleep_time = max(10, duration_secs - 120)
+    # Wait until duration is almost reached (reserve 5 mins for clean relay)
+    sleep_time = max(10, duration_secs - 300)
     logger.info(f"⏳ Main worker active. Self-relay scheduled in {sleep_time/60:.1f} minutes.")
     try:
         await asyncio.wait_for(shutdown_event.wait(), timeout=sleep_time)
@@ -193,7 +230,7 @@ async def main():
 
     # Clean shutdown before next worker spins up to guarantee ZERO MTProto session IP collision
     logger.info("Cleaning up active worker tasks and disconnecting Telethon...")
-    for t in [broadcaster_task, hunter_task, keepalive_task, scraper_task, maintenance_task, converter_task]:
+    for t in [broadcaster_task, hunter_task, keepalive_task, scraper_task, maintenance_task, converter_task, watchdog_task]:
         t.cancel()
 
     try:
@@ -209,8 +246,11 @@ async def main():
 
     # Trigger relay for perpetual execution only if not cancelled by external SIGTERM
     if not shutdown_event.is_set():
-        await self_relay_trigger()
-        logger.info("Worker loop finished gracefully. Handed off to next worker.")
+        relay_ok = await self_relay_trigger()
+        if relay_ok:
+            logger.info("Worker loop finished gracefully. Handed off to next worker.")
+        else:
+            logger.warning("Relay trigger did not confirm; scheduled cron watchdog will resume shortly.")
     else:
         logger.info("Worker stopped cleanly on external termination signal.")
 

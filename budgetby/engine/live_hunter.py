@@ -70,11 +70,15 @@ async def hunt_live_store_deal(platform: str) -> Optional[Dict[str, Any]]:
     falls back to the next category in the round-robin queue (up to 4 attempts).
     """
     platform = platform.lower()
-    min_disc = 0.25 if platform in ("nykaa", "amazon") else 0.35  # 25% for Amazon & Nykaa, 35% for fashion
-    min_savings = 100 if platform == "nykaa" else 150
-
     MAX_ATTEMPTS = 4
     for attempt in range(MAX_ATTEMPTS):
+        # Progressively relax discount threshold across attempts to ensure every platform finds deals
+        if attempt < 2:
+            min_disc = 0.25 if platform in ("nykaa", "amazon") else 0.30
+            min_savings = 100 if platform == "nykaa" else 120
+        else:
+            min_disc = 0.15 if platform in ("nykaa", "amazon") else 0.20
+            min_savings = 50 if platform == "nykaa" else 75
         try:
             products = []
             
