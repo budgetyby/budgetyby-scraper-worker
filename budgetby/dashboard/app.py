@@ -1724,14 +1724,20 @@ async def get_public_price_drops(
 
             offset = (page_val - 1) * limit_val
 
+            eff_prev_expr = "LEAST(p.previous_price, COALESCE(NULLIF(p.mrp, 0), p.previous_price))"
+
             where_clauses = [
                 "p.in_stock = TRUE",
                 "p.status = 'ACTIVE'",
                 "p.current_price > 0",
                 "p.previous_price > p.current_price",
+                f"{eff_prev_expr} > p.current_price",
                 "p.previous_price <= GREATEST(COALESCE(NULLIF(p.mrp, 0), p.current_price), p.current_price * 15.0)",
-                "(((p.previous_price - p.current_price) / NULLIF(p.previous_price, 0)) * 100) >= $1",
-                "(((p.previous_price - p.current_price) / NULLIF(p.previous_price, 0)) * 100) <= 95.0"
+                "p.title IS NOT NULL",
+                "TRIM(p.title) != ''",
+                "p.title !~* '^(dp|gp|product)/[a-z0-9]{6,}$'",
+                f"(((({eff_prev_expr} - p.current_price) / NULLIF({eff_prev_expr}, 0)) * 100) >= $1)",
+                f"(((({eff_prev_expr} - p.current_price) / NULLIF({eff_prev_expr}, 0)) * 100) <= 90.0)"
             ]
             args = [min_drop_pct_val]
             arg_idx = 2
@@ -1748,18 +1754,18 @@ async def get_public_price_drops(
                 args.append(f"%{cat_clean}%")
                 arg_idx += 1
 
-            aff_priority = "(CASE WHEN (p.affiliate_url IS NOT NULL AND p.affiliate_url != '') OR p.platform = 'amazon' THEN 1 ELSE 0 END) DESC"
-            order_by = f"{aff_priority}, drop_pct DESC, drop_amount DESC"
             if sort_by_val == "latest":
                 order_by = "p.last_price_change DESC NULLS LAST, p.id DESC"
             elif sort_by_val == "price_asc":
-                order_by = f"{aff_priority}, p.current_price ASC, drop_pct DESC"
+                order_by = "p.current_price ASC, drop_pct DESC"
             elif sort_by_val == "price_desc":
-                order_by = f"{aff_priority}, p.current_price DESC, drop_pct DESC"
+                order_by = "p.current_price DESC, drop_pct DESC"
             else:
-                order_by = f"{aff_priority}, drop_pct DESC, drop_amount DESC"
+                order_by = "drop_pct DESC, drop_amount DESC, p.id DESC"
 
+            count_args = list(args)
             args.extend([limit_val, offset])
+            where_sql = " AND ".join(where_clauses)
 
             query = f"""
                 SELECT 
@@ -1769,7 +1775,7 @@ async def get_public_price_drops(
                     p.platform,
                     COALESCE(NULLIF(LOWER(p.category), ''), 'general') as category,
                     p.current_price,
-                    p.previous_price,
+                    {eff_prev_expr} as previous_price,
                     p.mrp,
                     p.image_url,
                     p.product_url,
@@ -1777,30 +1783,28 @@ async def get_public_price_drops(
                     p.rating,
                     p.review_count,
                     COALESCE(p.last_price_change, NOW()) as last_price_change,
-                    ROUND((((p.previous_price - p.current_price) / NULLIF(p.previous_price, 0)) * 100)::numeric, 1) as drop_pct,
-                    ROUND((p.previous_price - p.current_price)::numeric, 2) as drop_amount,
+                    ROUND(((({eff_prev_expr} - p.current_price) / NULLIF({eff_prev_expr}, 0)) * 100)::numeric, 1) as drop_pct,
+                    ROUND(({eff_prev_expr} - p.current_price)::numeric, 2) as drop_amount,
                     (d.id IS NOT NULL) as is_verified_deal,
                     COALESCE(d.badge, 'PRICE DROP') as badge
                 FROM products p
                 LEFT JOIN deals d ON d.product_id = p.id
-                WHERE {' AND '.join(where_clauses)}
+                WHERE {where_sql}
                 ORDER BY {order_by}
                 LIMIT ${arg_idx} OFFSET ${arg_idx + 1};
             """
             rows = await database.fetch(query, *args)
 
-            cached_total_drops = await ram_cache.get("total_drops_today_count")
+            drops_cnt_key = f"drops_cnt:{min_drop_pct_val}:{plat_clean}:{cat_clean}"
+            cached_total_drops = await ram_cache.get(drops_cnt_key)
             if cached_total_drops is None:
-                cached_total_drops = await database.fetchval("""
-                    SELECT COUNT(*) FROM products 
-                    WHERE in_stock = TRUE AND status = 'ACTIVE' 
-                    AND previous_price > current_price AND current_price > 0 
-                    AND previous_price <= GREATEST(COALESCE(NULLIF(mrp, 0), current_price), current_price * 15.0)
-                    AND (((previous_price - current_price) / NULLIF(previous_price, 0)) * 100) <= 85.0;
-                """) or 5000
-                await ram_cache.set("total_drops_today_count", cached_total_drops, ttl=1800)
+                cached_total_drops = await database.fetchval(f"""
+                    SELECT COUNT(*) FROM products p
+                    WHERE {where_sql};
+                """, *count_args) or 0
+                await ram_cache.set(drops_cnt_key, cached_total_drops, ttl=900)
 
-            total_reported = cached_total_drops
+            total_reported = int(cached_total_drops or 0)
             total_pages = max(1, math.ceil(total_reported / limit_val)) if total_reported > 0 else 1
             has_more = page_val < total_pages
 
@@ -1863,12 +1867,14 @@ async def get_public_price_drops(
                 })
 
             result = {
+                "total": total_reported,
+                "total_matches": total_reported,
                 "total_drops_24h": total_reported,
-                "page": page,
-                "limit": limit,
+                "page": page_val,
+                "limit": limit_val,
                 "total_pages": total_pages,
                 "has_more": has_more,
-                "min_drop_pct": min_drop_pct,
+                "min_drop_pct": min_drop_pct_val,
                 "drops": drops
             }
             await ram_cache.set(cache_key, result, ttl=300)
@@ -2211,6 +2217,9 @@ async def get_public_deals(
                 "p.in_stock = TRUE",
                 "p.status = 'ACTIVE'",
                 "p.current_price > 0",
+                "p.title IS NOT NULL",
+                "TRIM(p.title) != ''",
+                "p.title !~* '^(dp|gp|product)/[a-z0-9]{6,}$'",
                 "(d.id IS NOT NULL OR p.mrp IS NULL OR p.mrp <= p.current_price * 25.0)"
             ]
             where_args = []
@@ -2455,8 +2464,8 @@ async def get_public_deals(
                         where_clauses.append("(p.mrp IS NULL OR p.mrp > p.current_price)")
                 elif deal_type_clean == "drops" or tab_clean == "drops":
                     where_clauses.append("""(
-                        (d.id IS NOT NULL AND (d.badge IN ('PRICE_DROP', 'HOT_DEAL', 'ATL', 'LOOT') OR d.deal_type IN ('price_drop', 'drop', 'deal')))
-                        OR (p.previous_price IS NOT NULL AND p.previous_price > p.current_price AND (((p.previous_price - p.current_price) / NULLIF(p.previous_price, 0)) * 100) <= 85.0)
+                        (d.id IS NOT NULL AND d.deal_type IN ('price_drop', 'drop'))
+                        OR (p.previous_price IS NOT NULL AND p.previous_price > p.current_price AND (((LEAST(p.previous_price, COALESCE(NULLIF(p.mrp, 0), p.previous_price)) - p.current_price) / NULLIF(LEAST(p.previous_price, COALESCE(NULLIF(p.mrp, 0), p.previous_price)), 0)) * 100) BETWEEN 5.0 AND 90.0)
                     )""")
                 elif deal_type_clean == "atl" or tab_clean == "atl":
                     where_clauses.append("(p.all_time_low IS NOT NULL AND p.current_price <= p.all_time_low * 1.02)")
@@ -3068,6 +3077,9 @@ def render_consumer_template(template_name: str, request: Request, context: dict
         context = {}
     context["request"] = request
     context["categories_taxonomy"] = UNIVERSAL_CATEGORIES
+    if "site_stats" not in context:
+        cached_entry = ram_cache._cache.get("public_stats")
+        context["site_stats"] = cached_entry[0] if cached_entry else {}
     try:
         tpl = templates.get_template(template_name)
         rendered_html = tpl.render(context)
@@ -3092,9 +3104,9 @@ async def build_home_html(request: Request = None) -> str:
     initial_stats = {}
 
     try:
-        best_deals_task = get_public_deals(request=request, platform="", platforms="", category="", categories="", sub="", subcategory="", gender="", tab="all", search="", sort_by="score_desc", min_discount=0.0, min_price=0.0, max_price=0.0, min_rating=0.0, verified_only=True, deal_type="", ids="", page=1, limit=10, include_count=False)
-        just_dropped_task = get_public_deals(request=request, platform="", platforms="", category="", categories="", sub="", subcategory="", gender="", tab="drops", search="", sort_by="latest", min_discount=0.0, min_price=0.0, max_price=0.0, min_rating=0.0, verified_only=True, deal_type="drops", ids="", page=1, limit=20, include_count=False)
-        atl_task = get_public_deals(request=request, platform="", platforms="", category="", categories="", sub="", subcategory="", gender="", tab="atl", search="", sort_by="latest", min_discount=0.0, min_price=0.0, max_price=0.0, min_rating=0.0, verified_only=True, deal_type="atl", ids="", page=1, limit=20, include_count=False)
+        best_deals_task = get_public_deals(request=request, platform="", platforms="", category="", categories="", sub="", subcategory="", gender="", tab="all", search="", sort_by="score_desc", min_discount=0.0, min_price=0.0, max_price=0.0, min_rating=0.0, verified_only=True, deal_type="", ids="", page=1, limit=20, include_count=False)
+        just_dropped_task = get_public_price_drops(request=request, page=1, limit=24, min_drop_pct=10.0, min_drop_percent=None, platform="", category="", sort_by="latest")
+        atl_task = get_public_deals(request=request, platform="", platforms="", category="", categories="", sub="", subcategory="", gender="", tab="atl", search="", sort_by="latest", min_discount=0.0, min_price=0.0, max_price=0.0, min_rating=0.0, verified_only=True, deal_type="atl", ids="", page=1, limit=24, include_count=False)
         stats_task = get_public_stats()
 
         results = await asyncio.wait_for(
@@ -3102,42 +3114,41 @@ async def build_home_html(request: Request = None) -> str:
                 best_deals_task, just_dropped_task, atl_task, stats_task,
                 return_exceptions=True
             ),
-            timeout=1.0  # Responsive budget: if DB answers under 1s, embed deals; if DB is slow or cold, return instant skeleton shell immediately!
+            timeout=2.5
         )
-        if not isinstance(results[0], Exception):
+        if not isinstance(results[0], Exception) and isinstance(results[0], dict):
             best_deals = results[0]
-        if not isinstance(results[1], Exception):
-            just_dropped = results[1]
-        if not isinstance(results[2], Exception):
+        if not isinstance(results[1], Exception) and isinstance(results[1], dict):
+            drops_list = results[1].get("drops") or results[1].get("deals") or []
+            just_dropped = {"deals": drops_list}
+        if not isinstance(results[2], Exception) and isinstance(results[2], dict):
             atl_mini = results[2]
-        if not isinstance(results[3], Exception):
+        if not isinstance(results[3], Exception) and isinstance(results[3], dict):
             initial_stats = results[3]
 
-        # Deduplicate carousels so each section displays fresh, mutually exclusive deals
+        # Deduplicate carousels cleanly so Just Dropped, ATL, and Best Value stay distinct
         seen_pids = set()
-        if best_deals and "deals" in best_deals:
-            for d in best_deals["deals"]:
+        if just_dropped and "deals" in just_dropped:
+            unique_drops = []
+            for d in just_dropped["deals"]:
+                pid = d.get("product_id") or d.get("id")
+                if pid and pid not in seen_pids:
+                    seen_pids.add(pid)
+                    unique_drops.append(d)
+            just_dropped["deals"] = unique_drops[:10]
+
+        if atl_mini and "deals" in atl_mini:
+            unique_atls = [d for d in atl_mini["deals"] if (d.get("product_id") or d.get("id")) not in seen_pids]
+            selected_atls = unique_atls[:10] if unique_atls else atl_mini["deals"][:10]
+            atl_mini["deals"] = selected_atls
+            for d in selected_atls:
                 pid = d.get("product_id") or d.get("id")
                 if pid:
                     seen_pids.add(pid)
 
-        if just_dropped and "deals" in just_dropped:
-            unique_drops = [d for d in just_dropped["deals"] if (d.get("product_id") or d.get("id")) not in seen_pids]
-            if unique_drops:
-                just_dropped["deals"] = unique_drops[:10]
-                for d in unique_drops[:10]:
-                    pid = d.get("product_id") or d.get("id")
-                    if pid:
-                        seen_pids.add(pid)
-            else:
-                just_dropped["deals"] = just_dropped["deals"][:10]
-
-        if atl_mini and "deals" in atl_mini:
-            unique_atls = [d for d in atl_mini["deals"] if (d.get("product_id") or d.get("id")) not in seen_pids]
-            if unique_atls:
-                atl_mini["deals"] = unique_atls[:10]
-            else:
-                atl_mini["deals"] = atl_mini["deals"][:10]
+        if best_deals and "deals" in best_deals:
+            unique_best = [d for d in best_deals["deals"] if (d.get("product_id") or d.get("id")) not in seen_pids]
+            best_deals["deals"] = unique_best[:10] if unique_best else best_deals["deals"][:10]
     except Exception as e:
         logger.warning(f"Homepage prefetch error: {e}")
 
@@ -3149,6 +3160,7 @@ async def build_home_html(request: Request = None) -> str:
         "just_dropped": just_dropped,
         "atl_mini": atl_mini,
         "initial_stats": initial_stats,
+        "site_stats": initial_stats,
         "categories": UNIVERSAL_CATEGORIES
     }
     tpl = templates.get_template("consumer/home.html")
@@ -3183,6 +3195,10 @@ async def ssr_prewarm_loop():
     while True:
         try:
             t0 = time.time()
+            try:
+                await get_public_stats()
+            except Exception:
+                pass
             html = await build_home_html(dummy_req)
             if html:
                 await set_cached_ssr_html("home", html, ttl=600)

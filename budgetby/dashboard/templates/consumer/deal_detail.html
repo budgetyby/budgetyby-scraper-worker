@@ -106,7 +106,7 @@
 {% endblock %}
 
 {% block content %}
-<main class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full pt-4 pb-16">
+<main class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full pt-4 pb-36 lg:pb-16 min-w-0 max-w-full overflow-x-hidden">
 
     <!-- ── Breadcrumb Navigation ──────────────────────────────────────── -->
     <nav class="flex items-center gap-2 text-xs text-slate-500 mb-4 overflow-x-auto no-scrollbar whitespace-nowrap" aria-label="Breadcrumb">
@@ -126,11 +126,11 @@
     </nav>
 
     <!-- ── Main Deal Detail Hero Card ─────────────────────────────────── -->
-    <div class="bg-white border border-slate-200/90 rounded-3xl p-4 sm:p-8 shadow-sm mb-8">
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10">
+    <div class="bg-white border border-slate-200/90 rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-sm mb-8 min-w-0 max-w-full overflow-hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 min-w-0">
 
             <!-- ── Left Column: Product Image & Badges (5 cols) ──────────── -->
-            <div class="lg:col-span-5 flex flex-col justify-between">
+            <div class="lg:col-span-5 flex flex-col gap-4 min-w-0">
                 <div>
                     <!-- Top store badge & deal tags -->
                     <div class="flex items-center justify-between gap-2 mb-3">
@@ -161,10 +161,12 @@
                     </div>
 
                     <!-- Image Showcase Area -->
-                    <div class="relative w-full h-72 sm:h-96 rounded-2xl bg-slate-50 p-4 flex items-center justify-center overflow-hidden border border-slate-100 group">
-                        <img src="{{ product.image_url or '/static/placeholder.svg' }}" 
-                             alt="{{ product.title }}" 
+                    <div class="relative w-full h-64 sm:h-80 lg:h-[360px] rounded-2xl bg-slate-50 p-4 flex items-center justify-center overflow-hidden border border-slate-100 group">
+                        <img src="{{ product.image_url or '/static/placeholder.svg' }}"
+                             alt="{{ product.title }}"
+                             referrerpolicy="no-referrer"
                              class="max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                             onload="if(this.naturalWidth<5){this.src='/static/placeholder.svg'}"
                              onerror="this.src='/static/placeholder.svg'" />
 
                         {% if not is_in_stock %}
@@ -176,16 +178,18 @@
                         {% endif %}
 
                         <!-- Save to Watchlist -->
-                        <button onclick="handleHomeWatchlist(this, {{ pid }})" 
-                                class="absolute top-3 right-3 p-2.5 rounded-2xl bg-white/95 backdrop-blur-md border border-slate-200 text-slate-400 hover:text-rose-500 transition shadow-sm" 
-                                title="Save to Watchlist">
+                        <button onclick="handleHomeWatchlist(this, {{ pid }})"
+                                data-pid="{{ pid }}"
+                                class="absolute top-3 right-3 p-2.5 rounded-2xl bg-white/95 backdrop-blur-md border border-slate-200 text-slate-400 hover:text-rose-500 transition shadow-sm"
+                                title="Save to Watchlist"
+                                aria-label="Save to Watchlist">
                             <i data-lucide="heart" class="w-4 h-4"></i>
                         </button>
                     </div>
                 </div>
 
                 <!-- Stock State & Trust Signal -->
-                <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 text-xs flex-wrap">
                     {% if is_in_stock %}
                     <span class="inline-flex items-center gap-1.5 text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
                         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -198,17 +202,40 @@
                     </span>
                     {% endif %}
 
-                    <span class="text-slate-400 text-[11px]">
+                    <span class="text-slate-400 text-[11px] font-medium">
                         ID: #{{ pid }}
                     </span>
+                </div>
+
+                <!-- Quick Deal Tools & Verification Panel (balances left column on desktop) -->
+                <div class="rounded-2xl bg-slate-50/90 border border-slate-200/80 p-3.5 sm:p-4 space-y-3">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                            <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-600"></i>
+                            <span>Quick Deal Tools</span>
+                        </span>
+                        <span class="text-[10px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded-md border border-slate-200">Verified Merchant</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" onclick="openPriceAlertModal()"
+                                class="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 text-xs font-extrabold transition">
+                            <span>🔔</span>
+                            <span>Price Alert</span>
+                        </button>
+                        <button type="button" onclick="copyDealLink(window.location.href)"
+                                class="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition">
+                            <i data-lucide="link" class="w-3.5 h-3.5 text-slate-500"></i>
+                            <span>Copy Link</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
             <!-- ── Right Column: Product Info, Price, Verdict & CTA (7 cols) ── -->
-            <div class="lg:col-span-7 flex flex-col justify-between">
-                <div>
+            <div class="lg:col-span-7 flex flex-col justify-between min-w-0">
+                <div class="min-w-0">
                     <!-- Product Title -->
-                    <h1 class="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight leading-snug mb-3">
+                    <h1 class="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight leading-snug mb-3 break-words">
                         {{ product.title }}
                     </h1>
 
@@ -219,7 +246,7 @@
                             <span>★</span> {{ "%.1f"|format(rating) }}
                         </span>
                         {% if reviews and reviews > 0 %}
-                        <span class="text-slate-600 font-medium">({{ reviews|format_inr }} customer ratings)</span>
+                        <span class="text-slate-600 font-medium">({{ reviews|format_num }} customer ratings)</span>
                         {% endif %}
                         <span class="text-slate-300">•</span>
                         {% endif %}
@@ -323,25 +350,39 @@
                 <!-- ── Call to Action Button ──────────────────────────────── -->
                 <div class="mt-4 pt-3">
                     {% if is_in_stock %}
-                    <a href="{{ buy_url }}" target="_blank" rel="noopener noreferrer" 
-                       class="w-full py-4 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm sm:text-base flex items-center justify-center gap-2 transition shadow-lg shadow-indigo-600/30 active:scale-98">
+                    <a id="heroBuyCtaBtn" href="{{ buy_url }}" target="_blank" rel="noopener noreferrer"
+                       class="w-full py-3.5 sm:py-4 px-5 sm:px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm sm:text-base flex items-center justify-center gap-2 transition shadow-lg shadow-indigo-600/30 active:scale-[0.99]">
                         <span>Get Deal on {{ platform|store_name }}</span>
                         <i data-lucide="external-link" class="w-4 h-4"></i>
                     </a>
                     {% else %}
-                    <a href="{{ buy_url }}" target="_blank" rel="noopener noreferrer" 
-                       class="w-full py-4 px-6 rounded-2xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm sm:text-base flex items-center justify-center gap-2 transition active:scale-98">
+                    <a id="heroBuyCtaBtn" href="{{ buy_url }}" target="_blank" rel="noopener noreferrer"
+                       class="w-full py-3.5 sm:py-4 px-5 sm:px-6 rounded-2xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm sm:text-base flex items-center justify-center gap-2 transition active:scale-[0.99]">
                         <span>Check Stock on {{ platform|store_name }}</span>
                         <i data-lucide="external-link" class="w-4 h-4 text-slate-400"></i>
                     </a>
                     {% endif %}
-                    
-                    <button type="button" 
-                            onclick="shareDealWhatsApp('{{ (product.title or '')|replace("'", "\\'")|replace('"', '&quot;') }}', '{{ cp }}', '{{ buy_url }}', '{{ platform|store_name }}')" 
-                            class="w-full py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-extrabold text-sm flex items-center justify-center gap-2 transition shadow-md shadow-emerald-600/20 mt-2.5">
-                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
-                        <span>Share Deal via WhatsApp</span>
-                    </button>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mt-2.5">
+                        <button type="button"
+                                onclick="shareDealWhatsApp('{{ (product.title or '')|replace("'", "\\'")|replace('"', '&quot;') }}', '{{ cp }}', '{{ buy_url }}', '{{ platform|store_name }}')"
+                                class="py-2.5 sm:py-3 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition shadow-md shadow-emerald-600/20 whitespace-nowrap">
+                            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                            <span>Share WhatsApp</span>
+                        </button>
+                        <button type="button"
+                                onclick="copyDealLink(window.location.href)"
+                                class="py-2.5 sm:py-3 px-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition border border-slate-200 whitespace-nowrap">
+                            <i data-lucide="link" class="w-4 h-4 text-slate-500 shrink-0"></i>
+                            <span>Copy Link</span>
+                        </button>
+                        <button type="button" id="heroPriceAlertBtn"
+                                onclick="openPriceAlertModal()"
+                                class="py-2.5 sm:py-3 px-3 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-800 font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition border border-amber-200 whitespace-nowrap">
+                            <span>🔔</span>
+                            <span id="heroPriceAlertBtnText">Price Alert</span>
+                        </button>
+                    </div>
                     <p class="text-center text-[11px] text-slate-400 mt-2">
                         Direct merchant checkout — BudgetBy never charges fees or alters merchant discounts.
                     </p>
@@ -352,10 +393,10 @@
     </div>
 
     <!-- ── Adaptive Price History & Valuation Benchmark ── -->
-    <div id="priceHistorySection" class="w-full">
+    <div id="priceHistorySection" class="w-full min-w-0 max-w-full">
         <!-- 1. Dense History View: Interactive Pure Vanilla SVG Trend Chart -->
-        <div id="historyChartCard" class="{% if has_dense_history %}block{% else %}hidden{% endif %} bg-white border border-slate-200/90 rounded-3xl p-4 sm:p-8 shadow-sm mb-8">
-            <div class="flex items-center justify-between gap-3 mb-6 flex-wrap">
+        <div id="historyChartCard" class="{% if has_dense_history %}block{% else %}hidden{% endif %} bg-white border border-slate-200/90 rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-sm mb-8 min-w-0 max-w-full overflow-hidden">
+            <div class="flex items-start sm:items-center justify-between gap-3 mb-5 flex-wrap">
                 <div>
                     <h2 class="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-2">
                         <span>📈</span> Price History & Trends
@@ -364,7 +405,15 @@
                         Verified price checks recorded over recent market checks. No fake markups.
                     </p>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <!-- Timeframe Selector Pills -->
+                    <div id="chartRangeSelector" class="inline-flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/80">
+                        <button type="button" onclick="setChartRange('30')" data-range="30" class="chart-range-pill px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-600 hover:text-slate-900 transition">1M</button>
+                        <button type="button" onclick="setChartRange('90')" data-range="90" class="chart-range-pill px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-600 hover:text-slate-900 transition">3M</button>
+                        <button type="button" onclick="setChartRange('180')" data-range="180" class="chart-range-pill px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-600 hover:text-slate-900 transition">6M</button>
+                        <button type="button" onclick="setChartRange('365')" data-range="365" class="chart-range-pill px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-600 hover:text-slate-900 transition">1Y</button>
+                        <button type="button" onclick="setChartRange('all')" data-range="all" class="chart-range-pill px-2.5 py-1 rounded-lg text-[11px] font-extrabold bg-indigo-600 text-white shadow-xs transition">All</button>
+                    </div>
                     <span id="verifiedCheckBadge" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/70 flex items-center gap-1.5">
                         <span class="w-2 h-2 rounded-full bg-indigo-600 animate-pulse"></span>
                         <span id="verifiedCheckText">{{ price_history|length if price_history else 0 }} Verified Checks</span>
@@ -372,11 +421,31 @@
                 </div>
             </div>
 
+            <!-- 4-Tile Benchmark Summary Ribbon -->
+            <div id="historySummaryRibbon" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-5">
+                <div class="rounded-2xl bg-slate-50 border border-slate-200/80 px-3.5 py-2.5">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Period High</span>
+                    <span id="histPeakPrice" class="text-sm sm:text-base font-black text-slate-800 tabular-nums">{{ (mrp or cp)|format_inr }}</span>
+                </div>
+                <div class="rounded-2xl bg-slate-50 border border-slate-200/80 px-3.5 py-2.5">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Average Price</span>
+                    <span id="histAvgPrice" class="text-sm sm:text-base font-black text-slate-800 tabular-nums">{{ cp|format_inr }}</span>
+                </div>
+                <div class="rounded-2xl bg-amber-50/60 border border-amber-200/80 px-3.5 py-2.5">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">Lowest Tracked</span>
+                    <span id="histLowPrice" class="text-sm sm:text-base font-black text-amber-900 tabular-nums">{{ (atl or cp)|format_inr }}</span>
+                </div>
+                <div class="rounded-2xl bg-emerald-50/60 border border-emerald-200/80 px-3.5 py-2.5">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">Below Peak</span>
+                    <span id="histDropFromPeak" class="text-sm sm:text-base font-black text-emerald-800 tabular-nums">—</span>
+                </div>
+            </div>
+
             <!-- SVG Chart Container -->
-            <div class="w-full bg-slate-50/70 border border-slate-100 rounded-2xl p-4 sm:p-6 relative">
+            <div class="w-full bg-slate-50/70 border border-slate-100 rounded-2xl p-3 sm:p-6 relative">
                 <div id="chartContainer" class="w-full h-60 sm:h-72 relative">
                     <div id="chartSvgWrapper" class="w-full h-full"></div>
-                    <div id="chartTooltip" class="absolute hidden pointer-events-none text-white text-xs px-3.5 py-2.5 rounded-xl font-mono z-30 border border-slate-700/80 transition-opacity duration-100" style="background-color: #0f172a; box-shadow: 0 12px 30px -4px rgba(15, 23, 42, 0.4), 0 4px 8px -2px rgba(15, 23, 42, 0.2);">
+                    <div id="chartTooltip" class="absolute hidden pointer-events-none text-white text-xs px-3.5 py-2.5 rounded-xl font-sans z-30 border border-slate-700/80" style="background-color: #0f172a; box-shadow: 0 12px 30px -4px rgba(15, 23, 42, 0.4), 0 4px 8px -2px rgba(15, 23, 42, 0.2);">
                         <!-- Tooltip content -->
                     </div>
                 </div>
@@ -385,7 +454,7 @@
             <div class="flex items-center justify-between gap-4 mt-4 text-xs text-slate-500 flex-wrap">
                 <div class="flex items-center gap-4 flex-wrap">
                     <span class="flex items-center gap-1.5 font-medium">
-                        <span class="w-3 h-1 bg-indigo-600 rounded-full inline-block"></span> Verified Price Check
+                        <span class="w-3 h-1 bg-indigo-600 rounded-full inline-block"></span> Stepped Price Timeline
                     </span>
                     {% if atl %}
                     <span id="atlChartLegend" class="flex items-center gap-1.5 font-medium">
@@ -393,7 +462,7 @@
                     </span>
                     {% endif %}
                 </div>
-                <div class="text-[11px] text-slate-400 font-mono">
+                <div class="text-[11px] text-slate-400 font-medium">
                     Updated {{ product.last_checked|time_ago if product.last_checked else "recently" }}
                 </div>
             </div>
@@ -402,7 +471,8 @@
             <div id="priceHistoryTableCard" class="mt-6 pt-5 border-t border-slate-100">
                 <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
                     <h3 class="text-xs sm:text-sm font-extrabold text-slate-800 flex items-center gap-1.5">
-                        <span>📅</span> Complete Date-by-Date Price Log (<span id="historyLogCount">{{ price_history|length if price_history else 0 }}</span> Recorded Dates)
+                        <span class="shrink-0">📅</span>
+                        <span>Complete Date-by-Date Price Log (<span id="historyLogCount">{{ price_history|length if price_history else 0 }}</span> Recorded Dates)</span>
                     </h3>
                     <span class="text-[11px] text-slate-400 font-medium">Every recorded date in timeline</span>
                 </div>
@@ -411,13 +481,14 @@
                         <table class="w-full text-left text-xs text-slate-600">
                             <thead class="bg-slate-100 text-[11px] font-bold uppercase tracking-wider text-slate-500 sticky top-0 border-b border-slate-200/80 z-10">
                                 <tr>
-                                    <th class="px-4 py-2.5">Recorded Date</th>
-                                    <th class="px-4 py-2.5">Verified Price</th>
-                                    <th class="px-4 py-2.5">Savings vs MRP</th>
-                                    <th class="px-4 py-2.5 text-right">Market Status</th>
+                                    <th class="px-3.5 sm:px-4 py-2.5">Recorded Date</th>
+                                    <th class="px-3.5 sm:px-4 py-2.5">Verified Price</th>
+                                    <th class="px-3.5 sm:px-4 py-2.5">Change</th>
+                                    <th class="px-3.5 sm:px-4 py-2.5">Savings vs MRP</th>
+                                    <th class="px-3.5 sm:px-4 py-2.5 text-right">Market Status</th>
                                 </tr>
                             </thead>
-                            <tbody id="priceHistoryTableBody" class="divide-y divide-slate-100 font-mono text-[11px] bg-white">
+                            <tbody id="priceHistoryTableBody" class="divide-y divide-slate-100 text-xs bg-white tabular-nums">
                                 <!-- Populated dynamically by JS -->
                             </tbody>
                         </table>
@@ -703,13 +774,95 @@
             </a>
         </div>
 
-        <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
             {% for deal in related_deals %}
                 {% include "consumer/partials/product_card.html" %}
             {% endfor %}
         </div>
     </section>
     {% endif %}
+
+    <!-- ── Mobile Sticky Bottom Buy Bar ──────────────────────────────────── -->
+    <div id="mobileStickyDealBar"
+         class="fixed bottom-[54px] inset-x-0 z-[45] lg:hidden bg-white/95 backdrop-blur-md border-t border-slate-200 px-3.5 py-2.5 shadow-[0_-8px_30px_rgba(15,23,42,0.12)] translate-y-full opacity-0 pointer-events-none transition-all duration-200">
+        <div class="max-w-7xl mx-auto flex items-center justify-between gap-2.5">
+            <div class="min-w-0 flex-1">
+                <div class="flex items-baseline gap-1.5 flex-wrap">
+                    <span class="text-base font-black text-slate-900 tabular-nums">{{ cp|format_inr }}</span>
+                    {% if has_discount and mrp > cp %}
+                    <span class="text-[11px] text-slate-400 line-through tabular-nums">{{ mrp|format_inr }}</span>
+                    {% endif %}
+                    {% if discount_pct > 0 %}
+                    <span class="text-[10px] font-extrabold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 tabular-nums">-{{ discount_pct }}%</span>
+                    {% endif %}
+                </div>
+                <p class="text-[11px] font-medium text-slate-500 truncate">{{ product.title }}</p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <button type="button" onclick="handleHomeWatchlist(this, {{ pid }})" data-pid="{{ pid }}"
+                        class="p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 hover:text-rose-500 transition"
+                        aria-label="Save to Watchlist">
+                    <i data-lucide="heart" class="w-4 h-4"></i>
+                </button>
+                <a href="{{ buy_url }}" target="_blank" rel="noopener noreferrer"
+                   class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black flex items-center gap-1.5 shadow-md shadow-indigo-600/25 whitespace-nowrap">
+                    <span>Get Deal</span>
+                    <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Target Price Drop Alert Modal ─────────────────────────────────── -->
+    <div id="priceAlertModalOverlay"
+         class="fixed inset-0 z-[210] hidden items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+         onclick="if(event.target === this) closePriceAlertModal()">
+        <div class="bg-white rounded-3xl w-full max-w-md p-5 sm:p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div class="flex items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                <div class="flex items-center gap-2">
+                    <span class="w-9 h-9 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-base">🔔</span>
+                    <div>
+                        <h3 class="text-sm sm:text-base font-black text-slate-900">Set Price Drop Alert</h3>
+                        <p class="text-[11px] text-slate-500">Current price: <span class="font-bold text-slate-700">{{ cp|format_inr }}</span></p>
+                    </div>
+                </div>
+                <button type="button" onclick="closePriceAlertModal()" class="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition" aria-label="Close modal">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <form onsubmit="savePriceAlert(event)" class="mt-4 space-y-4">
+                <div>
+                    <label class="text-[11px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5">Quick Target Pick</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" onclick="setQuickTargetPrice(0.9)" class="px-2.5 py-2 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 text-xs font-bold text-slate-700 transition">10% Less</button>
+                        <button type="button" onclick="setQuickTargetPrice(0.8)" class="px-2.5 py-2 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 text-xs font-bold text-slate-700 transition">20% Less</button>
+                        <button type="button" onclick="setQuickTargetPrice('atl')" class="px-2.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-xs font-extrabold text-amber-800 transition">All-Time Low</button>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="targetAlertPriceInput" class="text-[11px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5">Notify me when price drops to or below (₹)</label>
+                    <div class="relative">
+                        <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-extrabold text-slate-400">₹</span>
+                        <input id="targetAlertPriceInput" type="number" min="1" step="1" required
+                               value="{{ ((cp * 0.9)|round|int) if cp > 10 else cp }}"
+                               class="w-full pl-8 pr-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 text-sm font-black text-slate-900 outline-none tabular-nums" />
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-2 pt-1">
+                    <button type="submit" class="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-black transition shadow-md shadow-indigo-600/20">
+                        Save Price Alert on BudgetBy
+                    </button>
+                    <a href="https://t.me/Deal_pulse_alert_bot?start=deal_{{ pid }}" target="_blank" rel="noopener noreferrer"
+                       class="w-full py-2.5 px-4 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 text-xs font-bold flex items-center justify-center gap-1.5 transition">
+                        <span>Get Instant Telegram Alerts via @Deal_pulse_alert_bot ↗</span>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
 
 </main>
 
@@ -719,9 +872,31 @@
     const hasDenseHistory = {{ 'true' if has_dense_history else 'false' }};
     const isBrandNewInit = {{ 'true' if is_brand_new else 'false' }};
     const historyData = {{ price_history|tojson if price_history else '[]' }};
-    const currentPrice = {{ cp }};
-    const atlPrice = {{ atl if atl else cp }};
+    const currentPrice = Math.round(Number({{ cp }}) || 0);
+    const atlPrice = Math.round(Number({{ atl if atl else cp }}) || 0);
+    const mrpVal = Math.round(Number({{ mrp or 0 }}) || 0);
     const pid = {{ pid }};
+
+    // Register deal globally so top/hero/sticky watchlist buttons work seamlessly
+    window._renderedDealsMap = window._renderedDealsMap || {};
+    window._renderedDealsMap[pid] = {
+        id: pid,
+        pid: pid,
+        title: {{ (product.title or '')|tojson }},
+        current_price: currentPrice,
+        mrp: mrpVal || currentPrice,
+        discount_pct: {{ discount_pct or 0 }},
+        platform: {{ (platform or 'amazon')|tojson }},
+        image_url: {{ (product.image_url or '/static/placeholder.svg')|tojson }},
+        affiliate_url: {{ buy_url|tojson }}
+    };
+    if (typeof syncAllWatchlistHearts === 'function') {
+        syncAllWatchlistHearts();
+    } else {
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof syncAllWatchlistHearts === 'function') syncAllWatchlistHearts();
+        });
+    }
 
     const skeleton = document.getElementById('historyLoadingSkeleton');
     const chartCard = document.getElementById('historyChartCard');
@@ -731,10 +906,16 @@
     const svgWrapper = document.getElementById('chartSvgWrapper');
     const tooltip = document.getElementById('chartTooltip');
 
+    let allHistoryPoints = Array.isArray(historyData) ? historyData : [];
     let currentRenderedPoints = null;
-    let currentRenderedAtl = null;
+    let currentRenderedAtl = atlPrice;
+    let activeRangeDays = 'all';
 
     const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    function formatInrClean(val) {
+        return Math.round(Number(val) || 0).toLocaleString('en-IN');
+    }
 
     function parseDateParts(raw) {
         if (!raw) return null;
@@ -755,12 +936,21 @@
         return null;
     }
 
+    function parseDateTimestamp(raw) {
+        if (!raw) return null;
+        const lower = String(raw).trim().toLowerCase();
+        if (lower === 'current' || lower === 'now' || lower === 'today') return Date.now();
+        const p = parseDateParts(raw);
+        if (!p) return null;
+        return new Date(p.year, p.month, p.day).getTime();
+    }
+
     function formatDateLabel(rawDate) {
         if (!rawDate) return '';
         const lower = String(rawDate).trim().toLowerCase();
         if (lower === 'current' || lower === 'now') return 'Current';
         if (lower === 'today') return 'Today';
-        if (lower === 'previous' || lower === 'initial') return 'Initial Check';
+        if (lower === 'previous' || lower === 'initial') return 'Initial';
 
         const p = parseDateParts(rawDate);
         if (!p) return String(rawDate).slice(0, 10);
@@ -783,58 +973,166 @@
         return `${p.day} ${MONTHS_SHORT[p.month]} ${p.year}`;
     }
 
+    function filterPointsByRange(points, rangeKey) {
+        if (!Array.isArray(points) || points.length <= 2 || !rangeKey || rangeKey === 'all') {
+            return points;
+        }
+        const days = Number(rangeKey);
+        if (!days || days <= 0) return points;
+
+        const timestamps = points.map(p => parseDateTimestamp(p.date));
+        const validTs = timestamps.filter(ts => ts !== null);
+        if (validTs.length < 2) return points;
+
+        const maxTs = Math.max(...validTs);
+        const cutoff = maxTs - days * 86400000;
+        const filtered = points.filter((p, idx) => {
+            const ts = timestamps[idx];
+            return ts === null || ts >= cutoff;
+        });
+
+        if (filtered.length < 2) {
+            return points.slice(-Math.min(points.length, 2));
+        }
+        return filtered;
+    }
+
+    function computeNiceBounds(minVal, maxVal) {
+        const lo = Math.max(0, minVal);
+        const hi = Math.max(lo + 1, maxVal);
+        const rawSpan = hi - lo;
+        const paddedMin = Math.max(0, lo - rawSpan * 0.12);
+        const paddedMax = hi + rawSpan * 0.14;
+        const roughStep = Math.max(1, (paddedMax - paddedMin) / 4);
+        const pow10 = Math.pow(10, Math.floor(Math.log10(roughStep)));
+        const norm = roughStep / pow10;
+        let niceMult = 1;
+        if (norm > 5) niceMult = 10;
+        else if (norm > 2.5) niceMult = 5;
+        else if (norm > 2) niceMult = 2.5;
+        else if (norm > 1) niceMult = 2;
+
+        let step = Math.max(1, Math.round(niceMult * pow10));
+        let niceMin = Math.max(0, Math.floor(paddedMin / step) * step);
+        let niceMax = Math.ceil(paddedMax / step) * step;
+        if (niceMax <= niceMin) niceMax = niceMin + step * 3;
+        while ((niceMax - niceMin) / step > 5) {
+            step = step * 2;
+            niceMin = Math.max(0, Math.floor(paddedMin / step) * step);
+            niceMax = Math.ceil(paddedMax / step) * step;
+        }
+
+        const ticks = [];
+        for (let v = niceMin; v <= niceMax + 0.001; v += step) {
+            ticks.push(Math.round(v));
+        }
+        return { minPrice: niceMin, maxPrice: niceMax, ticks };
+    }
+
+    function updateHistorySummaryRibbon(points, effectiveAtl) {
+        if (!Array.isArray(points) || points.length === 0) return;
+        const prices = points.map(p => Math.round(Number(p.price) || currentPrice)).filter(v => v > 0);
+        if (prices.length === 0) return;
+
+        const peakPrice = Math.max(...prices, mrpVal > currentPrice ? mrpVal : 0);
+        const avgPrice = Math.round(prices.reduce((acc, v) => acc + v, 0) / prices.length);
+        const trackedLow = Math.min(...prices, effectiveAtl > 0 ? effectiveAtl : Infinity);
+        const dropVsPeak = peakPrice > currentPrice ? Math.round(((peakPrice - currentPrice) / peakPrice) * 100) : 0;
+
+        const elPeak = document.getElementById('histPeakPrice');
+        const elAvg = document.getElementById('histAvgPrice');
+        const elLow = document.getElementById('histLowPrice');
+        const elDrop = document.getElementById('histDropFromPeak');
+        const elBadge = document.getElementById('verifiedCheckText');
+
+        if (elPeak) elPeak.textContent = `₹${formatInrClean(peakPrice)}`;
+        if (elAvg) elAvg.textContent = `₹${formatInrClean(avgPrice)}`;
+        if (elLow) elLow.textContent = `₹${formatInrClean(trackedLow)}`;
+        if (elDrop) {
+            elDrop.textContent = dropVsPeak > 0 ? `${dropVsPeak}% Off Peak` : 'At Peak';
+        }
+        if (elBadge) {
+            elBadge.textContent = `${points.length} Verified Checks`;
+        }
+    }
+
+    window.setChartRange = function(rangeKey) {
+        activeRangeDays = rangeKey || 'all';
+        document.querySelectorAll('#chartRangeSelector .chart-range-pill').forEach(btn => {
+            const isSelected = btn.getAttribute('data-range') === String(activeRangeDays);
+            btn.className = isSelected
+                ? 'chart-range-pill px-2.5 py-1 rounded-lg text-[11px] font-extrabold bg-indigo-600 text-white shadow-xs transition'
+                : 'chart-range-pill px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-600 hover:text-slate-900 transition';
+        });
+        const subset = filterPointsByRange(allHistoryPoints, activeRangeDays);
+        if (subset && subset.length >= 2) {
+            renderSvgChart(subset, currentRenderedAtl);
+        }
+    };
+
     function renderSvgChart(points, customAtl) {
         if (!svgWrapper || !container || !Array.isArray(points) || points.length < 2) return;
         currentRenderedPoints = points;
-        currentRenderedAtl = (customAtl !== undefined && customAtl !== null) ? customAtl : atlPrice;
+        currentRenderedAtl = (customAtl !== undefined && customAtl !== null) ? Math.round(Number(customAtl)) : atlPrice;
 
         const effectiveAtl = currentRenderedAtl;
+        const cleanPrices = points.map(p => Math.round(Number(p.price) || currentPrice));
+        updateHistorySummaryRibbon(points, effectiveAtl);
+
+        const allVals = [...cleanPrices];
+        if (effectiveAtl > 0) allVals.push(effectiveAtl);
+        if (currentPrice > 0) allVals.push(currentPrice);
+
+        const { minPrice, maxPrice, ticks } = computeNiceBounds(Math.min(...allVals), Math.max(...allVals));
+        const priceRange = Math.max(1, maxPrice - minPrice);
+
+        const maxLabelChars = Math.max(...ticks.map(t => `₹${t.toLocaleString('en-IN')}`.length), 4);
         const width = container.clientWidth || 600;
         const height = container.clientHeight || 260;
-        const padLeft = 52;
-        const padRight = 24;
+        const padLeft = Math.max(54, maxLabelChars * 6.5 + 16);
+        const padRight = 18;
         const padTop = 26;
-        const padBottom = 44;
+        const padBottom = 42;
 
         const plotWidth = Math.max(10, width - padLeft - padRight);
         const plotHeight = Math.max(10, height - padTop - padBottom);
 
-        const prices = points.map(p => Number(p.price) || currentPrice);
-        if (effectiveAtl) prices.push(effectiveAtl);
-        if (currentPrice) prices.push(currentPrice);
-
-        const minPrice = Math.floor(Math.min(...prices) * 0.95);
-        const maxPrice = Math.ceil(Math.max(...prices) * 1.05);
-        const priceRange = Math.max(1, maxPrice - minPrice);
-
         const getX = (idx) => padLeft + (idx / Math.max(1, points.length - 1)) * plotWidth;
         const getY = (price) => padTop + plotHeight - ((price - minPrice) / priceRange) * plotHeight;
 
-        let pathD = `M ${getX(0)} ${getY(points[0].price)}`;
+        // Stepped Price Path (retail prices hold constant between price changes)
+        let pathD = `M ${getX(0)} ${getY(cleanPrices[0])}`;
         for (let i = 1; i < points.length; i++) {
-            pathD += ` L ${getX(i)} ${getY(points[i].price)}`;
+            const xCurr = getX(i);
+            const yCurr = getY(cleanPrices[i]);
+            pathD += ` H ${xCurr} V ${yCurr}`;
         }
 
         const areaD = `${pathD} L ${getX(points.length - 1)} ${padTop + plotHeight} L ${getX(0)} ${padTop + plotHeight} Z`;
-        const atlY = effectiveAtl ? getY(effectiveAtl) : 0;
+        const atlY = effectiveAtl > 0 ? getY(effectiveAtl) : null;
 
-        // X-Axis baseline and ticks logic
-        let xAxisSvg = `
-            <!-- X-Axis Line -->
-            <line x1="${padLeft}" y1="${padTop + plotHeight}" x2="${width - padRight}" y2="${padTop + plotHeight}" stroke="#cbd5e1" stroke-width="1.5"/>
-        `;
+        // Horizontal Y-axis gridlines & labels
+        let yGridSvg = '';
+        ticks.forEach((tickVal, idx) => {
+            const yPos = getY(tickVal);
+            if (idx > 0) {
+                yGridSvg += `<line x1="${padLeft}" y1="${yPos}" x2="${width - padRight}" y2="${yPos}" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4 3"/>`;
+            }
+            yGridSvg += `<text x="${padLeft - 10}" y="${yPos + 3.5}" font-size="10" font-weight="600" fill="#64748b" font-family="ui-sans-serif, system-ui, sans-serif" text-anchor="end">₹${tickVal.toLocaleString('en-IN')}</text>`;
+        });
+
+        // X-Axis baseline and spaced ticks
+        let xAxisSvg = `<line x1="${padLeft}" y1="${padTop + plotHeight}" x2="${width - padRight}" y2="${padTop + plotHeight}" stroke="#cbd5e1" stroke-width="1.5"/>`;
 
         const totalPoints = points.length;
-        let tickIndices = [];
-        if (totalPoints <= 6) {
+        const tickIndices = [];
+        if (totalPoints <= 5) {
             for (let i = 0; i < totalPoints; i++) tickIndices.push(i);
         } else {
-            const numTicks = width < 480 ? 4 : 7;
+            const numTicks = width < 480 ? 4 : 6;
             for (let k = 0; k < numTicks; k++) {
                 const idx = Math.min(totalPoints - 1, Math.round(k * (totalPoints - 1) / (numTicks - 1)));
-                if (!tickIndices.includes(idx)) {
-                    tickIndices.push(idx);
-                }
+                if (!tickIndices.includes(idx)) tickIndices.push(idx);
             }
         }
 
@@ -846,18 +1144,29 @@
             const label = formatDateLabel(points[idx].date);
 
             xAxisSvg += `
-                <!-- Tick Mark -->
                 <line x1="${x}" y1="${padTop + plotHeight}" x2="${x}" y2="${padTop + plotHeight + 5}" stroke="#94a3b8" stroke-width="1.5"/>
-                <!-- Tick Label -->
                 <text x="${x}" y="${padTop + plotHeight + 20}" font-size="11" font-weight="600" fill="#64748b" text-anchor="${anchor}">${label}</text>
             `;
         });
 
-        let svg = `
+        // Draw crisp dots: all points when <= 45, or key change points on dense multi-month series
+        const denseMode = points.length > 45;
+        const staticDotsSvg = points.map((p, i) => {
+            const isEdge = i === 0 || i === points.length - 1;
+            const changed = i > 0 && cleanPrices[i] !== cleanPrices[i - 1];
+            const isLowest = effectiveAtl > 0 && Math.abs(cleanPrices[i] - effectiveAtl) < 1;
+            if (denseMode && !isEdge && !changed && !isLowest) return '';
+            const r = denseMode ? 3.2 : 4.2;
+            const fill = isLowest ? '#f59e0b' : '#ffffff';
+            const stroke = isLowest ? '#b45309' : '#4f46e5';
+            return `<circle cx="${getX(i)}" cy="${getY(cleanPrices[i])}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="2" />`;
+        }).join('');
+
+        const svg = `
         <svg width="100%" height="100%" viewBox="0 0 ${width} ${height}" class="overflow-visible select-none">
             <defs>
                 <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="#4f46e5" stop-opacity="0.22"/>
+                    <stop offset="0%" stop-color="#4f46e5" stop-opacity="0.20"/>
                     <stop offset="100%" stop-color="#4f46e5" stop-opacity="0.0"/>
                 </linearGradient>
             </defs>
@@ -865,151 +1174,155 @@
             <!-- Y-Axis Header -->
             <text x="${padLeft}" y="${padTop - 10}" font-size="9" font-weight="700" fill="#94a3b8" text-anchor="start" letter-spacing="0.5">PRICE (₹)</text>
 
-            <!-- Horizontal Grid Lines -->
-            <line x1="${padLeft}" y1="${padTop}" x2="${width - padRight}" y2="${padTop}" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4"/>
-            <line x1="${padLeft}" y1="${padTop + plotHeight / 2}" x2="${width - padRight}" y2="${padTop + plotHeight / 2}" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4"/>
-
-            <!-- Y-Axis Labels -->
-            <text x="${padLeft - 10}" y="${padTop + 4}" font-size="10" font-weight="600" fill="#94a3b8" font-family="monospace" text-anchor="end">₹${maxPrice.toLocaleString('en-IN')}</text>
-            <text x="${padLeft - 10}" y="${padTop + plotHeight / 2 + 3}" font-size="10" font-weight="600" fill="#94a3b8" font-family="monospace" text-anchor="end">₹${Math.round((maxPrice + minPrice) / 2).toLocaleString('en-IN')}</text>
-            <text x="${padLeft - 10}" y="${padTop + plotHeight + 3}" font-size="10" font-weight="600" fill="#94a3b8" font-family="monospace" text-anchor="end">₹${minPrice.toLocaleString('en-IN')}</text>
+            <!-- Horizontal Y-Axis Gridlines & Rounded Rupee Labels -->
+            ${yGridSvg}
 
             <!-- ATL Reference Line -->
-            ${effectiveAtl ? `
+            ${atlY !== null ? `
             <line x1="${padLeft}" y1="${atlY}" x2="${width - padRight}" y2="${atlY}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4 3"/>
             ` : ''}
 
-            <!-- Area & Line Path -->
+            <!-- Area & Stepped Price Line -->
             <path d="${areaD}" fill="url(#chartGradient)"/>
             <path d="${pathD}" fill="none" stroke="#4f46e5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
 
             <!-- X-Axis Line & Date Ticks -->
             ${xAxisSvg}
 
-            <!-- Static Visible Circles (Zero hover scaling, non-interactive to eliminate flicker) -->
+            <!-- Static Key-Point Circles -->
             <g class="pointer-events-none">
-                ${points.map((p, i) => `
-                    <circle id="dot-static-${i}" cx="${getX(i)}" cy="${getY(p.price)}" r="4.5" fill="#ffffff" stroke="#4f46e5" stroke-width="2.5" class="transition-opacity duration-150" />
-                `).join('')}
+                ${staticDotsSvg}
             </g>
 
-            <!-- Dynamic Crosshair Guideline & Hover Highlight (Pointer-events-none) -->
+            <!-- Smooth Crosshair Guideline & Hover Highlight (Pointer-events-none) -->
             <g class="pointer-events-none">
-                <line id="chartHoverGuide" x1="0" y1="${padTop}" x2="0" y2="${padTop + plotHeight}" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="3 3" opacity="0" class="transition-opacity duration-150" />
-                <circle id="chartHoverHalo" cx="0" cy="0" r="12" fill="#4f46e5" fill-opacity="0.18" opacity="0" class="transition-all duration-150" />
-                <circle id="chartHoverDot" cx="0" cy="0" r="6" fill="#4f46e5" stroke="#ffffff" stroke-width="2.5" opacity="0" class="transition-all duration-150" />
+                <line id="chartHoverGuide" x1="0" y1="${padTop}" x2="0" y2="${padTop + plotHeight}" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="3 3" opacity="0" />
+                <circle id="chartHoverHalo" cx="0" cy="0" r="11" fill="#4f46e5" fill-opacity="0.18" opacity="0" />
+                <circle id="chartHoverDot" cx="0" cy="0" r="5.5" fill="#4f46e5" stroke="#ffffff" stroke-width="2.5" opacity="0" />
             </g>
 
-            <!-- Generous Invisible Hit Targets (r=22 means 44px touch target; zero scaling, ZERO FLICKER) -->
-            <g id="chartHitTargets">
-                ${points.map((p, i) => `
-                    <circle cx="${getX(i)}" cy="${getY(p.price)}" r="22" fill="transparent" class="cursor-pointer" 
-                            data-index="${i}" data-date="${p.date}" data-price="${p.price}" />
-                `).join('')}
-            </g>
+            <!-- Single Full-Plot Interaction Rect (ZERO overlap, ZERO hover flicker) -->
+            <rect id="chartPointerOverlay" x="${padLeft}" y="${padTop}" width="${plotWidth}" height="${plotHeight}" fill="transparent" class="cursor-crosshair" style="touch-action: pan-y;" />
         </svg>
         `;
 
         svgWrapper.innerHTML = svg;
 
-        // Attach Tooltip & Hover Handlers
+        // Attach single-overlay continuous crosshair tracking
         const activeTooltip = document.getElementById('chartTooltip');
         const guide = svgWrapper.querySelector('#chartHoverGuide');
         const halo = svgWrapper.querySelector('#chartHoverHalo');
         const dot = svgWrapper.querySelector('#chartHoverDot');
-        const hitTargets = svgWrapper.querySelectorAll('#chartHitTargets circle');
+        const overlay = svgWrapper.querySelector('#chartPointerOverlay');
+        let lastHoveredIdx = -1;
 
-        hitTargets.forEach(target => {
-            const idx = parseInt(target.getAttribute('data-index'), 10);
-            const staticDot = svgWrapper.querySelector(`#dot-static-${idx}`);
+        function renderHoverIndex(idx) {
+            if (idx < 0 || idx >= points.length) return;
+            const cx = getX(idx);
+            const pNum = cleanPrices[idx];
+            const cy = getY(pNum);
+            const rawDate = points[idx].date;
+            const pFormatted = pNum.toLocaleString('en-IN');
+            const dateFormatted = formatDateFull(rawDate);
 
-            function onEnter() {
-                const cx = parseFloat(target.getAttribute('cx'));
-                const cy = parseFloat(target.getAttribute('cy'));
-                const rawDate = target.getAttribute('data-date');
-                const pNum = Number(target.getAttribute('data-price'));
-                const pFormatted = pNum.toLocaleString('en-IN');
-                const dateFormatted = formatDateFull(rawDate);
+            if (guide) {
+                guide.setAttribute('x1', cx);
+                guide.setAttribute('x2', cx);
+                guide.setAttribute('opacity', '1');
+            }
+            if (halo) {
+                halo.setAttribute('cx', cx);
+                halo.setAttribute('cy', cy);
+                halo.setAttribute('opacity', '1');
+            }
+            if (dot) {
+                dot.setAttribute('cx', cx);
+                dot.setAttribute('cy', cy);
+                dot.setAttribute('opacity', '1');
+            }
 
-                if (guide) {
-                    guide.setAttribute('x1', cx);
-                    guide.setAttribute('x2', cx);
-                    guide.setAttribute('opacity', '1');
+            const isPointAtl = (effectiveAtl > 0 && Math.abs(pNum - effectiveAtl) < 1);
+            let deltaHtml = '';
+            if (idx > 0) {
+                const prevP = cleanPrices[idx - 1];
+                const diff = pNum - prevP;
+                if (diff < 0) {
+                    deltaHtml = `<span class="text-[10px] font-bold text-emerald-400">▼ ₹${Math.abs(diff).toLocaleString('en-IN')}</span>`;
+                } else if (diff > 0) {
+                    deltaHtml = `<span class="text-[10px] font-bold text-rose-400">▲ ₹${diff.toLocaleString('en-IN')}</span>`;
                 }
-                if (halo) {
-                    halo.setAttribute('cx', cx);
-                    halo.setAttribute('cy', cy);
-                    halo.setAttribute('opacity', '1');
-                }
-                if (dot) {
-                    dot.setAttribute('cx', cx);
-                    dot.setAttribute('cy', cy);
-                    dot.setAttribute('opacity', '1');
-                }
-                if (staticDot) {
-                    staticDot.setAttribute('opacity', '0');
-                }
+            }
 
-                const isPointAtl = (effectiveAtl && Math.abs(pNum - effectiveAtl) < 0.5);
-
-                if (activeTooltip) {
+            if (activeTooltip) {
+                if (idx !== lastHoveredIdx) {
                     activeTooltip.innerHTML = `
                         <div class="flex items-center gap-2 mb-0.5">
-                            <span class="text-sm font-black text-indigo-300">₹${pFormatted}</span>
-                            ${isPointAtl ? '<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-400 text-amber-950">★ All-Time Low</span>' : ''}
+                            <span class="text-sm font-black text-indigo-300 tabular-nums">₹${pFormatted}</span>
+                            ${deltaHtml}
+                            ${isPointAtl ? '<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-400 text-amber-950">★ ATL</span>' : ''}
                         </div>
-                        <div class="text-[11px] text-slate-300 font-sans flex items-center gap-1.5 whitespace-nowrap">
+                        <div class="text-[11px] text-slate-300 flex items-center gap-1.5 whitespace-nowrap">
                             <svg class="w-3 h-3 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                             <span>${dateFormatted}</span>
                         </div>
                     `;
-
-                    // Exact position relative to container
-                    const targetRect = target.getBoundingClientRect();
-                    const containerRect = container.getBoundingClientRect();
-                    const cxPx = targetRect.left + targetRect.width / 2 - containerRect.left;
-                    const cyPx = targetRect.top + targetRect.height / 2 - containerRect.top;
-
-                    activeTooltip.style.left = `${cxPx}px`;
-
-                    if (cyPx < 65) {
-                        activeTooltip.style.top = `${cyPx + 14}px`;
-                        if (cxPx < 70) {
-                            activeTooltip.style.transform = 'translateX(-15%)';
-                        } else if (cxPx > containerRect.width - 70) {
-                            activeTooltip.style.transform = 'translateX(-85%)';
-                        } else {
-                            activeTooltip.style.transform = 'translateX(-50%)';
-                        }
-                    } else {
-                        activeTooltip.style.top = `${cyPx - 14}px`;
-                        if (cxPx < 70) {
-                            activeTooltip.style.transform = 'translate(-15%, -100%)';
-                        } else if (cxPx > containerRect.width - 70) {
-                            activeTooltip.style.transform = 'translate(-85%, -100%)';
-                        } else {
-                            activeTooltip.style.transform = 'translate(-50%, -100%)';
-                        }
-                    }
-
-                    activeTooltip.classList.remove('hidden');
                 }
+
+                const containerWidth = container.clientWidth || width;
+                const containerHeight = container.clientHeight || height;
+                const cxPx = (cx / width) * containerWidth;
+                const cyPx = (cy / height) * containerHeight;
+
+                activeTooltip.style.left = `${cxPx}px`;
+                if (cyPx < 68) {
+                    activeTooltip.style.top = `${cyPx + 14}px`;
+                    activeTooltip.style.transform = cxPx < 90
+                        ? 'translateX(-12%)'
+                        : (cxPx > containerWidth - 90 ? 'translateX(-88%)' : 'translateX(-50%)');
+                } else {
+                    activeTooltip.style.top = `${cyPx - 14}px`;
+                    activeTooltip.style.transform = cxPx < 90
+                        ? 'translate(-12%, -100%)'
+                        : (cxPx > containerWidth - 90 ? 'translate(-88%, -100%)' : 'translate(-50%, -100%)');
+                }
+                activeTooltip.classList.remove('hidden');
             }
 
-            function onLeave() {
-                if (guide) guide.setAttribute('opacity', '0');
-                if (halo) halo.setAttribute('opacity', '0');
-                if (dot) dot.setAttribute('opacity', '0');
-                if (staticDot) staticDot.setAttribute('opacity', '1');
-                if (activeTooltip) activeTooltip.classList.add('hidden');
-            }
+            lastHoveredIdx = idx;
+        }
 
-            target.addEventListener('mouseenter', onEnter);
-            target.addEventListener('mouseleave', onLeave);
-            target.addEventListener('touchstart', (e) => {
-                onEnter();
+        function handlePointerClientX(clientX) {
+            const svgEl = svgWrapper.querySelector('svg');
+            if (!svgEl) return;
+            const svgRect = svgEl.getBoundingClientRect();
+            if (!svgRect.width) return;
+            const svgX = ((clientX - svgRect.left) / svgRect.width) * width;
+            const ratio = Math.max(0, Math.min(1, (svgX - padLeft) / plotWidth));
+            const idx = Math.round(ratio * (points.length - 1));
+            if (idx !== lastHoveredIdx) {
+                renderHoverIndex(idx);
+            }
+        }
+
+        function hideHover() {
+            lastHoveredIdx = -1;
+            if (guide) guide.setAttribute('opacity', '0');
+            if (halo) halo.setAttribute('opacity', '0');
+            if (dot) dot.setAttribute('opacity', '0');
+            if (activeTooltip) activeTooltip.classList.add('hidden');
+        }
+
+        if (overlay) {
+            overlay.addEventListener('pointermove', (e) => handlePointerClientX(e.clientX));
+            overlay.addEventListener('pointerdown', (e) => handlePointerClientX(e.clientX));
+            overlay.addEventListener('touchstart', (e) => {
+                if (e.touches && e.touches[0]) handlePointerClientX(e.touches[0].clientX);
             }, { passive: true });
-        });
+            overlay.addEventListener('touchmove', (e) => {
+                if (e.touches && e.touches[0]) handlePointerClientX(e.touches[0].clientX);
+            }, { passive: true });
+            overlay.addEventListener('pointerleave', hideHover);
+        }
 
         populatePriceHistoryTable(points, effectiveAtl);
     }
@@ -1021,15 +1334,29 @@
 
         if (countEl) countEl.textContent = points.length;
 
-        const mrpVal = {{ mrp }};
+        const total = points.length;
         const reversed = [...points].reverse();
 
         tbody.innerHTML = reversed.map((p, idx) => {
+            const origIdx = total - 1 - idx;
             const rawDate = p.date;
-            const pNum = Number(p.price);
+            const pNum = Math.round(Number(p.price) || currentPrice);
             const pFormatted = pNum.toLocaleString('en-IN');
             const dateFormatted = formatDateFull(rawDate);
-            const isAtl = (effectiveAtl && Math.abs(pNum - effectiveAtl) < 0.5);
+            const isAtl = (effectiveAtl > 0 && Math.abs(pNum - effectiveAtl) < 1);
+
+            let changeHtml = '<span class="text-slate-400 font-medium">—</span>';
+            if (origIdx > 0) {
+                const prevPrice = Math.round(Number(points[origIdx - 1].price) || pNum);
+                const stepDiff = pNum - prevPrice;
+                if (stepDiff < 0 && prevPrice > 0) {
+                    const pct = Math.round((Math.abs(stepDiff) / prevPrice) * 100);
+                    changeHtml = `<span class="inline-flex items-center gap-0.5 text-emerald-700 font-bold">▼ ₹${Math.abs(stepDiff).toLocaleString('en-IN')}${pct > 0 ? ` (${pct}%)` : ''}</span>`;
+                } else if (stepDiff > 0 && prevPrice > 0) {
+                    const pct = Math.round((stepDiff / prevPrice) * 100);
+                    changeHtml = `<span class="inline-flex items-center gap-0.5 text-rose-600 font-bold">▲ ₹${stepDiff.toLocaleString('en-IN')}${pct > 0 ? ` (${pct}%)` : ''}</span>`;
+                }
+            }
 
             let savingsText = '-';
             if (mrpVal && mrpVal > pNum) {
@@ -1047,16 +1374,19 @@
 
             return `
                 <tr class="hover:bg-slate-50/80 transition">
-                    <td class="px-4 py-2.5 font-sans font-medium text-slate-800 whitespace-nowrap">
+                    <td class="px-3.5 sm:px-4 py-2.5 font-medium text-slate-800 whitespace-nowrap">
                         ${dateFormatted}
                     </td>
-                    <td class="px-4 py-2.5 font-black text-slate-900 whitespace-nowrap">
+                    <td class="px-3.5 sm:px-4 py-2.5 font-black text-slate-900 whitespace-nowrap">
                         ₹${pFormatted}
                     </td>
-                    <td class="px-4 py-2.5 font-sans text-slate-500 whitespace-nowrap">
+                    <td class="px-3.5 sm:px-4 py-2.5 whitespace-nowrap">
+                        ${changeHtml}
+                    </td>
+                    <td class="px-3.5 sm:px-4 py-2.5 text-slate-500 whitespace-nowrap">
                         ${savingsText}
                     </td>
-                    <td class="px-4 py-2.5 text-right whitespace-nowrap font-sans">
+                    <td class="px-3.5 sm:px-4 py-2.5 text-right whitespace-nowrap">
                         ${statusBadge}
                     </td>
                 </tr>
@@ -1075,17 +1405,115 @@
         }, 120);
     });
 
+    // Mobile Sticky Buy Bar visibility (handles both smooth scroll & instant jump scroll)
+    const heroBuyCta = document.getElementById('heroBuyCtaBtn');
+    const stickyBar = document.getElementById('mobileStickyDealBar');
+    if (heroBuyCta && stickyBar) {
+        let stickyRaf = false;
+        function syncStickyBar() {
+            stickyRaf = false;
+            const rect = heroBuyCta.getBoundingClientRect();
+            if (rect.bottom <= 0) {
+                stickyBar.classList.remove('translate-y-full', 'opacity-0', 'pointer-events-none');
+            } else {
+                stickyBar.classList.add('translate-y-full', 'opacity-0', 'pointer-events-none');
+            }
+        }
+        function scheduleStickySync() {
+            if (!stickyRaf) {
+                stickyRaf = true;
+                requestAnimationFrame(syncStickyBar);
+            }
+        }
+        window.addEventListener('scroll', scheduleStickySync, { passive: true });
+        window.addEventListener('resize', scheduleStickySync, { passive: true });
+        if ('IntersectionObserver' in window) {
+            const obs = new IntersectionObserver(scheduleStickySync, { threshold: [0, 0.1] });
+            obs.observe(heroBuyCta);
+        }
+        syncStickyBar();
+    }
+
+    // Load saved local price alert status for this product
+    function syncSavedPriceAlertUi() {
+        try {
+            const alerts = JSON.parse(localStorage.getItem('budgetby_price_alerts') || '{}');
+            const entry = alerts[String(pid)];
+            const btnText = document.getElementById('heroPriceAlertBtnText');
+            const btn = document.getElementById('heroPriceAlertBtn');
+            const input = document.getElementById('targetAlertPriceInput');
+            if (entry && entry.target && btnText && btn) {
+                btnText.textContent = `Alert ≤ ₹${Number(entry.target).toLocaleString('en-IN')}`;
+                btn.classList.remove('bg-amber-50', 'text-amber-800', 'border-amber-200');
+                btn.classList.add('bg-emerald-50', 'text-emerald-800', 'border-emerald-200');
+                if (input) input.value = Math.round(Number(entry.target));
+            }
+        } catch(e) {}
+    }
+    syncSavedPriceAlertUi();
+
+    window.openPriceAlertModal = function() {
+        const overlay = document.getElementById('priceAlertModalOverlay');
+        if (!overlay) return;
+        overlay.classList.remove('hidden');
+        overlay.classList.add('flex');
+        if (window.lucide && typeof window.lucide.createIcons === 'function') {
+            window.lucide.createIcons();
+        }
+        const input = document.getElementById('targetAlertPriceInput');
+        if (input) setTimeout(() => input.focus(), 50);
+    };
+
+    window.closePriceAlertModal = function() {
+        const overlay = document.getElementById('priceAlertModalOverlay');
+        if (!overlay) return;
+        overlay.classList.add('hidden');
+        overlay.classList.remove('flex');
+    };
+
+    window.setQuickTargetPrice = function(factorOrAtl) {
+        const input = document.getElementById('targetAlertPriceInput');
+        if (!input) return;
+        let targetVal = currentPrice;
+        if (factorOrAtl === 'atl') {
+            targetVal = atlPrice > 0 && atlPrice < currentPrice ? atlPrice : Math.max(1, Math.round(currentPrice * 0.85));
+        } else {
+            targetVal = Math.max(1, Math.round(currentPrice * Number(factorOrAtl)));
+        }
+        input.value = targetVal;
+    };
+
+    window.savePriceAlert = function(e) {
+        if (e) e.preventDefault();
+        const input = document.getElementById('targetAlertPriceInput');
+        const target = Math.max(1, Math.round(Number(input ? input.value : currentPrice * 0.9) || currentPrice));
+        try {
+            const alerts = JSON.parse(localStorage.getItem('budgetby_price_alerts') || '{}');
+            alerts[String(pid)] = {
+                pid: pid,
+                title: (window._renderedDealsMap[pid] && window._renderedDealsMap[pid].title) || '',
+                target: target,
+                current: currentPrice,
+                updated_at: Date.now()
+            };
+            localStorage.setItem('budgetby_price_alerts', JSON.stringify(alerts));
+        } catch(err) {}
+        syncSavedPriceAlertUi();
+        closePriceAlertModal();
+        if (typeof showToast === 'function') {
+            showToast(`Price alert set for ≤ ₹${target.toLocaleString('en-IN')}!`);
+        }
+    };
+
     // 1. Fast Initial Render (SSR baseline)
-    if (hasDenseHistory && historyData && historyData.length >= 2) {
-        renderSvgChart(historyData, atlPrice);
-        // If we already have deep history from local database (>= 15 points), no external lookup needed
-        if (historyData.length >= 15) {
+    if (hasDenseHistory && allHistoryPoints.length >= 2) {
+        renderSvgChart(filterPointsByRange(allHistoryPoints, activeRangeDays), atlPrice);
+        if (allHistoryPoints.length >= 15) {
             return;
         }
     }
 
     // 2. Progressive On-Demand External Fetcher (Strict 2.8s Window)
-    // Always queries external verified sources to upgrade to deep multi-month history!
     let hasResolved = false;
     const controller = new AbortController();
 
@@ -1093,7 +1521,7 @@
         if (hasResolved) return;
         hasResolved = true;
         if (skeleton) skeleton.classList.add('hidden');
-        if (!hasDenseHistory || !historyData || historyData.length < 2) {
+        if (!hasDenseHistory || !allHistoryPoints || allHistoryPoints.length < 2) {
             if (isBrandNew) {
                 if (brandNewCard) brandNewCard.classList.remove('hidden');
             } else {
@@ -1116,20 +1544,18 @@
 
             if (skeleton) skeleton.classList.add('hidden');
 
-            // If external tracker provided more points than our current baseline, upgrade the chart!
             if (data && data.points && data.points.length >= 2) {
-                const currentCount = (historyData && historyData.length) || 0;
+                const currentCount = allHistoryPoints.length || 0;
                 if (data.points.length >= currentCount) {
+                    allHistoryPoints = data.points;
                     if (chartCard) chartCard.classList.remove('hidden');
                     if (brandNewCard) brandNewCard.classList.add('hidden');
                     if (benchmarkCard) benchmarkCard.classList.add('hidden');
 
-                    const badgeText = document.getElementById('verifiedCheckText');
-                    if (badgeText) badgeText.textContent = `${data.count} Verified Checks`;
-
-                    renderSvgChart(data.points, data.lowest_price);
+                    const nextAtl = (data.lowest_price !== undefined && data.lowest_price !== null) ? data.lowest_price : atlPrice;
+                    renderSvgChart(filterPointsByRange(allHistoryPoints, activeRangeDays), nextAtl);
                 }
-            } else if (!hasDenseHistory || !historyData || historyData.length < 2) {
+            } else if (!hasDenseHistory || !allHistoryPoints || allHistoryPoints.length < 2) {
                 if (data && data.is_brand_new) {
                     if (brandNewCard) brandNewCard.classList.remove('hidden');
                 } else {
@@ -1146,6 +1572,9 @@
 function triggerNotifyDrop(pid) {
     const btn = document.getElementById('btnNotifyDrop');
     const msg = document.getElementById('notifyMsg');
+    if (typeof window.openPriceAlertModal === 'function') {
+        window.openPriceAlertModal();
+    }
     if (!btn) return;
     btn.disabled = true;
     btn.innerHTML = `<span class="text-white font-bold flex items-center gap-1"><span>✓</span> Price Drop Alert Active</span>`;

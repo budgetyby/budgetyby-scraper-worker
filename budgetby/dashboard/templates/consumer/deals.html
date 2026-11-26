@@ -84,43 +84,73 @@
     <!-- ── Main Deals Feed & Toolbar ─────────────────────────────────── -->
     <section class="w-full min-w-0">
         
-        <!-- Toolbar: Filter Products Collapsible Button, Matches Counter & Sorting -->
-        <div class="bg-white border border-slate-200/90 rounded-2xl p-3.5 mb-4 flex flex-wrap items-center justify-between gap-3 shadow-sm">
-            <div class="flex items-center gap-2.5">
-                <!-- Filter Products Collapsible Button -->
-                <button onclick="toggleFilterModal()" 
-                        id="filterModalTriggerBtn" 
-                        class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-extrabold text-xs shadow-md shadow-indigo-600/20 transition flex items-center gap-2 shrink-0">
-                    <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
-                    <span>Filter Products</span>
-                    <span id="activeFilterBadge" class="hidden px-1.5 py-0.5 rounded-full bg-white text-indigo-700 font-extrabold text-[10px]">0</span>
-                </button>
+        <!-- Toolbar: Filter Products Collapsible Button, Matches Counter, View Toggle & Sorting -->
+        <div class="bg-white border border-slate-200/90 rounded-2xl p-3 sm:p-3.5 mb-3 shadow-sm space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2.5 sm:gap-3">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <!-- Filter Products Collapsible Button -->
+                    <button onclick="toggleFilterModal()" 
+                            id="filterModalTriggerBtn" 
+                            class="px-3 sm:px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-extrabold text-xs shadow-md shadow-indigo-600/20 transition flex items-center gap-2 shrink-0 whitespace-nowrap">
+                        <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+                        <span>Filter</span><span class="hidden sm:inline">Products</span>
+                        <span id="activeFilterBadge" class="hidden px-1.5 py-0.5 rounded-full bg-white text-indigo-700 font-extrabold text-[10px] leading-none">0</span>
+                    </button>
 
-                <div>
-                    <h2 id="dealsSectionTitle" class="text-sm sm:text-base font-black text-slate-900 leading-tight">
-                        {% if sub_info %}{{ sub_info.name }}{% elif cat_info %}All {{ cat_info.name }}{% else %}All Live Deals & Offers{% endif %}
-                    </h2>
-                    <span class="text-[11px] text-slate-500 font-mono">
-                        Showing <span id="dealsMatchesCount" class="font-bold text-slate-900">{{ initial_data.total_matches if initial_data and initial_data.total_matches else 0 }}</span> products
-                    </span>
+                    <div class="min-w-0">
+                        <h2 id="dealsSectionTitle" class="text-sm sm:text-base font-black text-slate-900 leading-tight truncate">
+                            {% if sub_info %}{{ sub_info.name }}{% elif cat_info %}All {{ cat_info.name }}{% else %}All Live Deals &amp; Offers{% endif %}
+                        </h2>
+                        <span class="text-[11px] text-slate-500 font-medium tabular-nums">
+                            Showing <span id="dealsMatchesCount" class="font-bold text-slate-900">{{ (initial_data.total_matches if initial_data and initial_data.total_matches else 0)|format_num }}</span> products
+                        </span>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 shrink-0">
+                    <!-- Desktop Grid / List Toggle -->
+                    <div class="hidden sm:inline-flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+                        <button type="button" onclick="setDealsViewMode('grid')" id="viewModeGridBtn" class="px-2 py-1 rounded-lg text-xs font-bold bg-white text-indigo-600 shadow-2xs transition flex items-center gap-1" title="Grid View">
+                            <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <button type="button" onclick="setDealsViewMode('list')" id="viewModeListBtn" class="px-2 py-1 rounded-lg text-xs font-bold text-slate-500 hover:text-slate-900 transition flex items-center gap-1" title="Compact List View">
+                            <i data-lucide="list" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+
+                    <label for="dealsSortSelect" class="text-xs font-bold text-slate-500 hidden md:inline">Sort:</label>
+                    <select id="dealsSortSelect" onchange="onSortChange(this.value)" class="bg-slate-50 border border-slate-300 rounded-xl px-2.5 sm:px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 transition font-bold">
+                        <option value="latest" {% if not current_sort or current_sort == 'latest' %}selected{% endif %}>⚡ Recently Added</option>
+                        <option value="score_desc" {% if current_sort == 'score_desc' or current_sort == 'best' %}selected{% endif %}>🎯 Best Deal Quality</option>
+                        <option value="discount_desc" {% if current_sort == 'discount_desc' %}selected{% endif %}>🔥 Highest Discount %</option>
+                        <option value="price_asc" {% if current_sort == 'price_asc' %}selected{% endif %}>💰 Price: Low to High</option>
+                        <option value="price_desc" {% if current_sort == 'price_desc' %}selected{% endif %}>💎 Price: High to Low</option>
+                    </select>
                 </div>
             </div>
 
-            <div class="flex items-center gap-2">
-                <label for="dealsSortSelect" class="text-xs font-bold text-slate-500 hidden sm:inline">Sort By:</label>
-                <select id="dealsSortSelect" onchange="onSortChange(this.value)" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 transition font-bold">
-                    <option value="latest" {% if not current_sort or current_sort == 'latest' %}selected{% endif %}>⚡ Recently Added</option>
-                    <option value="score_desc" {% if current_sort == 'score_desc' or current_sort == 'best' %}selected{% endif %}>🎯 Best Deal Quality</option>
-                    <option value="discount_desc" {% if current_sort == 'discount_desc' %}selected{% endif %}>🔥 Highest Discount %</option>
-                    <option value="price_asc" {% if current_sort == 'price_asc' %}selected{% endif %}>💰 Price: Low to High</option>
-                    <option value="price_desc" {% if current_sort == 'price_desc' %}selected{% endif %}>💎 Price: High to Low</option>
-                </select>
+            <!-- 1-Tap Quick Store & Budget Filter Pills -->
+            <div class="pt-2.5 border-t border-slate-100 flex items-center gap-1.5 overflow-x-auto no-scrollbar text-[11px] font-bold">
+                <button type="button" onclick="quickSetStore('')" data-quick-store="" class="quick-store-pill px-2.5 py-1 rounded-lg whitespace-nowrap shrink-0 transition {% if not current_platform %}bg-slate-900 text-white shadow-2xs{% else %}bg-slate-100 hover:bg-slate-200 text-slate-700{% endif %}">All Stores</button>
+                <button type="button" onclick="quickSetStore('amazon')" data-quick-store="amazon" class="quick-store-pill px-2.5 py-1 rounded-lg whitespace-nowrap shrink-0 flex items-center gap-1.5 transition {% if current_platform == 'amazon' %}bg-slate-900 text-white shadow-2xs{% else %}bg-slate-100 hover:bg-slate-200 text-slate-700{% endif %}"><span class="w-2 h-2 rounded-full bg-[#FF9900]"></span>Amazon</button>
+                <button type="button" onclick="quickSetStore('flipkart')" data-quick-store="flipkart" class="quick-store-pill px-2.5 py-1 rounded-lg whitespace-nowrap shrink-0 flex items-center gap-1.5 transition {% if current_platform == 'flipkart' %}bg-slate-900 text-white shadow-2xs{% else %}bg-slate-100 hover:bg-slate-200 text-slate-700{% endif %}"><span class="w-2 h-2 rounded-full bg-[#2874F0]"></span>Flipkart</button>
+                <button type="button" onclick="quickSetStore('myntra')" data-quick-store="myntra" class="quick-store-pill px-2.5 py-1 rounded-lg whitespace-nowrap shrink-0 flex items-center gap-1.5 transition {% if current_platform == 'myntra' %}bg-slate-900 text-white shadow-2xs{% else %}bg-slate-100 hover:bg-slate-200 text-slate-700{% endif %}"><span class="w-2 h-2 rounded-full bg-[#FF3F6C]"></span>Myntra</button>
+                <button type="button" onclick="quickSetStore('ajio')" data-quick-store="ajio" class="quick-store-pill px-2.5 py-1 rounded-lg whitespace-nowrap shrink-0 flex items-center gap-1.5 transition {% if current_platform == 'ajio' %}bg-slate-900 text-white shadow-2xs{% else %}bg-slate-100 hover:bg-slate-200 text-slate-700{% endif %}"><span class="w-2 h-2 rounded-full bg-[#D99814]"></span>Ajio</button>
+                <button type="button" onclick="quickSetStore('nykaa')" data-quick-store="nykaa" class="quick-store-pill px-2.5 py-1 rounded-lg whitespace-nowrap shrink-0 flex items-center gap-1.5 transition {% if current_platform == 'nykaa' %}bg-slate-900 text-white shadow-2xs{% else %}bg-slate-100 hover:bg-slate-200 text-slate-700{% endif %}"><span class="w-2 h-2 rounded-full bg-[#FC2779]"></span>Nykaa</button>
+                <span class="text-slate-300 px-1 shrink-0">|</span>
+                <button type="button" onclick="quickToggleMaxPrice(499)" id="quickUnder499Btn" class="px-2.5 py-1 rounded-lg whitespace-nowrap shrink-0 transition {% if current_max_price == 499 %}bg-emerald-600 text-white{% else %}bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100{% endif %}">⚡ Under ₹499</button>
+                <button type="button" onclick="quickToggleMaxPrice(999)" id="quickUnder999Btn" class="px-2.5 py-1 rounded-lg whitespace-nowrap shrink-0 transition {% if current_max_price == 999 %}bg-blue-600 text-white{% else %}bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100{% endif %}">💎 Under ₹999</button>
+                <button type="button" onclick="quickToggleMinDiscount(60)" id="quickDisc60Btn" class="px-2.5 py-1 rounded-lg whitespace-nowrap shrink-0 transition {% if current_min_discount >= 60 %}bg-rose-600 text-white{% else %}bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100{% endif %}">🔥 60%+ OFF</button>
             </div>
         </div>
 
-        <!-- Products Grid Container -->
-        <div id="dealsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 transition-opacity duration-200">
+        <!-- Active Filter Removable Chips -->
+        <div id="activeFilterChipsBar" class="hidden flex-wrap items-center gap-1.5 mb-3 text-xs"></div>
+
+        <!-- Products Grid Container (2-column dense mobile grid) -->
+        <div id="dealsGrid" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4 transition-opacity duration-200">
             {% if initial_data and initial_data.deals %}
+                {% set show_check_price = true %}
                 {% for deal in initial_data.deals %}
                 {% include "consumer/partials/product_card.html" %}
                 {% endfor %}
@@ -160,8 +190,8 @@
     <div onclick="closeFilterModal()" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity duration-300"></div>
 
     <!-- Slide-over Container -->
-    <div class="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div class="w-screen max-w-md bg-white shadow-2xl flex flex-col justify-between">
+    <div class="fixed inset-y-0 right-0 max-w-full flex pl-6 sm:pl-10">
+        <div class="w-screen max-w-md h-full max-h-[100dvh] bg-white shadow-2xl flex flex-col justify-between">
             
             <!-- Modal Header -->
             <div class="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
@@ -288,7 +318,7 @@
                 </div>
 
                 <!-- Brand Search Helper Note -->
-                <div class="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl text-[11px] text-indigo-900 flex items-start gap-2">
+                <div class="p-3 mb-2 bg-indigo-50/70 border border-indigo-100 rounded-xl text-[11px] text-indigo-900 flex items-start gap-2">
                     <span class="text-sm">💡</span>
                     <span><strong>Brand Filtering:</strong> Looking for a specific brand (e.g. Nike, Puma, Boat, Levi's)? Use the top search bar to instantly filter products by brand name.</span>
                 </div>
@@ -296,7 +326,7 @@
             </div>
 
             <!-- Modal Footer -->
-            <div class="p-4 border-t border-slate-200 bg-slate-50 flex items-center gap-3">
+            <div class="p-4 border-t border-slate-200 bg-slate-50 flex items-center gap-3 shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
                 <button onclick="resetAllFilters()" class="w-1/3 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-200 transition text-center">
                     Reset All
                 </button>
@@ -335,10 +365,157 @@
         minPrice: {{ current_min_price if current_min_price is defined and current_min_price else 0 }},
         maxPrice: {{ current_max_price if current_max_price is defined and current_max_price else 0 }},
         minRating: {{ current_min_rating if current_min_rating is defined and current_min_rating else 0 }},
+        verifiedOnly: {{ 'true' if current_verified_only else 'false' }},
+        viewMode: 'grid',
         sortBy: "{{ current_sort if current_sort else 'latest' }}",
         items: [],
         itemsMap: {}
     };
+
+    function syncQuickFilterPills() {
+        document.querySelectorAll('.quick-store-pill').forEach(btn => {
+            const st = btn.getAttribute('data-quick-store') || '';
+            if (st === (dealsState.platform || '')) {
+                btn.className = 'quick-store-pill px-2.5 py-1 rounded-lg whitespace-nowrap shrink-0 flex items-center gap-1.5 transition bg-slate-900 text-white shadow-2xs';
+            } else {
+                btn.className = 'quick-store-pill px-2.5 py-1 rounded-lg whitespace-nowrap shrink-0 flex items-center gap-1.5 transition bg-slate-100 hover:bg-slate-200 text-slate-700';
+            }
+        });
+        const u499 = document.getElementById('quickUnder499Btn');
+        if (u499) {
+            u499.className = (dealsState.maxPrice === 499 && !dealsState.minPrice)
+                ? 'px-2.5 py-1 rounded-lg whitespace-nowrap shrink-0 transition bg-emerald-600 text-white shadow-2xs'
+                : 'px-2.5 py-1 rounded-lg whitespace-nowrap shrink-0 transition bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100';
+        }
+        const u999 = document.getElementById('quickUnder999Btn');
+        if (u999) {
+            u999.className = (dealsState.maxPrice === 999 && !dealsState.minPrice)
+                ? 'px-2.5 py-1 rounded-lg whitespace-nowrap shrink-0 transition bg-blue-600 text-white shadow-2xs'
+                : 'px-2.5 py-1 rounded-lg whitespace-nowrap shrink-0 transition bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100';
+        }
+        const d60 = document.getElementById('quickDisc60Btn');
+        if (d60) {
+            d60.className = (dealsState.minDiscount >= 60)
+                ? 'px-2.5 py-1 rounded-lg whitespace-nowrap shrink-0 transition bg-rose-600 text-white shadow-2xs'
+                : 'px-2.5 py-1 rounded-lg whitespace-nowrap shrink-0 transition bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100';
+        }
+        renderActiveFilterChips();
+    }
+
+    function renderActiveFilterChips() {
+        const bar = document.getElementById('activeFilterChipsBar');
+        if (!bar) return;
+        const chips = [];
+        if (dealsState.search) chips.push({ key: 'search', label: `Search: "${escapeHtmlGlobal(dealsState.search)}"` });
+        if (dealsState.platform) chips.push({ key: 'platform', label: `Store: ${dealsState.platform.charAt(0).toUpperCase() + dealsState.platform.slice(1)}` });
+        if (dealsState.gender) chips.push({ key: 'gender', label: `For: ${dealsState.gender.charAt(0).toUpperCase() + dealsState.gender.slice(1)}` });
+        if (dealsState.minDiscount > 0) chips.push({ key: 'minDiscount', label: `${dealsState.minDiscount}%+ Off` });
+        if (dealsState.minPrice > 0 || dealsState.maxPrice > 0) {
+            const rangeLbl = (dealsState.minPrice > 0 && dealsState.maxPrice > 0)
+                ? `₹${formatInrGlobal(dealsState.minPrice)} – ₹${formatInrGlobal(dealsState.maxPrice)}`
+                : (dealsState.maxPrice > 0 ? `Under ₹${formatInrGlobal(dealsState.maxPrice)}` : `Above ₹${formatInrGlobal(dealsState.minPrice)}`);
+            chips.push({ key: 'price', label: rangeLbl });
+        }
+        if (dealsState.minRating > 0) chips.push({ key: 'minRating', label: `${dealsState.minRating}+ ★` });
+
+        if (chips.length === 0) {
+            bar.classList.add('hidden');
+            bar.classList.remove('flex');
+            bar.innerHTML = '';
+            return;
+        }
+        bar.classList.remove('hidden');
+        bar.classList.add('flex');
+        bar.innerHTML = chips.map(c => `
+            <button type="button" onclick="removeSingleFilter('${c.key}')" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 hover:bg-rose-50 text-indigo-700 hover:text-rose-700 border border-indigo-200 hover:border-rose-200 font-bold text-[11px] transition">
+                <span>${c.label}</span>
+                <span class="font-black">✕</span>
+            </button>
+        `).join('') + (chips.length > 1 ? `<button type="button" onclick="resetAllFilters()" class="text-[11px] font-bold text-slate-500 hover:text-rose-600 underline ml-1">Clear all</button>` : '');
+    }
+
+    function removeSingleFilter(key) {
+        if (key === 'search') {
+            dealsState.search = '';
+            const si = document.getElementById('globalSearchInput');
+            if (si) si.value = '';
+        } else if (key === 'platform') { dealsState.platform = ''; }
+        else if (key === 'gender') { dealsState.gender = ''; }
+        else if (key === 'minDiscount') { dealsState.minDiscount = 0; }
+        else if (key === 'price') { dealsState.minPrice = 0; dealsState.maxPrice = 0; }
+        else if (key === 'minRating') { dealsState.minRating = 0; }
+        dealsState.page = 1;
+        pushDealsUrlState();
+        syncQuickFilterPills();
+        updateActiveFilterBadge();
+        loadDeals();
+    }
+
+    function pushDealsUrlState() {
+        try {
+            const url = new URL(window.location);
+            const setOrDel = (k, v) => { if (v) url.searchParams.set(k, v); else url.searchParams.delete(k); };
+            setOrDel('search', dealsState.search);
+            setOrDel('platform', dealsState.platform);
+            setOrDel('gender', dealsState.gender);
+            setOrDel('sub', dealsState.sub);
+            setOrDel('min_discount', dealsState.minDiscount > 0 ? dealsState.minDiscount : '');
+            setOrDel('min_price', dealsState.minPrice > 0 ? dealsState.minPrice : '');
+            setOrDel('max_price', dealsState.maxPrice > 0 ? dealsState.maxPrice : '');
+            setOrDel('min_rating', dealsState.minRating > 0 ? dealsState.minRating : '');
+            url.searchParams.set('page', String(dealsState.page));
+            window.history.pushState(dealsState, '', url);
+        } catch (e) {}
+    }
+
+    function quickSetStore(plat) {
+        dealsState.platform = plat;
+        dealsState.page = 1;
+        pushDealsUrlState();
+        syncQuickFilterPills();
+        updateActiveFilterBadge();
+        loadDeals();
+    }
+
+    function quickToggleMaxPrice(maxP) {
+        if (dealsState.maxPrice === maxP && !dealsState.minPrice) {
+            dealsState.maxPrice = 0;
+        } else {
+            dealsState.minPrice = 0;
+            dealsState.maxPrice = maxP;
+        }
+        dealsState.page = 1;
+        pushDealsUrlState();
+        syncQuickFilterPills();
+        updateActiveFilterBadge();
+        loadDeals();
+    }
+
+    function quickToggleMinDiscount(minD) {
+        dealsState.minDiscount = (dealsState.minDiscount >= minD) ? 0 : minD;
+        dealsState.page = 1;
+        pushDealsUrlState();
+        syncQuickFilterPills();
+        updateActiveFilterBadge();
+        loadDeals();
+    }
+
+    function setDealsViewMode(mode) {
+        dealsState.viewMode = mode;
+        const grid = document.getElementById('dealsGrid');
+        const gBtn = document.getElementById('viewModeGridBtn');
+        const lBtn = document.getElementById('viewModeListBtn');
+        if (mode === 'list') {
+            if (grid) grid.className = 'flex flex-col gap-2.5 transition-opacity duration-200';
+            if (gBtn) gBtn.className = 'px-2 py-1 rounded-lg text-xs font-bold text-slate-500 hover:text-slate-900 transition flex items-center gap-1';
+            if (lBtn) lBtn.className = 'px-2 py-1 rounded-lg text-xs font-bold bg-white text-indigo-600 shadow-2xs transition flex items-center gap-1';
+        } else {
+            if (grid) grid.className = 'grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4 transition-opacity duration-200';
+            if (gBtn) gBtn.className = 'px-2 py-1 rounded-lg text-xs font-bold bg-white text-indigo-600 shadow-2xs transition flex items-center gap-1';
+            if (lBtn) lBtn.className = 'px-2 py-1 rounded-lg text-xs font-bold text-slate-500 hover:text-slate-900 transition flex items-center gap-1';
+        }
+        renderDealsCards(dealsState.items);
+    }
 
     function setMinRating(val) {
         draftFilterState.minRating = val;
@@ -395,7 +572,10 @@
             loadDeals();
         } else {
             if (window.lucide) lucide.createIcons();
+            if (typeof syncAllWatchlistHearts === 'function') syncAllWatchlistHearts();
         }
+        syncQuickFilterPills();
+        updateActiveFilterBadge();
         startDealsAutoRefresh();
 
         // Dynamically bind global search form on deals page to prevent losing active filters
@@ -419,6 +599,8 @@
                 const suggestionsDropdown = document.getElementById('searchSuggestionsDropdown');
                 if (suggestionsDropdown) suggestionsDropdown.classList.add('hidden');
 
+                syncQuickFilterPills();
+                updateActiveFilterBadge();
                 loadDeals();
             });
         }
@@ -466,7 +648,12 @@
                 limit: dealsState.limit,
                 sort_by: dealsState.sortBy
             });
-            if (dealsState.search) params.append('search', dealsState.search);
+            if (dealsState.search) {
+                params.append('search', dealsState.search);
+                params.append('verified_only', 'false');
+            } else {
+                params.append('verified_only', dealsState.verifiedOnly ? 'true' : 'false');
+            }
             if (dealsState.platform) params.append('platform', dealsState.platform);
             if (dealsState.category) params.append('category', dealsState.category);
             if (dealsState.sub) params.append('sub', dealsState.sub);
@@ -553,136 +740,56 @@
             uniqueItems.push(d);
         });
 
-        grid.innerHTML = uniqueItems.map(deal => {
-            const store = (deal.platform || 'amazon').toLowerCase();
-            const storeCfg = STORES[store] || STORES.amazon;
-            const cp = deal.current_price || deal.deal_price || 0;
-            const mrp = deal.mrp || 0;
-            const hasDiscount = mrp > cp;
-            const discPct = hasDiscount ? Math.round(((mrp - cp) / mrp) * 100) : Math.round(deal.discount_percent || 0);
-            const savings = hasDiscount ? mrp - cp : 0;
-            const safeTitle = escapeHtml(deal.title);
-            const lastCheckedTimeStr = formatPostedDateTime(deal.last_price_change || deal.deal_time || deal.last_checked || deal.posted_at);
-            const dealLink = (deal.affiliate_url && deal.affiliate_url !== deal.product_url) ? deal.affiliate_url : (deal.product_id ? `/api/deal/redirect/${deal.product_id}` : (deal.affiliate_url || '#'));
-            const rating = deal.rating || 0;
-            const reviews = deal.review_count || 0;
-            const badge = deal.badge || '';
-            const inStock = deal.in_stock !== false; // defaults to true if undefined
-
-            return `
-                <div data-deal-id="${deal.product_id || deal.id}" 
-                     data-deal-price="${cp}" 
-                     data-deal-title="${safeTitle}" 
-                     data-deal-url="${dealLink}" 
-                     data-deal-platform="${store}"
-                     class="bg-white border border-slate-200/85 hover:border-indigo-400 rounded-2xl p-3 sm:p-3.5 flex flex-col justify-between transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 group relative ${!inStock ? 'opacity-60 grayscale' : ''}">
-                    ${!inStock ? '<div class="absolute inset-0 bg-white/40 z-10 rounded-2xl pointer-events-none flex items-center justify-center"><span class="bg-black text-white px-3 py-1 rounded-full font-black tracking-widest text-xs uppercase shadow-xl transform -rotate-12 border-2 border-white">Out of Stock</span></div>' : ''}
-                    <div>
-                        <!-- Store Badge & Discount Tag -->
-                        <div class="flex items-center justify-between gap-1.5 mb-2">
-                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider ${storeCfg.badge}">
-                                ${storeCfg.name}
-                            </span>
-                            ${discPct > 0 ? `
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200 tracking-tight">
-                                -${discPct}% OFF
-                            </span>` : (badge ? `
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-amber-50 text-amber-800 border border-amber-200 uppercase tracking-tight">
-                                ${badge}
-                            </span>` : '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-50 text-slate-600 border border-slate-200">✓ Verified Deal</span>')}
-                        </div>
-
-                        <!-- Image Area -->
-                        <div class="relative w-full h-36 sm:h-44 rounded-xl bg-gradient-to-b from-slate-50/70 to-white p-2 flex items-center justify-center overflow-hidden border border-slate-100">
-                            <img src="${deal.image_url || '/static/placeholder.svg'}" 
-                                 alt="${safeTitle}" 
-                                 class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300" 
-                                 loading="lazy" 
-                                 onerror="this.onerror=null;this.src='/static/placeholder.svg'"/>
-                            
-                            ${badge === 'ATL' ? `
-                            <span class="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[9px] font-black bg-amber-500 text-slate-950 uppercase tracking-wide shadow-sm flex items-center gap-0.5">
-                                👑 ATL
-                            </span>` : (discPct >= 60 ? `
-                            <span class="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[9px] font-black bg-rose-600 text-white uppercase tracking-wide shadow-sm flex items-center gap-0.5">
-                                🔥 LOOT
-                            </span>` : '')}
-
-                            <div class="absolute top-2 right-2 flex items-center gap-1 z-10">
-                                <button type="button" 
-                                        onclick="event.stopPropagation(); shareDealWhatsApp('${safeTitle.replace(/'/g, "\\'")}', '${cp}', '${dealLink}', '${storeCfg.name}')" 
-                                        class="p-1.5 rounded-xl bg-white/95 backdrop-blur-md border border-slate-200 text-slate-400 hover:text-emerald-600 hover:scale-110 active:scale-95 transition shadow-xs" 
-                                        title="Share on WhatsApp">
-                                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
-                                </button>
-                                <button type="button" 
-                                        onclick="handleDealsWatchlist(this, ${deal.product_id || deal.id})" 
-                                        class="p-1.5 rounded-xl bg-white/95 backdrop-blur-md border border-slate-200 text-slate-400 hover:text-rose-500 hover:scale-110 active:scale-95 transition shadow-xs" 
-                                        title="Save to Watchlist">
-                                    <i data-lucide="heart" class="w-3.5 h-3.5"></i>
-                                </button>
+        if (dealsState.viewMode === 'list') {
+            grid.innerHTML = uniqueItems.map(deal => {
+                const store = (deal.platform || 'amazon').toLowerCase();
+                const storeCfg = GLOBAL_STORES[store] || GLOBAL_STORES.amazon;
+                const pid = deal.product_id || deal.id;
+                const cp = Math.round(Number(deal.current_price || deal.deal_price || 0));
+                const mrp = Math.round(Number(deal.mrp || 0));
+                const hasDisc = mrp > cp;
+                const discPct = hasDisc ? Math.round(((mrp - cp) / mrp) * 100) : Math.round(deal.discount_percent || 0);
+                const savings = hasDisc ? (mrp - cp) : 0;
+                const safeTitle = escapeHtmlGlobal(deal.title);
+                const isBranded = deal.affiliate_url && (/fktr\.in|myntr\.it|ajiio\.in|clnk\.in|ekaro\.in|amzn\.to|tag=dealpulse/i.test(deal.affiliate_url));
+                const buyUrl = isBranded ? deal.affiliate_url : (pid ? `/api/deal/redirect/${pid}` : (deal.affiliate_url || '#'));
+                const detailUrl = pid ? `/deal/${pid}` : buyUrl;
+                return `
+                    <div data-deal-id="${pid}" data-deal-price="${cp}" data-deal-mrp="${mrp}" data-deal-title="${safeTitle}" data-deal-url="${buyUrl}" data-deal-platform="${store}"
+                         class="bg-white border border-slate-200/85 hover:border-indigo-400 rounded-2xl p-3 flex items-center justify-between gap-4 shadow-2xs hover:shadow-md transition">
+                        <div class="flex items-center gap-3.5 min-w-0 flex-1">
+                            <a href="${detailUrl}" class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-slate-50 border border-slate-100 p-1.5 flex items-center justify-center shrink-0">
+                                <img src="${deal.image_url || '/static/placeholder.svg'}" alt="${safeTitle}" referrerpolicy="no-referrer" class="w-full h-full object-contain" loading="lazy" onerror="this.onerror=null;this.src='/static/placeholder.svg'"/>
+                            </a>
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center gap-1.5 mb-1 flex-wrap">
+                                    <span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase ${storeCfg.badge}">${storeCfg.name}</span>
+                                    ${discPct > 0 ? `<span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">${discPct}% OFF</span>` : ''}
+                                    ${deal.rating > 0 ? `<span class="text-[11px] font-bold text-amber-700">★ ${Number(deal.rating).toFixed(1)}</span>` : ''}
+                                </div>
+                                <a href="${detailUrl}" class="text-sm font-bold text-slate-900 hover:text-indigo-600 line-clamp-1 block transition" title="${safeTitle}">${safeTitle}</a>
+                                <a href="${detailUrl}" class="text-[11px] font-semibold text-indigo-600 hover:underline mt-0.5 inline-block">View Price History Chart ↗</a>
                             </div>
                         </div>
-
-                        <!-- Ratings Row -->
-                        <div class="mt-2 flex items-center justify-between text-[11px] text-slate-500">
-                            ${rating > 0 ? `
-                            <span class="inline-flex items-center gap-1 font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/70">
-                                <span class="text-amber-500">★</span> ${rating.toFixed(1)} ${reviews > 0 ? `<span class="text-slate-400 font-medium">(${reviews})</span>` : ''}
-                            </span>` : `<span class="text-slate-400 text-[10px] font-medium flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Verified Deal</span>`}
-                        </div>
-
-                        <!-- Title -->
-                        <div class="mt-1.5">
-                            <a href="${dealLink ? dealLink : '#'}" ${dealLink ? 'target="_blank" rel="noopener noreferrer"' : ''} 
-                                class="text-xs sm:text-sm font-semibold text-slate-900 group-hover:text-indigo-600 line-clamp-2 break-words transition leading-snug tracking-tight" 
-                                title="${safeTitle}">
-                                ${safeTitle}
+                        <div class="flex items-center gap-3 shrink-0">
+                            <div class="text-right">
+                                <div class="text-lg font-black text-slate-900 tabular-nums">₹${formatInrGlobal(cp)}</div>
+                                ${hasDisc ? `<div class="text-xs text-slate-400 line-through tabular-nums">₹${formatInrGlobal(mrp)}</div>` : ''}
+                                ${savings > 0 ? `<div class="text-[10px] font-bold text-emerald-700">Save ₹${formatInrGlobal(savings)}</div>` : ''}
+                            </div>
+                            <a href="${buyUrl}" target="_blank" rel="noopener noreferrer" class="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-indigo-600 text-white font-extrabold text-xs whitespace-nowrap transition shadow-sm">
+                                Shop on ${storeCfg.name} ↗
                             </a>
                         </div>
                     </div>
-
-                    <!-- Price & Buy Button -->
-                    <div class="mt-3 pt-2.5 border-t border-slate-100">
-                        <div class="flex items-baseline justify-between gap-1 mb-1.5">
-                            <div class="flex items-baseline gap-1.5 flex-wrap">
-                                <span class="text-lg sm:text-xl font-black text-slate-900 tracking-tight tabular-nums">${formatINR(cp)}</span>
-                                ${hasDiscount ? `<span class="text-xs text-slate-400 line-through font-medium tabular-nums">${formatINR(mrp)}</span>` : ''}
-                                ${discPct > 0 ? `<span class="text-xs font-black text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200/60 tabular-nums">${discPct}% OFF</span>` : ''}
-                            </div>
-                        </div>
-
-                        ${savings > 0 ? `
-                        <div class="mb-2.5 text-[11px] font-bold text-emerald-800 bg-emerald-50/80 px-2 py-0.5 rounded-md border border-emerald-200/60 flex items-center justify-between">
-                            <span>You Save:</span>
-                            <span class="font-extrabold text-emerald-700 tabular-nums">${formatINR(savings)}</span>
-                        </div>` : ''}
-
-                        ${dealLink ? `
-                        <a href="${dealLink}" target="_blank" rel="noopener noreferrer" 
-                           class="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-indigo-600 active:scale-[0.98] text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition duration-150 shadow-sm shadow-slate-900/10">
-                            <span>Shop on ${storeCfg.name}</span>
-                            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
-                        </a>` : `
-                        <div class="w-full py-2.5 px-3 rounded-xl bg-slate-100 text-slate-400 font-bold text-xs flex items-center justify-center gap-1.5 cursor-not-allowed">
-                            <span>Price Tracked on ${storeCfg.name}</span>
-                        </div>`}
-
-                        <!-- Report Price Change -->
-                        <div class="mt-2 flex items-center justify-between text-[10px] text-slate-400 pt-1.5 border-t border-slate-50">
-                            <span class="text-[10px] text-slate-400">Tracked Deal</span>
-                            <button onclick="handleSendForReview(${deal.product_id || deal.id}, '${safeTitle.replace(/'/g, "")}', '${dealLink.replace(/'/g, "")}', ${cp})" 
-                                    class="font-semibold text-indigo-600 hover:text-indigo-800 transition flex items-center gap-1">
-                                <i data-lucide="refresh-cw" class="w-3 h-3"></i>
-                                <span>Request Price Check</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }).join('');
+                `;
+            }).join('');
+        } else {
+            grid.innerHTML = uniqueItems.map(deal => createProductCardHtml(deal, { showCheckPrice: true })).join('');
+        }
 
         if (window.lucide) lucide.createIcons();
+        if (typeof syncAllWatchlistHearts === 'function') syncAllWatchlistHearts();
     }
 
     function onSubcategoryClick(subKey, btn) {
@@ -818,26 +925,8 @@
             dealsState.search = searchInput.value.trim();
         }
 
-        try {
-            const url = new URL(window.location);
-            if (dealsState.search) url.searchParams.set('search', dealsState.search);
-            else url.searchParams.delete('search');
-            if (dealsState.platform) url.searchParams.set('platform', dealsState.platform);
-            else url.searchParams.delete('platform');
-            if (dealsState.gender) url.searchParams.set('gender', dealsState.gender);
-            else url.searchParams.delete('gender');
-            if (dealsState.minDiscount > 0) url.searchParams.set('min_discount', dealsState.minDiscount);
-            else url.searchParams.delete('min_discount');
-            if (dealsState.minPrice > 0) url.searchParams.set('min_price', dealsState.minPrice);
-            else url.searchParams.delete('min_price');
-            if (dealsState.maxPrice > 0) url.searchParams.set('max_price', dealsState.maxPrice);
-            else url.searchParams.delete('max_price');
-            if (dealsState.minRating > 0) url.searchParams.set('min_rating', dealsState.minRating);
-            else url.searchParams.delete('min_rating');
-            url.searchParams.set('page', '1');
-            window.history.pushState(dealsState, '', url);
-        } catch (e) {}
-
+        pushDealsUrlState();
+        syncQuickFilterPills();
         updateActiveFilterBadge();
         closeFilterModal();
         loadDeals();
@@ -856,8 +945,9 @@
     }
 
     function changeDealsPage(delta) {
-        dealsState.page += delta;
-        window.scrollTo({ top: 200, behavior: 'smooth' });
+        dealsState.page = Math.max(1, dealsState.page + delta);
+        pushDealsUrlState();
+        window.scrollTo({ top: 150, behavior: 'smooth' });
         loadDeals();
     }
 
@@ -880,25 +970,15 @@
         dealsState.minPrice = 0;
         dealsState.maxPrice = 0;
         dealsState.minRating = 0;
+        dealsState.search = '';
 
         const searchInput = document.getElementById('globalSearchInput');
-        dealsState.search = searchInput ? searchInput.value.trim() : '';
+        if (searchInput) searchInput.value = '';
+        const clearBtn = document.getElementById('globalSearchClearBtn');
+        if (clearBtn) clearBtn.classList.add('hidden');
 
-        try {
-            const url = new URL(window.location);
-            url.searchParams.delete('platform');
-            url.searchParams.delete('gender');
-            url.searchParams.delete('min_discount');
-            url.searchParams.delete('min_price');
-            url.searchParams.delete('max_price');
-            url.searchParams.delete('min_rating');
-            url.searchParams.delete('sub');
-            if (dealsState.search) url.searchParams.set('search', dealsState.search);
-            else url.searchParams.delete('search');
-            url.searchParams.set('page', '1');
-            window.history.pushState(dealsState, '', url);
-        } catch (e) {}
-
+        pushDealsUrlState();
+        syncQuickFilterPills();
         updateActiveFilterBadge();
         closeFilterModal();
         loadDeals();
@@ -935,7 +1015,13 @@
         dealsState.gender = params.get('gender') || '';
         dealsState.platform = params.get('platform') || '';
         dealsState.search = params.get('search') || '';
+        dealsState.minDiscount = parseFloat(params.get('min_discount') || '0') || 0;
+        dealsState.minPrice = parseFloat(params.get('min_price') || '0') || 0;
+        dealsState.maxPrice = parseFloat(params.get('max_price') || '0') || 0;
+        dealsState.minRating = parseFloat(params.get('min_rating') || '0') || 0;
         dealsState.page = parseInt(params.get('page') || '1', 10);
+        syncQuickFilterPills();
+        updateActiveFilterBadge();
         loadDeals();
     });
 </script>

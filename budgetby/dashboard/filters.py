@@ -7,6 +7,9 @@ from budgetby.utils import format_inr
 def jinja_format_inr(val):
     return format_inr(val, prefix="₹")
 
+def jinja_format_num(val):
+    return format_inr(val, prefix="")
+
 def jinja_time_ago(val):
     if not val:
         return "Recently"
@@ -30,11 +33,11 @@ def jinja_time_ago(val):
 def jinja_store_badge(platform):
     plat = (platform or "").lower()
     badges = {
-        "amazon": "bg-amber-50 text-amber-900 border border-amber-300 font-bold",
-        "flipkart": "bg-blue-50 text-blue-700 border border-blue-300 font-bold",
-        "myntra": "bg-pink-50 text-pink-700 border border-pink-300 font-bold",
-        "ajio": "bg-yellow-50 text-yellow-800 border border-yellow-300 font-bold",
-        "nykaa": "bg-rose-50 text-rose-700 border border-rose-300 font-bold",
+        "amazon": "bg-amber-50 text-amber-900 border border-amber-300/80 font-extrabold tracking-wide",
+        "flipkart": "bg-blue-50 text-blue-700 border border-blue-300/80 font-extrabold tracking-wide",
+        "myntra": "bg-pink-50 text-pink-700 border border-pink-300/80 font-extrabold tracking-wide",
+        "ajio": "bg-slate-900 text-white border border-slate-800 font-extrabold tracking-wider shadow-xs",
+        "nykaa": "bg-rose-50 text-rose-700 border border-rose-300/80 font-extrabold tracking-wide",
     }
     return badges.get(plat, "bg-slate-100 text-slate-700 border border-slate-200 font-bold")
 
@@ -73,6 +76,7 @@ def jinja_format_posted_time(val):
 def register_jinja_filters(templates):
     """Registers all custom SSR filters on the Jinja2Templates environment."""
     templates.env.filters["format_inr"] = jinja_format_inr
+    templates.env.filters["format_num"] = jinja_format_num
     templates.env.filters["time_ago"] = jinja_time_ago
     templates.env.filters["store_badge"] = jinja_store_badge
     templates.env.filters["store_name"] = jinja_store_name

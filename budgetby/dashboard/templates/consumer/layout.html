@@ -12,7 +12,7 @@
     <meta property="og:description" content="Real price drops & live deals across India's top online stores.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://budgetby.in{{ request.url.path if request else '/' }}">
-    <meta property="og:site_name" content="BudgetyBy">
+    <meta property="og:site_name" content="BudgetBy">
     <meta property="og:image" content="/static/og-banner.png">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="@BudgetBy_in">
@@ -124,76 +124,60 @@
     <!-- ── Top Loading Progress Bar ──────────────────────────────────────── -->
     <div id="pageProgressBar" class="fixed top-0 left-0 h-1 bg-gradient-to-r from-indigo-500 via-rose-500 to-emerald-500 z-50 transition-all duration-300 pointer-events-none opacity-0 w-0"></div>
 
+    {% set live_drops_banner = (site_stats.drops_today if site_stats and site_stats.drops_today else 35000)|format_num %}
     <!-- ── Top Global Alert & Transparency Ticker ────────────────────────── -->
-    <aside aria-label="Announcement" class="bg-slate-900 text-xs py-2 px-3 sm:px-4 text-center text-slate-200 flex items-center justify-center gap-2 flex-wrap sm:flex-nowrap">
-        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 font-bold text-[10px] tracking-wide border border-emerald-500/30 shrink-0">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Live Deal Sync
+    <aside aria-label="Announcement" class="bg-slate-900 text-xs py-1.5 sm:py-2 px-3 sm:px-4 text-slate-200 flex items-center justify-between sm:justify-center gap-2 sm:gap-2.5 flex-nowrap overflow-hidden">
+        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 font-bold text-[10px] tracking-wide border border-emerald-500/30 shrink-0 whitespace-nowrap">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Live Sync
         </span>
-        <span class="truncate text-[11px] sm:text-xs">🔥 <b>Over 43,000 Verified Price Drops Today</b> across Amazon, Flipkart, Myntra, Ajio & Nykaa • 100% Free Live Price Tracker</span>
-        <a href="https://t.me/DealPulse_Deals" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-emerald-400 hover:text-emerald-300 font-bold underline underline-offset-2 shrink-0 text-[11px] sm:text-xs">
-            Join Telegram ↗
+        <span class="hidden md:inline truncate text-xs">🔥 <b>{{ live_drops_banner }}+ Verified Price Drops Live</b> across Amazon, Flipkart, Myntra, Ajio &amp; Nykaa • 100% Free Tracker</span>
+        <span class="md:hidden truncate text-[11px] font-medium">🔥 <b>{{ live_drops_banner }}+</b> Live Price Drops</span>
+        <a href="https://t.me/DealPulse_Deals" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-emerald-400 hover:text-emerald-300 font-bold underline underline-offset-2 shrink-0 text-[11px] sm:text-xs whitespace-nowrap">
+            <span class="hidden sm:inline">Join Telegram</span><span class="sm:hidden">Telegram</span> ↗
         </a>
     </aside>
 
     <!-- ── Main Navigation Bar ──────────────────────────────────────────── -->
-    <header class="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm transition-all duration-200">
-        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2.5 sm:gap-4">
+    <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm transition-all duration-200">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2 sm:py-0 sm:h-16 flex flex-wrap sm:flex-nowrap items-center justify-between gap-x-2.5 sm:gap-x-3 lg:gap-x-4 gap-y-2">
             
-            <!-- Logo & Brand + Navigation Arrows -->
-            <div class="flex items-center gap-2 sm:gap-3 shrink-0">
-                <!-- Back & Forward History Navigation Arrow Buttons -->
-                <div class="flex items-center gap-1 shrink-0">
-                    <button onclick="window.history.back()" 
-                            title="Go Back" 
-                            aria-label="Go Back"
-                            class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 active:scale-95 border border-slate-200 text-slate-700 flex items-center justify-center transition shadow-xs">
-                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-                    </button>
-                    <button onclick="window.history.forward()" 
-                            title="Go Forward" 
-                            aria-label="Go Forward"
-                            class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 active:scale-95 border border-slate-200 text-slate-700 flex items-center justify-center transition shadow-xs">
-                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-                    </button>
-                </div>
-
-                <a href="/" class="flex items-center gap-2 sm:gap-2.5 group">
+            <!-- Brand Logo (Order 1) -->
+            <div class="order-1 flex items-center shrink-0">
+                <a href="/" class="flex items-center gap-2 group">
                     <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-extrabold text-lg sm:text-xl shadow-md shadow-indigo-600/20 group-hover:scale-105 transition shrink-0">
                         ⚡
                     </div>
-                    <div>
-                        <div class="flex items-center gap-1.5">
-                            <span class="text-lg sm:text-xl font-black tracking-tight text-slate-900">BudgetBy</span>
-                        </div>
-                        <p class="hidden 2xl:block text-[10px] text-slate-500 font-medium -mt-0.5">India's Smartest Price Tracker</p>
+                    <div class="leading-tight">
+                        <span class="text-lg sm:text-xl font-black tracking-tight text-slate-900 whitespace-nowrap">BudgetBy</span>
+                        <p class="hidden 2xl:block text-[10px] text-slate-500 font-medium -mt-0.5 whitespace-nowrap">India's Smartest Price Tracker</p>
                     </div>
                 </a>
             </div>
 
-            <!-- Primary Navigation Links (Desktop) -->
-            <nav class="hidden lg:flex items-center gap-1 text-xs font-bold" aria-label="Main Navigation">
-                <a href="/deals" class="px-3 py-1.5 rounded-xl text-slate-700 hover:text-indigo-600 hover:bg-slate-100 transition flex items-center gap-1.5">
-                    <svg class="w-4 h-4 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>
+            <!-- Primary Navigation Links (Desktop lg+, Order 2, strictly single-line) -->
+            <nav class="hidden lg:flex order-2 items-center gap-0.5 xl:gap-1 text-xs font-bold whitespace-nowrap shrink-0" aria-label="Main Navigation">
+                <a href="/deals" class="px-2.5 xl:px-3 py-1.5 rounded-xl {% if active_page == 'deals' %}bg-indigo-50 text-indigo-700{% else %}text-slate-700 hover:text-indigo-600 hover:bg-slate-100{% endif %} transition flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                    <svg class="w-4 h-4 text-indigo-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>
                     <span>All Deals</span>
                 </a>
-                <a href="/drops" class="px-3 py-1.5 rounded-xl text-slate-700 hover:text-rose-600 hover:bg-slate-100 transition flex items-center gap-1.5">
-                    <svg class="w-4 h-4 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>
+                <a href="/drops" class="px-2.5 xl:px-3 py-1.5 rounded-xl {% if active_page == 'drops' %}bg-rose-50 text-rose-700{% else %}text-slate-700 hover:text-rose-600 hover:bg-slate-100{% endif %} transition flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                    <svg class="w-4 h-4 text-rose-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>
                     <span>Price Drops</span>
-                    <span class="px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[9px] font-extrabold tracking-tight">HOT</span>
+                    <span class="px-1.5 py-0.5 rounded-full bg-rose-600 text-white text-[9px] font-extrabold leading-none tracking-tight">HOT</span>
                 </a>
-                <a href="/all-time-lows" class="px-3 py-1.5 rounded-xl text-slate-700 hover:text-amber-700 hover:bg-slate-100 transition flex items-center gap-1.5">
-                    <svg class="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
+                <a href="/all-time-lows" class="px-2.5 xl:px-3 py-1.5 rounded-xl {% if active_page == 'atl' %}bg-amber-50 text-amber-800{% else %}text-slate-700 hover:text-amber-700 hover:bg-slate-100{% endif %} transition flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                    <svg class="w-4 h-4 text-amber-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
                     <span>All-Time Lows</span>
-                    <span class="px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 text-[9px] font-black tracking-tight">ATL</span>
+                    <span class="px-1.5 py-0.5 rounded-full bg-amber-500 text-slate-950 text-[9px] font-black leading-none tracking-tight">ATL</span>
                 </a>
-                <a href="/stores" class="px-3 py-1.5 rounded-xl text-slate-700 hover:text-indigo-600 hover:bg-slate-100 transition flex items-center gap-1.5">
-                    <svg class="w-4 h-4 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></svg>
+                <a href="/stores" class="px-2.5 xl:px-3 py-1.5 rounded-xl {% if active_page == 'stores' %}bg-indigo-50 text-indigo-700{% else %}text-slate-700 hover:text-indigo-600 hover:bg-slate-100{% endif %} transition flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                    <svg class="w-4 h-4 text-indigo-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></svg>
                     <span>Stores</span>
                 </a>
             </nav>
 
-            <!-- Global Search Form & Autocomplete Dropdown -->
-            <div id="globalSearchContainer" class="flex-1 min-w-[160px] sm:min-w-[240px] max-w-xl relative mx-1 sm:mx-2">
+            <!-- Global Search Form & Autocomplete Dropdown (Row 2 on mobile, inline on sm+) -->
+            <div id="globalSearchContainer" class="order-3 sm:order-2 lg:order-3 basis-full sm:basis-auto sm:flex-1 min-w-0 max-w-xl relative">
                 <form action="/deals" method="GET" id="globalSearchForm" class="relative w-full" autocomplete="off">
                     <div class="relative flex items-center">
                         <svg class="w-4 h-4 text-slate-400 absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
@@ -202,10 +186,10 @@
                             name="search"
                             id="globalSearchInput"
                             value="{{ current_search or '' }}"
-                            placeholder="Search 100,000+ products (e.g. 'smartwatch', 'boat earphone', 'shoes under 1000')..." 
+                            placeholder="Search products, brands or 'shoes under 999'..." 
                             autocomplete="off"
                             spellcheck="false"
-                            class="w-full pl-8 sm:pl-10 pr-12 sm:pr-16 py-2 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-300 focus:border-indigo-500 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition shadow-inner"
+                            class="w-full pl-9 sm:pl-10 pr-12 sm:pr-14 py-2 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-300 focus:border-indigo-500 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition shadow-inner"
                         />
                         <!-- Right Controls inside input -->
                         <div class="absolute right-2 sm:right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
@@ -231,36 +215,37 @@
                 </div>
             </div>
 
-            <!-- Right Utilities: Watchlist, About & Support, Mobile Menu Toggle -->
-            <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <!-- Right Utilities: About & Help, Saved Watchlist, Mobile Menu Toggle (Order 2 on mobile, Order 4 on desktop) -->
+            <div class="order-2 sm:order-3 lg:order-4 flex items-center gap-1.5 sm:gap-2 shrink-0">
                 <!-- About & Methodology / Contact Link -->
                 <a 
                     href="/about" 
-                    class="hidden sm:flex px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-bold items-center gap-1.5 transition" 
+                    class="hidden sm:flex px-2.5 xl:px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-bold items-center gap-1.5 transition whitespace-nowrap" 
                     title="About BudgetBy & Contact Support"
+                    aria-label="About BudgetBy and Help"
                 >
-                    <svg class="w-4 h-4 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
-                    <span>About & Help</span>
+                    <svg class="w-4 h-4 text-indigo-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+                    <span class="hidden xl:inline">About &amp; Help</span>
                 </a>
 
                 <!-- Watchlist / Saved Deals Button -->
                 <button 
                     id="watchlistOpenBtn" 
                     onclick="openWatchlistDrawer()" 
-                    class="relative p-2 sm:px-3 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-bold flex items-center gap-1.5 transition" 
+                    class="relative px-2.5 py-2 sm:px-3 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-bold flex items-center gap-1.5 transition shrink-0" 
                     title="Saved Deals Watchlist"
                     aria-label="View Saved Deals Watchlist"
                 >
-                    <svg class="w-4 h-4 text-rose-500 fill-rose-500/20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                    <svg class="w-4 h-4 text-rose-500 fill-rose-500/20 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
                     <span class="hidden sm:inline">Saved</span>
-                    <span id="watchlistCountBadge" class="hidden px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-rose-500 text-white leading-tight">0</span>
+                    <span id="watchlistCountBadge" class="hidden px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-500 text-white leading-none">0</span>
                 </button>
 
                 <!-- Mobile Hamburger Toggle -->
                 <button 
                     id="mobileMenuToggleBtn" 
                     onclick="toggleMobileMenu()" 
-                    class="lg:hidden p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs transition" 
+                    class="lg:hidden p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs transition shrink-0" 
                     aria-label="Toggle Navigation Menu"
                 >
                     <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
@@ -302,9 +287,16 @@
     </header>
 
     <!-- ── E-Commerce Category Aisle & Mega Shopping Bar ────────────────────────── -->
-    <nav class="bg-white border-b border-slate-200/90 shadow-[0_2px_4px_rgba(0,0,0,0.02)] z-30 sticky top-16 transition-all" aria-label="Product Category Aisles">
-        <div class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
-            <div id="categoryAisleRow" class="flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar py-2 text-xs font-bold whitespace-nowrap">
+    <nav class="relative bg-white border-b border-slate-200/90 shadow-[0_2px_4px_rgba(0,0,0,0.02)] z-30 transition-all" aria-label="Product Category Aisles">
+        <div class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 relative">
+            <!-- Left Fade + Desktop Scroll Chevron -->
+            <div id="catAisleLeftFade" class="hidden md:flex items-center absolute left-2 top-0 bottom-0 z-20 pointer-events-none opacity-0 transition-opacity duration-200 pl-1 pr-6 bg-gradient-to-r from-white via-white/95 to-transparent">
+                <button type="button" onclick="scrollCategoryAisle(-340)" aria-label="Scroll categories left" class="pointer-events-auto w-7 h-7 rounded-full bg-white border border-slate-200 shadow-md flex items-center justify-center text-slate-700 hover:text-indigo-600 hover:border-indigo-300 transition active:scale-95">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                </button>
+            </div>
+
+            <div id="categoryAisleRow" class="flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar py-2 text-xs font-bold whitespace-nowrap scroll-smooth pr-6 md:pr-8">
                 
                 <!-- Mobile All Categories Expand Button -->
                 <button onclick="openMobileCategoryDrawer()" class="lg:hidden px-2.5 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-black flex items-center gap-1.5 shrink-0 shadow-sm shadow-indigo-600/20 active:scale-95 transition">
@@ -313,7 +305,7 @@
                 </button>
 
                 {% for c_key, c_val in categories_taxonomy.items() %}
-                <div class="relative cat-dropdown-group">
+                <div class="relative cat-dropdown-group shrink-0">
                     <a href="/deals?category={{ c_key }}" class="cat-trigger px-2.5 sm:px-3 py-1.5 rounded-xl hover:bg-slate-100 text-slate-800 hover:text-indigo-600 transition flex items-center gap-1.5 {% if current_category == c_key %}bg-indigo-50 text-indigo-700 border border-indigo-200{% endif %}">
                         <span class="text-sm">{{ c_val.icon }}</span>
                         <span>{{ c_val.name.split(' ')[0] }}</span>
@@ -335,16 +327,23 @@
                 {% endfor %}
 
                 <!-- Shop by Store Link -->
-                <a href="/stores" class="px-2.5 sm:px-3 py-1.5 rounded-xl hover:bg-slate-100 text-slate-700 hover:text-slate-900 transition flex items-center gap-1.5">
+                <a href="/stores" class="px-2.5 sm:px-3 py-1.5 rounded-xl hover:bg-slate-100 text-slate-700 hover:text-slate-900 transition flex items-center gap-1.5 shrink-0">
                     <span>🏪</span>
                     <span>Stores</span>
                 </a>
+            </div>
+
+            <!-- Right Fade + Desktop Scroll Chevron -->
+            <div id="catAisleRightFade" class="hidden md:flex items-center absolute right-2 top-0 bottom-0 z-20 pointer-events-none transition-opacity duration-200 pr-1 pl-6 bg-gradient-to-l from-white via-white/95 to-transparent">
+                <button type="button" onclick="scrollCategoryAisle(340)" aria-label="Scroll categories right" class="pointer-events-auto w-7 h-7 rounded-full bg-white border border-slate-200 shadow-md flex items-center justify-center text-slate-700 hover:text-indigo-600 hover:border-indigo-300 transition active:scale-95">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
             </div>
         </div>
     </nav>
 
     <!-- ── Main Content Area ────────────────────────────────────────────── -->
-    <div class="flex-1 w-full">
+    <div class="flex-1 w-full min-w-0 max-w-full">
         {% block content %}{% endblock %}
     </div>
 
@@ -477,7 +476,7 @@
         </div>
 
         <!-- Footer Copyright Bar -->
-        <div class="border-t border-slate-800 bg-slate-950 py-5">
+        <div class="border-t border-slate-800 bg-slate-950 pt-5 pb-20 lg:pb-5">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 text-[11px] text-slate-400">
                 <p class="leading-relaxed text-center md:text-left max-w-4xl">
                     Product prices, availability, and promotional discounts are updated in real time and subject to merchant changes.
@@ -916,12 +915,30 @@ Tracked via BudgetBy — Free Price Drop Alerts`;
 
         function copyDealLink(url) {
             const targetUrl = url || window.location.href;
-            if (navigator.clipboard) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(targetUrl).then(() => {
                     showDealNotification('🔗 Deal link copied to clipboard!', 'success');
+                }).catch(() => {
+                    fallbackCopyText(targetUrl);
                 });
             } else {
-                showDealNotification('Link copied!', 'info');
+                fallbackCopyText(targetUrl);
+            }
+        }
+
+        function fallbackCopyText(text) {
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                showDealNotification('🔗 Deal link copied to clipboard!', 'success');
+            } catch (e) {
+                prompt('Copy this link:', text);
             }
         }
 
@@ -931,22 +948,26 @@ Tracked via BudgetBy — Free Price Drop Alerts`;
             let title = card?.getAttribute('data-deal-title') || card?.querySelector('a[title]')?.getAttribute('title') || 'Deal';
             let img = card?.querySelector('img')?.getAttribute('src') || '';
             let priceText = card?.getAttribute('data-deal-price') || card?.querySelector('.font-black.text-slate-900')?.textContent?.replace(/[^\d]/g, '') || '0';
+            let mrpText = card?.getAttribute('data-deal-mrp') || '0';
+            let url = card?.getAttribute('data-deal-url') || `/deal/${productId}`;
             let platform = card?.getAttribute('data-deal-platform') || 'store';
             let product = {
                 id: productId,
                 title: title,
-                current_price: parseInt(priceText) || 0,
+                current_price: Math.round(Number(priceText)) || 0,
+                mrp: Math.round(Number(mrpText)) || 0,
+                affiliate_url: url,
                 image_url: img,
                 platform: platform
             };
             const added = toggleWatchlist(product);
             const icon = btn.querySelector('svg') || btn.querySelector('i');
             if (added) {
-                btn.classList.add('text-rose-500', 'fill-rose-500');
+                btn.classList.add('text-rose-500');
                 if (icon) icon.classList.add('fill-rose-500', 'text-rose-500');
                 showDealNotification('❤️ Saved to your Watchlist!', 'success');
             } else {
-                btn.classList.remove('text-rose-500', 'fill-rose-500');
+                btn.classList.remove('text-rose-500');
                 if (icon) icon.classList.remove('fill-rose-500', 'text-rose-500');
                 showDealNotification('Removed from Watchlist', 'info');
             }
@@ -956,17 +977,17 @@ Tracked via BudgetBy — Free Price Drop Alerts`;
         function showDealNotification(message, type) {
             const existing = document.getElementById('dealToastNotification');
             if (existing) existing.remove();
-            const bg = type === 'success' ? 'background:#059669' : type === 'error' ? 'background:#dc2626' : (type === 'info' ? 'background:#4f46e5' : 'background:#334155');
+            const bgClass = type === 'success' ? 'bg-emerald-600' : (type === 'error' ? 'bg-rose-600' : (type === 'info' ? 'bg-indigo-600' : 'bg-slate-800'));
             const toast = document.createElement('div');
             toast.id = 'dealToastNotification';
-            toast.style.cssText = `position:fixed;bottom:1.25rem;left:50%;transform:translateX(-50%);z-index:200;${bg};color:#fff;font-size:.75rem;font-weight:700;padding:.75rem 1.25rem;border-radius:1rem;box-shadow:0 4px 24px rgba(0,0,0,.18);display:flex;align-items:center;gap:.5rem;transition:opacity .3s`;
+            toast.className = `fixed bottom-20 lg:bottom-5 left-1/2 -translate-x-1/2 z-[200] ${bgClass} text-white text-xs font-bold px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2 transition-opacity duration-300 max-w-[90vw] whitespace-nowrap`;
             toast.textContent = message;
             document.body.appendChild(toast);
             const settings = getUserSettings();
             if (settings && settings.soundEnabled) {
                 playDealChime();
             }
-            setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 3500);
+            setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 3200);
         }
 
         // Watchlist System (localStorage)
@@ -1052,29 +1073,31 @@ Tracked via BudgetBy — Free Price Drop Alerts`;
 
             container.innerHTML = list.map(item => {
                 const storeCfg = STORES[item.platform?.toLowerCase()] || STORES.amazon;
+                const detailLink = item.id ? `/deal/${item.id}` : (item.affiliate_url || '#');
+                const buyLink = item.affiliate_url || (item.id ? `/api/deal/redirect/${item.id}` : '#');
                 return `
                     <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex gap-3 items-center justify-between group">
-                        <div class="w-14 h-14 rounded-lg bg-white p-1 flex items-center justify-center shrink-0 border border-slate-200 overflow-hidden">
-                            <img src="${item.image_url || '/static/placeholder.svg'}" alt="" class="w-full h-full object-contain" onerror="this.src='/static/placeholder.svg'"/>
-                        </div>
+                        <a href="${detailLink}" class="w-14 h-14 rounded-lg bg-white p-1 flex items-center justify-center shrink-0 border border-slate-200 overflow-hidden">
+                            <img src="${item.image_url || '/static/placeholder.svg'}" alt="" referrerpolicy="no-referrer" class="w-full h-full object-contain" onerror="this.onerror=null;this.src='/static/placeholder.svg'"/>
+                        </a>
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-1.5 mb-1">
-                                <span class="px-1.5 py-0.2 rounded text-[9px] font-bold ${storeCfg.badge}">${storeCfg.name}</span>
+                                <span class="px-1.5 py-0.5 rounded text-[9px] font-bold ${storeCfg.badge}">${storeCfg.name}</span>
                             </div>
-                            <a href="${item.affiliate_url || '#'}" target="_blank" rel="noopener noreferrer" class="text-xs font-bold text-slate-900 hover:text-indigo-600 line-clamp-1 block">
+                            <a href="${detailLink}" class="text-xs font-bold text-slate-900 hover:text-indigo-600 line-clamp-1 block">
                                 ${escapeHtml(item.title)}
                             </a>
                             <div class="flex items-baseline gap-2 mt-1">
-                                <span class="text-sm font-black text-slate-900 font-mono">${formatINR(item.current_price)}</span>
-                                ${item.mrp && item.mrp > item.current_price ? `<span class="text-[11px] text-slate-400 line-through font-mono">${formatINR(item.mrp)}</span>` : ''}
+                                <span class="text-sm font-black text-slate-900 tabular-nums">${formatINR(item.current_price)}</span>
+                                ${item.mrp && item.mrp > item.current_price ? `<span class="text-[11px] text-slate-400 line-through tabular-nums">${formatINR(item.mrp)}</span>` : ''}
                             </div>
                         </div>
                         <div class="flex flex-col items-end gap-1.5">
                             <button onclick="removeWatchlistItem('${item.id}')" class="text-slate-400 hover:text-rose-600 p-1 transition" title="Remove">
                                 <i data-lucide="trash-2" class="w-4 h-4"></i>
                             </button>
-                            <a href="${item.affiliate_url || '#'}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] transition">
-                                View
+                            <a href="${buyLink}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] transition whitespace-nowrap">
+                                Buy ↗
                             </a>
                         </div>
                     </div>
@@ -1136,7 +1159,8 @@ Tracked via BudgetBy — Free Price Drop Alerts`;
             activeShareDeal = deal;
             const container = document.getElementById('shareModalContent');
             const storeCfg = STORES[deal.platform?.toLowerCase()] || STORES.amazon;
-            const dealUrl = deal.affiliate_url || deal.product_url || window.location.href;
+            const isBranded = (u) => u && /fktr\.in|myntr\.it|ajiio\.in|clnk\.in|ekaro\.in|amzn\.to|tag=dealpulse/i.test(u);
+            const dealUrl = isBranded(deal.affiliate_url) ? deal.affiliate_url : ((deal.product_id || deal.id) ? `${window.location.origin}/api/deal/redirect/${deal.product_id || deal.id}` : window.location.href);
             
             container.innerHTML = `
                 <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex gap-3 items-center mb-3">
@@ -1173,7 +1197,8 @@ ${deal.title}
 
         function copyShareDealLink() {
             if (!activeShareDeal) return;
-            const url = activeShareDeal.affiliate_url || activeShareDeal.product_url || window.location.href;
+            const isBranded = (u) => u && /fktr\.in|myntr\.it|ajiio\.in|clnk\.in|ekaro\.in|amzn\.to|tag=dealpulse/i.test(u);
+            const url = isBranded(activeShareDeal.affiliate_url) ? activeShareDeal.affiliate_url : ((activeShareDeal.product_id || activeShareDeal.id) ? `${window.location.origin}/api/deal/redirect/${activeShareDeal.product_id || activeShareDeal.id}` : window.location.href);
             navigator.clipboard.writeText(url).then(() => {
                 const copyText = document.getElementById('shareCopyLinkText');
                 if (copyText) copyText.innerText = '✓ Link Copied to Clipboard!';
@@ -1193,19 +1218,94 @@ ${deal.title}
             }
         }
 
+        // Recent Search Helpers
+        function getRecentSearches() {
+            try {
+                const raw = localStorage.getItem('budgetby_recent_searches');
+                return raw ? JSON.parse(raw) : [];
+            } catch (e) { return []; }
+        }
+        function saveRecentSearch(q) {
+            const clean = (q || '').trim();
+            if (clean.length < 2) return;
+            try {
+                let list = getRecentSearches().filter(x => x.toLowerCase() !== clean.toLowerCase());
+                list.unshift(clean);
+                localStorage.setItem('budgetby_recent_searches', JSON.stringify(list.slice(0, 6)));
+            } catch (e) {}
+        }
+        function renderQuickSearchPanel() {
+            const dropdown = document.getElementById('searchSuggestionsDropdown');
+            const list = document.getElementById('searchSuggestionsList');
+            if (!dropdown || !list) return;
+            const recents = getRecentSearches();
+            const quickTags = [
+                { label: 'Under ₹499', url: '/deals?max_price=499' },
+                { label: 'Under ₹999', url: '/deals?max_price=999' },
+                { label: '70%+ Loot', url: '/deals?min_discount=70' },
+                { label: 'Smartwatches', url: '/deals?search=smartwatch' },
+                { label: 'TWS Earbuds', url: '/deals?search=earbuds' }
+            ];
+            let html = '';
+            if (recents.length > 0) {
+                html += `<div class="p-3 bg-slate-50/70">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Recent Searches</span>
+                        <button type="button" onclick="localStorage.removeItem('budgetby_recent_searches'); renderQuickSearchPanel();" class="text-[10px] font-bold text-slate-400 hover:text-rose-600">Clear</button>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5">
+                        ${recents.map(r => `<a href="/deals?search=${encodeURIComponent(r)}" class="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-indigo-400 hover:text-indigo-600 text-[11px] font-semibold text-slate-700 transition">${escapeHtml(r)}</a>`).join('')}
+                    </div>
+                </div>`;
+            }
+            html += `<div class="p-3">
+                <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-2">Trending Filters &amp; Shortcuts</div>
+                <div class="flex flex-wrap gap-1.5">
+                    ${quickTags.map(t => `<a href="${t.url}" class="px-2.5 py-1 rounded-lg bg-indigo-50/70 border border-indigo-200/70 hover:bg-indigo-100 text-[11px] font-bold text-indigo-700 transition">${t.label}</a>`).join('')}
+                </div>
+            </div>`;
+            list.innerHTML = html;
+            dropdown.classList.remove('hidden');
+        }
+
+        // Sync saved hearts across all rendered cards
+        function syncAllWatchlistHearts() {
+            const cards = document.querySelectorAll('[data-deal-id]');
+            cards.forEach(card => {
+                const pid = card.getAttribute('data-deal-id');
+                if (!pid) return;
+                const saved = isInWatchlist(pid);
+                const btn = card.querySelector('[title="Save to Watchlist"]');
+                if (!btn) return;
+                const icon = btn.querySelector('svg') || btn.querySelector('i');
+                if (saved) {
+                    btn.classList.add('text-rose-500');
+                    if (icon) icon.classList.add('fill-rose-500', 'text-rose-500');
+                } else {
+                    btn.classList.remove('text-rose-500');
+                    if (icon) icon.classList.remove('fill-rose-500', 'text-rose-500');
+                }
+            });
+        }
+
         // Search Autocomplete & Keyboard Hotkey
         let searchDebounceTimer = null;
         document.addEventListener('DOMContentLoaded', () => {
             if (window.lucide) lucide.createIcons();
             updateWatchlistBadge();
+            syncAllWatchlistHearts();
+            window.addEventListener('budgetby:watchlistUpdated', syncAllWatchlistHearts);
 
             const searchInput = document.getElementById('globalSearchInput');
             const suggestionsDropdown = document.getElementById('searchSuggestionsDropdown');
             const clearBtn = document.getElementById('globalSearchClearBtn');
+            if (searchInput && clearBtn && searchInput.value.trim().length > 0) {
+                clearBtn.classList.remove('hidden');
+            }
 
             // '/' Hotkey to focus search
             document.addEventListener('keydown', (e) => {
-                if (e.key === '/' && document.activeElement !== searchInput && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                if (e.key === '/' && document.activeElement !== searchInput && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
                     e.preventDefault();
                     searchInput?.focus();
                 }
@@ -1214,6 +1314,7 @@ ${deal.title}
                     closeWatchlistDrawer();
                     closeShareModal();
                     closeReviewModal();
+                    closeMobileCategoryDrawer();
                 }
             });
 
@@ -1223,7 +1324,8 @@ ${deal.title}
                     if (clearBtn) clearBtn.classList.toggle('hidden', q.length === 0);
                     
                     if (q.length < 2) {
-                        suggestionsDropdown?.classList.add('hidden');
+                        if (q.length === 0) renderQuickSearchPanel();
+                        else suggestionsDropdown?.classList.add('hidden');
                         return;
                     }
 
@@ -1239,8 +1341,11 @@ ${deal.title}
                 });
 
                 searchInput.addEventListener('focus', () => {
-                    if (searchInput.value.trim().length >= 2) {
+                    const q = searchInput.value.trim();
+                    if (q.length >= 2) {
                         suggestionsDropdown?.classList.remove('hidden');
+                    } else if (q.length === 0) {
+                        renderQuickSearchPanel();
                     }
                 });
 
@@ -1249,6 +1354,7 @@ ${deal.title}
                         const q = searchInput.value.trim();
                         if (q.length > 0) {
                             e.preventDefault();
+                            saveRecentSearch(q);
                             suggestionsDropdown?.classList.add('hidden');
                             if (window.location.pathname === '/deals' && typeof loadDeals === 'function') {
                                 const searchForm = document.getElementById('globalSearchForm');
@@ -1269,7 +1375,7 @@ ${deal.title}
                         searchInput.value = '';
                         searchInput.focus();
                         clearBtn.classList.add('hidden');
-                        suggestionsDropdown?.classList.add('hidden');
+                        renderQuickSearchPanel();
                     }
                 });
             }
@@ -1384,13 +1490,37 @@ ${deal.title}
             });
 
             const categoryRow = document.getElementById('categoryAisleRow');
+            const leftFade = document.getElementById('catAisleLeftFade');
+            const rightFade = document.getElementById('catAisleRightFade');
+
+            function updateAisleControls() {
+                if (!categoryRow) return;
+                const sl = categoryRow.scrollLeft;
+                const maxScroll = categoryRow.scrollWidth - categoryRow.clientWidth;
+                if (leftFade) {
+                    leftFade.classList.toggle('opacity-0', sl <= 10);
+                    leftFade.classList.toggle('pointer-events-none', sl <= 10);
+                }
+                if (rightFade) {
+                    rightFade.classList.toggle('opacity-0', maxScroll <= 10 || sl >= maxScroll - 10);
+                }
+            }
+
+            window.scrollCategoryAisle = function(delta) {
+                if (!categoryRow) return;
+                categoryRow.scrollBy({ left: delta, behavior: 'smooth' });
+            };
+
             if (categoryRow) {
                 categoryRow.addEventListener('scroll', () => {
                     if (currentOpenMenu) {
                         currentOpenMenu.classList.add('hidden');
                         currentOpenMenu = null;
                     }
+                    updateAisleControls();
                 }, { passive: true });
+                window.addEventListener('resize', updateAisleControls, { passive: true });
+                setTimeout(updateAisleControls, 80);
             }
             window.addEventListener('scroll', () => {
                 if (currentOpenMenu) {
@@ -1427,7 +1557,12 @@ ${deal.title}
 
         function formatInrGlobal(num) {
             if (num === null || num === undefined || isNaN(num)) return '0';
-            return Number(num).toLocaleString('en-IN');
+            return Math.round(Number(num)).toLocaleString('en-IN');
+        }
+
+        function formatNumGlobal(num) {
+            if (num === null || num === undefined || isNaN(num)) return '0';
+            return Math.round(Number(num)).toLocaleString('en-IN');
         }
 
         function escapeHtmlGlobal(str) {
@@ -1442,13 +1577,13 @@ ${deal.title}
 
         function createSkeletonCardHtml(widthClass = 'w-56 sm:w-64') {
             return `
-                <div class="${widthClass} shrink-0 skeleton-card p-3 sm:p-3.5 flex flex-col justify-between">
+                <div class="${widthClass} shrink-0 skeleton-card p-2.5 sm:p-3.5 flex flex-col justify-between">
                     <div>
                         <div class="flex items-center justify-between gap-1.5 mb-2.5">
                             <div class="h-4 w-16 rounded-md shimmer-box"></div>
                             <div class="h-4 w-20 rounded-md shimmer-box"></div>
                         </div>
-                        <div class="w-full h-36 sm:h-44 rounded-xl shimmer-box mb-2.5"></div>
+                        <div class="w-full h-32 sm:h-44 rounded-xl shimmer-box mb-2.5"></div>
                         <div class="flex items-center justify-between mb-2">
                             <div class="h-3 w-12 rounded shimmer-box"></div>
                             <div class="h-3 w-14 rounded shimmer-box"></div>
@@ -1469,75 +1604,80 @@ ${deal.title}
             `;
         }
 
-        function createProductCardHtml(deal, widthClass = '') {
+        function createProductCardHtml(deal, options = '') {
+            const opts = (typeof options === 'string') ? { widthClass: options } : (options || {});
+            const widthClass = opts.widthClass || '';
+            const theme = opts.theme || 'default';
+            const showCheckPrice = Boolean(opts.showCheckPrice);
+
             const store = (deal.platform || 'store').toLowerCase();
             const storeCfg = GLOBAL_STORES[store] || { name: (deal.platform || 'Store').toUpperCase(), badge: 'bg-slate-50 text-slate-700 border border-slate-200' };
-            const cp = deal.current_price || deal.deal_price || deal.posted_price || 0;
-            const mrp = deal.mrp || deal.posted_mrp || 0;
+            const cp = Math.round(Number(deal.current_price || deal.deal_price || deal.posted_price || 0));
+            const mrp = Math.round(Number(deal.mrp || deal.posted_mrp || 0));
             const hasDiscount = mrp > cp;
             const discPct = hasDiscount ? Math.round(((mrp - cp) / mrp) * 100) : Math.round(deal.discount_pct || deal.discount_percent || 0);
+            const dropPct = Math.round(deal.drop_pct || deal.drop_percent || 0);
+            const savings = hasDiscount ? (mrp - cp) : Math.round(Number(deal.savings_amount || 0));
             const pid = deal.product_id || deal.id || 0;
             const isAtl = deal.is_atl || (deal.all_time_low && cp <= (deal.all_time_low * 1.02));
+            const inStock = deal.in_stock !== false;
             const safeTitle = escapeHtmlGlobal(deal.title || 'Product Deal');
             const rawAff = deal.affiliate_url || '';
-            const rawProd = deal.product_url || '';
-            const buyUrl = (rawAff && rawAff !== rawProd) ? rawAff : (pid ? `/api/deal/redirect/${pid}` : (rawAff || '#'));
+            const isBrandedAff = (u) => u && /fktr\.in|myntr\.it|ajiio\.in|clnk\.in|ekaro\.in|amzn\.to|tag=dealpulse/i.test(u);
+            const buyUrl = isBrandedAff(rawAff) ? rawAff : (pid ? `/api/deal/redirect/${pid}` : (rawAff || '#'));
             const dealDetailUrl = pid ? `/deal/${pid}` : buyUrl;
-            const rating = deal.rating || 0;
-            const reviews = deal.review_count || 0;
+            const rating = Number(deal.rating || 0);
+            const reviews = Number(deal.review_count || 0);
             const badge = deal.badge || '';
+            const inWatch = isInWatchlist(pid);
+
+            let topBadgeHtml = '';
+            if (theme === 'drops' && dropPct > 0) {
+                topBadgeHtml = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200/90 whitespace-nowrap"><span>⚡</span> -${dropPct}% DROP</span>`;
+            } else if (theme === 'atl' || isAtl) {
+                topBadgeHtml = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-extrabold bg-amber-50 text-amber-900 border border-amber-200/90 whitespace-nowrap"><span>👑</span> Lowest Ever</span>`;
+            } else if (discPct >= 60) {
+                topBadgeHtml = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200/90 whitespace-nowrap"><span>🔥</span> ${discPct}% OFF</span>`;
+            } else if (badge === 'PRICE DROP' || badge === 'PRICE_DROP' || dropPct >= 10) {
+                topBadgeHtml = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/90 whitespace-nowrap"><span>⚡</span> Price Drop</span>`;
+            } else {
+                topBadgeHtml = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-semibold bg-slate-50 text-slate-600 border border-slate-200 whitespace-nowrap"><span>✓</span> Verified</span>`;
+            }
+
+            const borderHover = theme === 'drops' ? 'hover:border-rose-400/90' : (theme === 'atl' ? 'hover:border-amber-400/90' : 'hover:border-indigo-400/90');
+            const ctaBg = theme === 'drops' ? 'bg-slate-900 hover:bg-rose-600' : (theme === 'atl' ? 'bg-slate-900 hover:bg-amber-600' : 'bg-slate-900 hover:bg-indigo-600');
+            const timeLabel = deal.deal_time || deal.last_price_change || deal.posted_at ? formatTimeAgo(deal.deal_time || deal.last_price_change || deal.posted_at) : '';
 
             return `
                 <div data-deal-id="${pid}"
                      data-deal-price="${cp}"
+                     data-deal-mrp="${mrp}"
                      data-deal-title="${safeTitle}"
                      data-deal-url="${buyUrl}"
                      data-deal-platform="${store}"
-                     class="${widthClass} bg-white border border-slate-200/85 hover:border-indigo-400/90 rounded-2xl p-3 sm:p-3.5 flex flex-col justify-between transition-all duration-200 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 group relative">
+                     class="${widthClass} bg-white border border-slate-200/85 ${borderHover} rounded-2xl p-2.5 sm:p-3.5 flex flex-col justify-between transition-all duration-200 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 group relative ${!inStock ? 'opacity-65 grayscale' : ''}">
+                    ${!inStock ? '<div class="absolute inset-0 bg-white/45 z-20 rounded-2xl pointer-events-none flex items-center justify-center"><span class="bg-slate-900 text-white px-3 py-1 rounded-full font-black tracking-widest text-[10px] uppercase shadow-xl border border-white">Out of Stock</span></div>' : ''}
                     <div>
-                        <div class="flex items-center justify-between gap-1.5 mb-2">
-                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider ${storeCfg.badge}">
+                        <div class="flex items-center justify-between gap-1 mb-2 min-w-0">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider truncate ${storeCfg.badge}">
                                 ${storeCfg.name}
                             </span>
-                            ${isAtl ? `
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-amber-50 text-amber-900 border border-amber-200/90 shadow-2xs">
-                                    <span>👑</span> Lowest Ever
-                                </span>
-                            ` : (discPct >= 60 ? `
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200/90 shadow-2xs">
-                                    <span>🔥</span> ${discPct}% OFF
-                                </span>
-                            ` : (badge === 'PRICE DROP' || badge === 'PRICE_DROP' ? `
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/90 shadow-2xs">
-                                    <span>⚡</span> Price Drop
-                                </span>
-                            ` : `
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-50 text-slate-600 border border-slate-200">
-                                    <span>✓</span> Verified Deal
-                                </span>
-                            `))}
+                            ${topBadgeHtml}
                         </div>
 
-                        <div class="relative w-full h-36 sm:h-44 rounded-xl bg-gradient-to-b from-slate-50/70 to-white p-2 flex items-center justify-center overflow-hidden border border-slate-100">
+                        <div class="relative w-full h-32 sm:h-44 rounded-xl bg-gradient-to-b from-slate-50/80 to-white p-2 flex items-center justify-center overflow-hidden border border-slate-100">
                             <a href="${dealDetailUrl}" class="w-full h-full flex items-center justify-center">
                                 <img src="${deal.image_url || '/static/placeholder.svg'}"
                                      alt="${safeTitle}"
+                                     referrerpolicy="no-referrer"
                                      class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                                      loading="lazy"
                                      decoding="async"
+                                     onload="if(this.naturalWidth<=2 && !this.dataset.fb){this.dataset.fb='1';this.src='/static/placeholder.svg';}"
                                      onerror="this.onerror=null;this.src='/static/placeholder.svg'" />
                             </a>
-                            ${isAtl ? `
-                                <span class="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[9px] font-extrabold bg-amber-500 text-slate-950 uppercase tracking-wide shadow-sm flex items-center gap-0.5">
-                                    <span>👑</span> ATL
-                                </span>
-                            ` : (discPct >= 60 ? `
-                                <span class="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[9px] font-extrabold bg-rose-600 text-white uppercase tracking-wide shadow-sm flex items-center gap-0.5">
-                                    <span>🔥</span> LOOT
-                                </span>
-                            ` : '')}
 
-                            <div class="absolute top-2 right-2 flex items-center gap-1 z-10">
+                            <div class="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 flex items-center gap-1 z-10">
                                 <button type="button"
                                         onclick="event.stopPropagation(); shareDealWhatsApp('${safeTitle.replace(/'/g, "\\'")}', '${cp}', '${buyUrl}', '${storeCfg.name}')"
                                         class="p-1.5 rounded-xl bg-white/95 backdrop-blur-md border border-slate-200 text-slate-400 hover:text-emerald-600 hover:border-emerald-200 hover:scale-110 active:scale-95 transition shadow-xs"
@@ -1546,26 +1686,27 @@ ${deal.title}
                                 </button>
                                 <button type="button"
                                         onclick="event.stopPropagation(); handleHomeWatchlist(this, ${pid})"
-                                        class="p-1.5 rounded-xl bg-white/95 backdrop-blur-md border border-slate-200 text-slate-400 hover:text-rose-500 hover:border-rose-200 hover:scale-110 active:scale-95 transition shadow-xs"
+                                        class="p-1.5 rounded-xl bg-white/95 backdrop-blur-md border border-slate-200 ${inWatch ? 'text-rose-500' : 'text-slate-400'} hover:text-rose-500 hover:border-rose-200 hover:scale-110 active:scale-95 transition shadow-xs"
                                         title="Save to Watchlist">
-                                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                                    <svg class="w-3.5 h-3.5 ${inWatch ? 'fill-rose-500 text-rose-500' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
                                 </button>
                             </div>
                         </div>
 
-                        <div class="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+                        <div class="mt-2 flex items-center justify-between gap-1 text-[10px] sm:text-[11px] text-slate-500">
                             ${rating > 0 ? `
                                 <span class="inline-flex items-center gap-1 font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/70">
-                                    <span class="text-amber-500">★</span> ${rating.toFixed(1)} ${reviews > 0 ? `<span class="text-slate-400 font-medium">(${reviews})</span>` : ''}
+                                    <span class="text-amber-500">★</span> ${rating.toFixed(1)}${reviews > 0 ? ` <span class="text-slate-400 font-medium">(${formatNumGlobal(reviews)})</span>` : ''}
                                 </span>
                             ` : `
                                 <span class="text-slate-400 text-[10px] font-medium flex items-center gap-1">
                                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Live Deal
                                 </span>
                             `}
+                            ${timeLabel ? `<span class="text-[10px] text-slate-400 font-medium truncate">${timeLabel}</span>` : ''}
                         </div>
 
-                        <div class="mt-1.5">
+                        <div class="mt-1.5 min-h-[2.25rem] sm:min-h-[2.5rem]">
                             <a href="${dealDetailUrl}"
                                class="text-xs sm:text-sm font-semibold text-slate-900 group-hover:text-indigo-600 line-clamp-2 break-words transition leading-snug tracking-tight"
                                title="${safeTitle}">
@@ -1574,26 +1715,40 @@ ${deal.title}
                         </div>
                     </div>
 
-                    <div class="mt-3 pt-2.5 border-t border-slate-100">
+                    <div class="mt-2.5 sm:mt-3 pt-2 sm:pt-2.5 border-t border-slate-100">
                         <div class="flex items-baseline justify-between gap-1 mb-1.5">
                             <div class="flex items-baseline gap-1.5 flex-wrap">
-                                <span class="text-lg sm:text-xl font-black text-slate-900 tracking-tight tabular-nums">₹${formatInrGlobal(cp)}</span>
-                                ${hasDiscount ? `<span class="text-xs text-slate-400 line-through font-medium tabular-nums">₹${formatInrGlobal(mrp)}</span>` : ''}
+                                <span class="text-base sm:text-xl font-black text-slate-900 tracking-tight tabular-nums">₹${formatInrGlobal(cp)}</span>
+                                ${hasDiscount ? `<span class="text-[11px] sm:text-xs text-slate-400 line-through font-medium tabular-nums">₹${formatInrGlobal(mrp)}</span>` : ''}
+                                ${discPct > 0 ? `<span class="text-[10px] sm:text-xs font-black text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200/60 tabular-nums">${discPct}% OFF</span>` : ''}
                             </div>
-                            ${discPct > 0 ? `
-                                <span class="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-rose-50 text-rose-600 shrink-0">
-                                    -${discPct}%
-                                </span>
-                            ` : ''}
                         </div>
 
-                        <div class="flex items-center gap-1.5 mt-2">
-                            <a href="${buyUrl}" target="_blank" rel="noopener noreferrer"
-                               class="flex-1 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center justify-center gap-1 shadow-sm shadow-indigo-600/20 hover:scale-[1.02] active:scale-[0.98] transition">
-                                <span>Get Deal</span>
-                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                            </a>
-                        </div>
+                        ${savings > 0 ? `
+                        <div class="mb-2 text-[10px] sm:text-[11px] font-bold text-emerald-800 bg-emerald-50/80 px-2 py-0.5 rounded-md border border-emerald-200/60 flex items-center justify-between">
+                            <span>You Save:</span>
+                            <span class="font-extrabold text-emerald-700 tabular-nums">₹${formatInrGlobal(savings)}</span>
+                        </div>` : ''}
+
+                        ${buyUrl && buyUrl !== '#' ? `
+                        <a href="${buyUrl}" target="_blank" rel="noopener noreferrer"
+                           class="w-full py-2 sm:py-2.5 px-2.5 sm:px-3 rounded-xl ${ctaBg} active:scale-[0.98] text-white font-extrabold text-[11px] sm:text-sm flex items-center justify-center gap-1.5 transition duration-150 shadow-sm shadow-slate-900/10 whitespace-nowrap">
+                            <span>Shop on ${storeCfg.name}</span>
+                            <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        </a>` : `
+                        <div class="w-full py-2 sm:py-2.5 px-3 rounded-xl bg-slate-100 text-slate-400 font-bold text-xs flex items-center justify-center gap-1.5 cursor-not-allowed">
+                            <span>Price Tracked</span>
+                        </div>`}
+
+                        ${showCheckPrice ? `
+                        <div class="mt-2 flex items-center justify-between text-[10px] text-slate-400 pt-1.5 border-t border-slate-50 gap-1">
+                            <a href="${dealDetailUrl}" class="text-[10px] font-semibold text-indigo-600 hover:underline truncate">Price History ↗</a>
+                            <button type="button" onclick="handleSendForReview(${pid}, '${safeTitle.replace(/'/g, "\\'")}', '${buyUrl.replace(/'/g, "\\'")}', ${cp})"
+                                    class="font-medium text-slate-500 hover:text-indigo-600 transition flex items-center gap-1 shrink-0">
+                                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+                                <span>Check Price</span>
+                            </button>
+                        </div>` : ''}
                     </div>
                 </div>
             `;
